@@ -48,9 +48,6 @@ merge %default_flags, %use_defaults_flags;
 %all_flags = %default_flags;
 merge %all_flags, %make_conf_flags;
 
-for(keys %use_masked_flags)
-{ delete $all_flags{$_} if $use_masked_flags{$_} and exists $all_flags{$_} }
-
 sub have_package($) {
 	my ($cp) = @_;
 	return $packages{$cp};
@@ -203,6 +200,7 @@ sub read_profiles() {
 			splice @profiles, $i, 0, norm_path $profiles[$i], $_;
 		}
 	}
+	push @profiles, '/etc/portage/profile';
 }
 
 sub read_sh($) {
@@ -273,7 +271,15 @@ sub read_use_mask() {
 	for my $dir(@profiles) {
 		for(noncomments "$dir/use.mask") {
 			my $off = s/^-//;
-			$use_masked_flags{$_} = !$off;
+			$use_masked_flags{$_} = { '' => !$off };
+		}
+		for(noncomments "$dir/package.use.mask") {
+			my($pkg, @flags) = split;
+			for(@flags) {
+				my $off = s/^-//;
+				$use_masked_flags{$_}{''} ||= 0;
+				$use_masked_flags{$_}{$pkg} = !$off;
+			}
 		}
 	}
 }

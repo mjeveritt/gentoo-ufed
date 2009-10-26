@@ -25,16 +25,23 @@ delete @use_descriptions{qw(bootstrap build)};
 
 $Portage::make_conf_flags{'-*'} = 1 if defined $Portage::make_conf_flags{'*'} && !$Portage::make_conf_flags{'*'};
 
-Portage::merge %Portage::use_masked_flags, %Portage::archs;
-
 for(keys %Portage::all_flags) {
 	@{$use_descriptions{$_}} = "(Unknown)"
 	if not exists $use_descriptions{$_};
 }
 @{$use_descriptions{'-*'}} = 'Never enable any flags other than those specified in /etc/make.conf';
 
+for(@Portage::archs) {
+	delete $Portage::default_flags{$_};
+	delete $Portage::all_flags{$_};
+	delete $use_descriptions{$_};
+}
 for(keys %Portage::use_masked_flags) {
-	if($Portage::use_masked_flags{$_}) {
+	my $masked = 1;
+	for(values %{$Portage::use_masked_flags{$_}}) {
+		last if not($masked &&= $_);
+	}
+	if($masked) {
 		delete $Portage::default_flags{$_};
 		delete $Portage::all_flags{$_};
 		delete $use_descriptions{$_};
