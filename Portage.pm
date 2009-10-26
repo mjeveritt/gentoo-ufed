@@ -198,10 +198,9 @@ sub read_profiles() {
 	$_ = readlink '/etc/make.profile';
 	die "/etc/make.profile is not a symlink\n" if not defined $_;
 	@profiles = norm_path '/etc', $_;
-	PARENT: {
-		for(noncomments "$profiles[0]/parent") {
-			unshift @profiles, norm_path $profiles[0], $_;
-			redo PARENT;
+	for (my $i = -1; $i >= -@profiles; $i--) {
+		for(noncomments "$profiles[$i]/parent") {
+			splice @profiles, $i, 0, norm_path $profiles[$i], $_;
 		}
 	}
 }
