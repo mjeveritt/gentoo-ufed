@@ -40,13 +40,25 @@ read_make_globals;
 read_make_defaults;
 read_make_conf;
 read_archs;
-read_use_descs;
 
-%default_flags = %make_defaults_flags;
-merge %default_flags, %use_defaults_flags;
-
-%all_flags = %default_flags;
-merge %all_flags, %make_conf_flags;
+my $lastorder;
+for(reverse split /:/, $environment{USE_ORDER} || "env:pkg:conf:auto:defaults") {
+	if($_ eq 'defaults') {
+		merge %default_flags, %make_defaults_flags;
+		merge %all_flags, %make_defaults_flags;
+	} elsif($_ eq 'auto') {
+		merge %default_flags, %use_defaults_flags;
+		merge %all_flags, %use_defaults_flags;
+	} elsif($_ eq 'conf') {
+		merge %all_flags, %make_conf_flags;
+	} else {
+		next;
+	}
+	$lastorder = $_;
+}
+if($lastorder ne 'conf') {
+	die "Sorry, USE_ORDER without make.conf overriding global USE flags are not currently supported by ufed.\n";
+}
 
 sub have_package($) {
 	my ($cp) = @_;
