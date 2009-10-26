@@ -140,12 +140,12 @@ sub save_flags(@) {
 		[ \n\t]+ |
 		\#[ \t]*USE[ \t]*=.*(\n?) | # place capture after USE=... line
 		\#.*)+}x;
-	my $IDENT = qr{([^ \\\n\t'"{}=]+)};             # identifiers
+	my $IDENT = qr{([^ \\\n\t'"{}=#]+)};            # identifiers
 	my $ASSIG = qr{=};                              # assignment operator
-	my $UQVAL = qr{(?:[^ \\\n\t'"]+|\\.)+}s;        # unquoted value
+	my $UQVAL = qr{(?:[^ \\\n\t'"#]+|\\.)+}s;       # unquoted value
 	my $SQVAL = qr{'[^']*'};                        # singlequoted value
 	my $DQVAL = qr{"(?:[^\\"]|\\.)*"}s;             # doublequoted value
-	my $BNUQV = qr{(?:[^ \\\n\t'"]+|\\\n()|\\.)+}s; # unquoted value (scan for \\\n)
+	my $BNUQV = qr{(?:[^ \\\n\t'"#]+|\\\n()|\\.)+}s;# unquoted value (scan for \\\n)
 	my $BNDQV = qr{"(?:[^\\"]|\\\n()|\\.)*"}s;      # doublequoted value (scan for \\\n)
 
 	my (@flags) = @_;

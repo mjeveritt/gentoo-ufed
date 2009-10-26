@@ -208,9 +208,9 @@ sub read_profiles() {
 
 sub read_sh($) {
 	my $BLANK = qr{(?:[ \n\t]+|#.*)+};         # whitespace and comments
-	my $IDENT = qr{([^ \\\n\t'"{}=]+)};        # identifiers
+	my $IDENT = qr{([^ \\\n\t'"{}=#]+)};       # identifiers
 	my $ASSIG = qr{=};                         # assignment operator
-	my $UQVAL = qr{((?:[^ \\\n\t'"]+|\\.)+)}s; # unquoted value
+	my $UQVAL = qr{((?:[^ \\\n\t'"#]+|\\.)+)}s;# unquoted value
 	my $SQVAL = qr{'([^']*)'};                 # singlequoted value
 	my $DQVAL = qr{"((?:[^\\"]|\\.)*)"}s;      # doublequoted value
 
