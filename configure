@@ -1,0 +1,20 @@
+#!/bin/sh
+CC="${CC-cc}"
+case "$(${CC} -v 2>&1)" in
+*"gcc version 2."*)
+	CFLAGS="-ansi -pedantic -Wall -W ";;
+*"gcc version 3."[0-3]*)
+	CFLAGS="-std=c99 -pedantic -Wall -W ";;
+*"gcc version"*)
+	CFLAGS="-std=c99 -pedantic -Wall -Wextra ";;
+*)
+	case "$(${CC} --version 2>&1)" in
+	*"(ICC)"*)
+		# 981: unspecified order of evaluation
+		CFLAGS="-c99 -strict-ansi -Wall -wd981 ";;
+	*)
+		CFLAGS="";;
+	esac
+esac
+sed -e "s/\$(CFLAGS).*-D/\$(CFLAGS) ${CFLAGS}-D/" Makefile > Makefile.tmp &&
+mv -f Makefile.tmp Makefile

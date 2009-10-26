@@ -1,0 +1,564 @@
+#include "ufed-curses.h"
+
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <locale.h>
+
+struct window window[wCount] = {
+	{ NULL,  0,  0,  5,  0 }, /* Top       */
+	{ NULL,  5,  0, -8,  3 }, /* Left      */
+	{ NULL,  5,  3, -9, -6 }, /* List      */
+	{ NULL, -4,  3,  1, -6 }, /* Input     */
+	{ NULL,  5, -3, -8,  1 }, /* Scrollbar */
+	{ NULL,  5, -2, -8,  2 }, /* Right     */
+	{ NULL, -3,  0,  3,  0 }, /* Bottom    */
+};
+
+static const char *subtitle;
+
+static const struct key *keys;
+
+static struct item *items, *currentitem;
+int topy, minheight, minwidth;
+
+static void checktermsize(void);
+
+void initcurses(void) {
+	setlocale(LC_CTYPE, "");
+	initscr();
+	start_color();
+	cbreak();
+	noecho();
+	keypad(stdscr, TRUE);
+	init_pair(1, COLOR_CYAN, COLOR_BLUE);
+	init_pair(2, COLOR_WHITE, COLOR_WHITE);
+	init_pair(3, COLOR_BLACK, COLOR_WHITE);
+	init_pair(4, COLOR_RED, COLOR_WHITE);
+#ifdef NCURSES_MOUSE_VERSION
+	mousemask(BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED | BUTTON1_PRESSED | BUTTON1_RELEASED, NULL);
+#endif
+	checktermsize();
+	{ enum win w; for(w = (enum win) 0; w != wCount; w++) {
+		window[w].win = newwin(wHeight(w), wWidth(w), wTop(w), wLeft(w));
+	} }
+}
+
+void cursesdone(void) {
+	enum win w;
+	for(w = (enum win) 0; w != wCount; w++)
+		delwin(window[w].win);
+	endwin();
+}
+
+static void checktermsize(void) {
+	while(wHeight(List) < minheight
+	   || wWidth(List)  < minwidth) {
+#ifdef KEY_RESIZE
+		clear();
+		attrset(0);
+		mvaddstr(0, 0, "Your screen is too small. Press Ctrl+C to exit.");
+		while(getch()!=KEY_RESIZE) {}
+#else
+		cursesdone();
+		fputs("Your screen is too small.\n", stderr);
+		exit(-1);
+#endif
+	}
+}
+
+static void (*drawitem)(struct item *, bool);
+
+static void drawitems(void) {
+	struct item *item;
+	int y;
+
+	item = currentitem;
+	while((y=item->top-topy) > 0)
+		item = item->prev;
+
+	for(;;) {
+		if(item!=currentitem)
+			(*drawitem)(item, FALSE);
+		y += item->height;
+		item = item->next;
+		if(y>=wHeight(List))
+			break;
+		if(item==items) {
+#if C99
+			char buf[wWidth(List)];
+#else
+			char *buf = __builtin_alloca(wWidth(List));
+#endif
+			memset(buf, ' ', wWidth(List));
+			buf[wWidth(List)] = '\0';
+			wmove(win(List), y, 0);
+			wattrset(win(List), COLOR_PAIR(3));
+			while(y++ < wHeight(List))
+				waddstr(win(List), buf);
+			break;
+		}
+	}
+	(*drawitem)(currentitem, TRUE);
+	wnoutrefresh(win(List));
+}
+
+static void drawscrollbar(void) {
+	WINDOW *w = win(Scrollbar);
+	wattrset(w, COLOR_PAIR(3) | A_BOLD);
+	mvwaddch(w, 0, 0, ACS_UARROW);
+	wvline(w, ACS_CKBOARD, wHeight(Scrollbar)-3);
+	mvwaddch(w, 1+(wHeight(Scrollbar)-3)*topy/(items->prev->top+items->prev->height-(wHeight(List)-1)), 0, ACS_BLOCK);
+	mvwaddch(w, wHeight(Scrollbar)-2, 0, ACS_DARROW);
+	mvwaddch(w, wHeight(Scrollbar)-1, 0, ACS_VLINE);
+	wnoutrefresh(w);
+}
+
+static void draw(void) {
+#if C99
+	char buf[COLS+1];
+#else
+	char *buf = __builtin_alloca(COLS+1);
+#endif
+	WINDOW *w;
+
+	wnoutrefresh(stdscr);
+
+	w = win(Top);
+
+	wattrset(w, COLOR_PAIR(1) | A_BOLD);
+	sprintf(buf, "%-*.*s", wWidth(Top), wWidth(Top), "Gentoo USE flags editor 0.40");
+	mvwaddstr(w, 0, 0, buf);
+
+	whline(w, ACS_HLINE, wWidth(Top));
+
+	wattrset(w, COLOR_PAIR(2) | A_BOLD);
+	mvwaddch(w, 2, 0, ACS_ULCORNER);
+	whline(w, ACS_HLINE, wWidth(Top)-2);
+	mvwaddch(w, 2, wWidth(Top)-1, ACS_URCORNER);
+
+	waddch(w, ACS_VLINE);
+	wattrset(w, COLOR_PAIR(3));
+	sprintf(buf, " %-*.*s ", wWidth(Top)-4, wWidth(Top)-4, subtitle);
+	waddstr(w, buf);
+	wattrset(w, COLOR_PAIR(2) | A_BOLD);
+	waddch(w, ACS_VLINE);
+
+	/* maybe this should be based on List? */
+	waddch(w, ACS_VLINE);
+	wattrset(w, COLOR_PAIR(3));
+	waddch(w, ' ');
+	waddch(w, ACS_ULCORNER);
+	whline(w, ACS_HLINE, wWidth(Top)-6);
+	mvwaddch(w, 4, wWidth(Top)-3, ACS_URCORNER);
+	waddch(w, ' ');
+	wattrset(w, COLOR_PAIR(2) | A_BOLD);
+	waddch(w, ACS_VLINE);
+
+	wnoutrefresh(w);
+
+	w = win(Left);
+	wattrset(w, COLOR_PAIR(2) | A_BOLD);
+	mvwvline(w, 0, 0, ACS_VLINE, wHeight(Left));
+	wattrset(w, COLOR_PAIR(3));
+	mvwvline(w, 0, 1, ' ',       wHeight(Left));
+	mvwvline(w, 0, 2, ACS_VLINE, wHeight(Left));
+	wnoutrefresh(w);
+
+	w = win(Right);
+	wattrset(w, COLOR_PAIR(2) | A_BOLD);
+	mvwvline(w, 0, 0, ' ',       wHeight(Right));
+	mvwvline(w, 0, 1, ACS_VLINE, wHeight(Right));
+	wnoutrefresh(w);
+
+	w = win(Bottom);
+
+	wattrset(w, COLOR_PAIR(2) | A_BOLD);
+	mvwaddch(w, 0, 0, ACS_VLINE);
+	wattrset(w, COLOR_PAIR(3));
+	waddch(w, ' ');
+	waddch(w, ACS_LLCORNER);
+	whline(w, ACS_HLINE, wWidth(Bottom)-6);
+	mvwaddch(w, 0, wWidth(Bottom)-3, ACS_LRCORNER);
+	waddch(w, ' ');
+	wattrset(w, COLOR_PAIR(2) | A_BOLD);
+	waddch(w, ACS_VLINE);
+
+	waddch(w, ACS_VLINE);
+	wattrset(w, COLOR_PAIR(3));
+	{
+		char *p = buf;
+		const struct key *key;
+		*p++ = ' ';
+		for(key=keys; key->key!='\0'; key++) {
+			int n = (buf+wWidth(Bottom)-3) - p;
+			if(n > key->length)
+				n = key->length;
+			memcpy(p, key->descr, n);
+			p += n;
+			*p++ = ' ';
+			if(p == buf+wWidth(Bottom)-3)
+				break;
+		}
+		memset(p, ' ', buf+wWidth(Bottom)-2-p);
+		buf[wWidth(Bottom)-2] = '\0';
+	}
+	waddstr(w, buf);
+	wattrset(w, COLOR_PAIR(2) | A_BOLD);
+	waddch(w, ACS_VLINE);
+
+	waddch(w, ACS_LLCORNER);
+	whline(w, ACS_HLINE, wWidth(Bottom)-2);
+	mvwhline(w, 2, wWidth(Bottom)-1, ACS_LRCORNER, 1);
+
+	wnoutrefresh(w);
+
+	w = win(Input);
+	wattrset(w, COLOR_PAIR(3));
+	mvwhline(w, 0, 0, ' ', wWidth(Input));
+	wnoutrefresh(w);
+
+	drawitems();
+	drawscrollbar();
+
+	wrefresh(win(List));
+}
+
+void scrollcurrent(void) {
+	int oldtopy = topy;
+	if(currentitem->top < topy)
+		topy = currentitem->top;
+	else if(currentitem->top+currentitem->height > topy+wHeight(List))
+		topy = currentitem->top+currentitem->height-wHeight(List);
+	else
+		return;
+	if(abs(topy-oldtopy)>wHeight(List)) {
+		drawitems();
+	} else {
+		struct item *item = currentitem;
+		scrollok(win(List), TRUE);
+		wscrl(win(List), topy-oldtopy);
+		scrollok(win(List), FALSE);
+		if(topy<oldtopy)
+			while((item=item->next)!=items
+			 && item->top < oldtopy
+			 && item->top < topy + wHeight(List))
+				(*drawitem)(item, FALSE);
+		else
+			while((item=item->prev)->next!=items
+			 && item->top > oldtopy
+			 && item->top + item->height-1 >= topy)
+				(*drawitem)(item, FALSE);
+		mvwhline(win(List), wHeight(List), 0, ' ', wWidth(List));
+	}
+	drawscrollbar();
+}
+
+bool yesno(const char *prompt) {
+	wattrset(win(Input), COLOR_PAIR(4) | A_BOLD | A_REVERSE);
+	mvwhline(win(Input), 0, 0, ' ', wWidth(Input));
+	waddstr(win(Input), prompt);
+	whline(win(Input), 'Y', 1);
+	wrefresh(win(Input));
+	for(;;) switch(getch()) {
+		case '\n': case KEY_ENTER:
+		case 'Y': case 'y':
+			return TRUE;
+		case '\033':
+		case 'N': case 'n':
+			wattrset(win(Input), COLOR_PAIR(3));
+			mvwhline(win(Input), 0, 0, ' ', wWidth(Input));
+			wnoutrefresh(win(Input));
+			wrefresh(win(List));
+			return FALSE;
+#ifdef KEY_RESIZE
+		case KEY_RESIZE:
+				resizeterm(LINES, COLS);
+				checktermsize();
+				{ enum win w; for(w = (enum win) 0; w != wCount; w++) {
+					delwin(window[w].win);
+					window[w].win = newwin(wHeight(w), wWidth(w), wTop(w), wLeft(w));
+				} }
+				/* this won't work for the help viewer, but it doesn't use yesno() */
+				currentitem = items;
+				topy = 0;
+				draw();
+				wattrset(win(Input), COLOR_PAIR(4) | A_BOLD | A_REVERSE);
+				mvwhline(win(Input), 0, 0, ' ', wWidth(Input));
+				waddstr(win(Input), prompt);
+				whline(win(Input), 'Y', 1);
+				wrefresh(win(Input));
+				break;
+#endif
+	}
+}
+
+int maineventloop(
+		const char *_subtitle,
+		int(*_callback)(struct item **, int),
+		void(*_drawitem)(struct item *, bool),
+		struct item *_items,
+		const struct key *_keys) {
+	int result;
+
+	{ const char *temp = subtitle;
+		subtitle=_subtitle;
+		_subtitle=temp; }
+	{ void(*temp)(struct item *, bool) = drawitem;
+		drawitem=_drawitem;
+		_drawitem=temp; }
+	{ struct item *temp=items;
+		items=_items;
+		_items=temp; }
+	{ const struct key *temp=keys;
+		keys=_keys;
+		_keys=temp; }
+
+	currentitem = items;
+	topy = 0;
+
+	draw();
+
+	for(;;) {
+		int c = getch();
+#ifndef NCURSES_MOUSE_VERSION
+		if(c==ERR)
+			continue;
+#else
+		static int mousekey = ERR;
+		if(c==ERR) {
+			if(errno!=EINTR && mousekey!=ERR)
+				c = mousekey;
+			else
+				continue;
+		}
+
+	check_key:
+		if(c==KEY_MOUSE) {
+			MEVENT event;
+			if(getmouse(&event)==OK) {
+				if(mousekey != ERR && event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED | BUTTON1_RELEASED)) {
+					cbreak();
+					mousekey = ERR;
+					if(!(event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED)))
+						continue;
+				}
+				if(wmouse_trafo(win(List), &event.y, &event.x, FALSE)) {
+					if(event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED)) {
+						struct item *item = currentitem;
+						if(currentitem->top-topy > event.y) {
+							do item = item->prev;
+							while((item==items ? item=NULL, 0 : 1)
+							 && item->top-topy > event.y);
+						} else if(currentitem->top-topy+currentitem->height-1 < event.y) {
+							do item = item->next;
+							while((item->next==items ? item=NULL, 0 : 1)
+							 && item->top-topy+item->height-1 < event.y);
+						}
+						if(item==NULL)
+							continue;
+						(*drawitem)(currentitem, FALSE);
+						currentitem = item;
+						if(event.bstate & BUTTON1_DOUBLE_CLICKED) {
+							result=(*_callback)(&currentitem, KEY_MOUSE);
+							if(result>=0)
+								goto exit;
+						}
+						scrollcurrent();
+						(*drawitem)(currentitem, TRUE);
+					}
+				} else if(wmouse_trafo(win(Scrollbar), &event.y, &event.x, FALSE)) {
+					if(event.bstate & (BUTTON1_PRESSED | BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED)
+					 && event.y < wHeight(Scrollbar)-1) {
+						halfdelay(1);
+
+#define SIM(key) \
+	{ \
+		c = KEY_ ## key; \
+		if(event.bstate & BUTTON1_PRESSED) \
+			mousekey = c; \
+		goto check_key; \
+	}
+						if(event.y == 0)
+							SIM(UP)
+						else if(event.y == wHeight(Scrollbar)-2)
+							SIM(DOWN)
+						else if(event.y-1 < (wHeight(Scrollbar)-3)*topy/(items->prev->top+items->prev->height-(wHeight(List)-1)))
+							SIM(PPAGE)
+						else if(event.y-1 > (wHeight(Scrollbar)-3)*topy/(items->prev->top+items->prev->height-(wHeight(List)-1)))
+							SIM(NPAGE)
+#undef SIM
+						else
+							if(event.bstate & BUTTON1_PRESSED) {
+								for(;;) {
+									c = getch();
+									switch(c) {
+									default:
+										goto check_key;
+									case ERR:
+										continue;
+									case KEY_MOUSE:
+										if(getmouse(&event)==OK) {
+											event.y -= wTop(Scrollbar)+1;
+											if(event.y>=0 && event.y<wHeight(Scrollbar)-3) {
+												topy = (event.y*(items->prev->top+items->prev->height-(wHeight(List)-1))+(wHeight(Scrollbar)-4))/(wHeight(Scrollbar)-3);
+												while(currentitem!=items
+												 && currentitem->prev->top >= topy)
+													currentitem = currentitem->prev;
+												while(currentitem->next!=items
+												 && currentitem->top < topy)
+													currentitem = currentitem->next;
+												if(currentitem->top+currentitem->height > topy+wHeight(List))
+													topy = currentitem->top+currentitem->height - wHeight(List);
+												drawitems();
+												drawscrollbar();
+												wrefresh(win(List));
+											}
+										}
+									}
+									break;
+								}
+							}
+					}
+				} else if(wmouse_trafo(win(Bottom), &event.y, &event.x, FALSE)) {
+					if(event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED)
+					 && event.y == 1) {
+						const struct key *key;
+						int x = event.x;
+						if(x < 2)
+							continue;
+						x -= 2;
+						for(key = keys; key->key!='\0'; key++) {
+							if(x < key->length) {
+								event.x -= x;
+								wattrset(win(Bottom), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
+								mvwaddstr(win(Bottom), event.y, event.x, key->descr);
+								wmove(win(Bottom), event.y, event.x);
+								wrefresh(win(Bottom));
+								usleep(100000);
+								wattrset(win(Bottom), COLOR_PAIR(3));
+								waddstr(win(Bottom), key->descr);
+								wnoutrefresh(win(Bottom));
+								c = key->key;
+								goto check_key;
+							}
+							x -= key->length;
+							if(x == 0)
+								break;
+							x--;
+						}
+					}
+				}
+			}
+		} else
+#endif
+		{
+			result=(*_callback)(&currentitem, c);
+			if(result>=0)
+				goto exit;
+
+			switch(c) {
+				case KEY_UP:
+					if(currentitem!=items) {
+						(*drawitem)(currentitem, FALSE);
+						currentitem = currentitem->prev;
+						scrollcurrent();
+						(*drawitem)(currentitem, TRUE);
+					}
+					break;
+	
+				case KEY_DOWN:
+					if(currentitem->next!=items) {
+						(*drawitem)(currentitem, FALSE);
+						currentitem = currentitem->next;
+						scrollcurrent();
+						(*drawitem)(currentitem, TRUE);
+					}
+					break;
+	
+				case KEY_PPAGE:
+					if(currentitem!=items) {
+						struct item *olditem = currentitem;
+						(*drawitem)(currentitem, FALSE);
+						while(currentitem!=items
+						 && olditem->top - currentitem->prev->top <= wHeight(List))
+							currentitem = currentitem->prev;
+						scrollcurrent();
+						(*drawitem)(currentitem, TRUE);
+					}
+					break;
+	
+				case KEY_NPAGE:
+					if(currentitem->next!=items) {
+						struct item *olditem = currentitem;
+						(*drawitem)(currentitem, FALSE);
+						while(currentitem->next!=items
+						 && (currentitem->next->top + currentitem->next->height)
+						     - (olditem->top + olditem->height) <= wHeight(List))
+							currentitem = currentitem->next;
+						scrollcurrent();
+						(*drawitem)(currentitem, TRUE);
+					}
+					break;
+	
+				case KEY_HOME:
+					if(currentitem!=items) {
+						(*drawitem)(currentitem, FALSE);
+						currentitem = items;
+						scrollcurrent();
+						(*drawitem)(currentitem, TRUE);
+					}
+					break;
+	
+				case KEY_END:
+					if(currentitem->next!=items) {
+						(*drawitem)(currentitem, FALSE);
+						currentitem = items->prev;
+						scrollcurrent();
+						(*drawitem)(currentitem, TRUE);
+					}
+					break;
+	
+#ifdef KEY_RESIZE
+				case KEY_RESIZE:
+					resizeterm(LINES, COLS);
+					checktermsize();
+					{ enum win w; for(w = (enum win) 0; w != wCount; w++) {
+						delwin(window[w].win);
+						window[w].win = newwin(wHeight(w), wWidth(w), wTop(w), wLeft(w));
+					} }
+					if(result==-1)
+						currentitem = items;
+					else
+						items = currentitem;
+					topy = 0;
+					draw();
+					break;
+#endif
+			}
+		}
+		doupdate();
+	}
+exit:
+	{ const char *temp = subtitle;
+		subtitle=_subtitle;
+		_subtitle=temp; }
+	{ void(*temp)(struct item *, bool) = drawitem;
+		drawitem=_drawitem;
+		_drawitem=temp; }
+	{ struct item *temp=items;
+		items=_items;
+		_items=temp; }
+	{ const struct key *temp=keys;
+		keys=_keys;
+		_keys=temp; }
+
+	if(items!=NULL) {
+		currentitem = items;
+		topy = 0;
+		draw();
+	}
+
+	return result;
+}
