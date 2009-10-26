@@ -109,7 +109,8 @@ static void drawscrollbar(void) {
 	wattrset(w, COLOR_PAIR(3) | A_BOLD);
 	mvwaddch(w, 0, 0, ACS_UARROW);
 	wvline(w, ACS_CKBOARD, wHeight(Scrollbar)-3);
-	mvwaddch(w, 1+(wHeight(Scrollbar)-3)*topy/(items->prev->top+items->prev->height-(wHeight(List)-1)), 0, ACS_BLOCK);
+	if(items->prev->top+items->prev->height > wHeight(List))
+		mvwaddch(w, 1+(wHeight(Scrollbar)-3)*topy/(items->prev->top+items->prev->height-(wHeight(List)-1)), 0, ACS_BLOCK);
 	mvwaddch(w, wHeight(Scrollbar)-2, 0, ACS_DARROW);
 	mvwaddch(w, wHeight(Scrollbar)-1, 0, ACS_VLINE);
 	wnoutrefresh(w);
@@ -361,7 +362,9 @@ int maineventloop(
 			mousekey = c; \
 		goto check_key; \
 	}
-						if(event.y == 0)
+						if(items->prev->top+items->prev->height > wHeight(List))
+							{}
+						else if(event.y == 0)
 							SIM(UP)
 						else if(event.y == wHeight(Scrollbar)-2)
 							SIM(DOWN)
