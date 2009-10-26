@@ -222,8 +222,10 @@ sub read_sh($) {
 				/\G$IDENT/gc or die;
 				my $name = $1;
 				/\G$BLANK/gc;
+				if($name ne 'source') {
 				/\G$ASSIG/gc or die;
 				/\G$BLANK/gc;
+				}
 				die if pos == length;
 				my $value = '';
 				for(;;) {
@@ -247,7 +249,20 @@ sub read_sh($) {
 						last
 					}
 				}
+				if($name eq 'source') {
+					open my $f, '<', $value or die;
+					my $pos = pos;
+					substr($_, pos, 0) = do {
+						local $/;
+						my $text = <$f>;
+						die if not defined $text;
+						$text;
+					};
+					pos = $pos;
+					close $f or die;
+				} else {
 				$env{$name} = $value;
+				}
 			}
 		};
 		die "Parse error in $fname\n" if $@;

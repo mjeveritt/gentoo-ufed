@@ -166,6 +166,7 @@ sub save_flags(@) {
 		close $makeconf;
 	}
 
+	my $sourcing = 0;
 	eval {
 		# USE comment start/end (start/end of newline character at the end, specifically)
 		# default to end of make.conf, to handle make.confs without #USE=
@@ -185,8 +186,12 @@ sub save_flags(@) {
 			/\G$IDENT/gc or die;
 			my $name = $1;
 			/\G$BLANK/gc;
+			if($name ne 'source') {
 			/\G$ASSIG/gc or die;
 			/\G$BLANK/gc;
+			} else {
+				$sourcing = 1;
+			}
 			die if pos == length;
 			if($name ne 'USE') {
 				/\G(?:$UQVAL|$SQVAL|$DQVAL)+/gc or die;
@@ -270,8 +275,12 @@ sub save_flags(@) {
 				/\G$IDENT/gc or die;
 				my $name = $1;
 				/\G$BLANK/gc;
+				if($name ne 'source') {
 				/\G$ASSIG/gc or die;
 				/\G$BLANK/gc;
+				} else {
+					$sourcing = 1;
+				}
 				/\G(?:$UQVAL|$SQVAL|$DQVAL)+/gc or die;
 				my $end = pos;
 				if($name eq 'USE') {
@@ -283,6 +292,10 @@ sub save_flags(@) {
 	};
 	die "Parse error when writing make.conf - did you modify it while ufed was running?\n" if $@;
 
+	print STDERR <<EOF if $sourcing;
+Warning: source command found in /etc/make.conf. Flags may
+be saved incorrectly if the sourced file modifies them.
+EOF
 	{
 		open my $makeconf, '>', '/etc/make.conf' or die "Couldn't open /etc/make.conf\n";
 		print $makeconf $_;
