@@ -95,8 +95,10 @@ static void read_flags(void) {
 
 		line[on.end] = '\0';
 		if(!strcmp(&line[on.start], "on"))
-			flag->on = 'X';
+			flag->on = '+';
 		else if(!strcmp(&line[on.start], "off"))
+			flag->on = '-';
+		else if(!strcmp(&line[on.start], "def"))
 			flag->on = ' ';
 		else
 			exit(-1);
@@ -179,8 +181,10 @@ static void drawflag(struct item *item, bool highlight) {
 		goto descriptiononly;
 	}
 	wmove(win(List), y, 0);
-	sprintf(buf, " [%c] %-*s %-5.5s ",
-		flag->on,
+	sprintf(buf, " %c%c%c %-*s %-5.5s ",
+		flag->on == ' ' ? '(' : '[',
+		flag->on == ' ' ? flag->state[1] : flag->on,
+		flag->on == ' ' ? ')' : ']',
 		minwidth-12, flag->name,
 		flag->state);
 	d = &flag->descr[0];
@@ -297,12 +301,23 @@ static int callback(struct item **currentitem, int key) {
 		if(yesno("Cancel? (Y/N) "))
 			return 1;
 		break;
-	case ' ':
-		((struct flag *) *currentitem)->on ^= ' '^'X';
-		wattrset(win(List), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
-		mvwhline(win(List), (*currentitem)->top-topy, 2, ((struct flag *) *currentitem)->on, 1);
+	case ' ': {
+		switch (((struct flag *) *currentitem)->on) {
+		case '+':
+			((struct flag *) *currentitem)->on = '-';
+			break;
+		case '-':
+			((struct flag *) *currentitem)->on = ' ';
+			break;
+		default:
+			((struct flag *) *currentitem)->on = '+';
+			break;
+		}
+		drawflag(*currentitem, TRUE);
+		wmove(win(List), (*currentitem)->top-topy, 2);
 		wrefresh(win(List));
 		break;
+	}
 	case KEY_LEFT:
 		if(descriptionleft>0)
 			descriptionleft--;
@@ -318,7 +333,20 @@ static int callback(struct item **currentitem, int key) {
 		break;
 #ifdef NCURSES_MOUSE_VERSION
 	case KEY_MOUSE:
-		((struct flag *) *currentitem)->on ^= ' '^'X';
+		switch (((struct flag *) *currentitem)->on) {
+		case '+':
+			((struct flag *) *currentitem)->on = '-';
+			break;
+		case '-':
+			((struct flag *) *currentitem)->on = ' ';
+			break;
+		default:
+			((struct flag *) *currentitem)->on = '+';
+			break;
+		}
+		drawflag(*currentitem, TRUE);
+		wmove(win(List), (*currentitem)->top-topy, 2);
+		wrefresh(win(List));
 		break;
 #endif
 	case '?':
@@ -347,8 +375,15 @@ int main(void) {
 		FILE *output = fdopen(4, "w");
 		struct flag *flag = flags;
 		do {
-			if(flag->on=='X')
+			switch(flag->on)
+			{
+			case '+':
 				fprintf(output, "%s\n", flag->name);
+				break;
+			case '-':
+				fprintf(output, "-%s\n", flag->name);
+				break;
+			}
 			flag = (struct flag *) flag->item.next;
 		} while(flag!=flags);
 		fclose(output);

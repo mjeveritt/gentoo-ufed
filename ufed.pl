@@ -23,7 +23,7 @@ read_use_descs;
 
 delete @use_descriptions{qw(bootstrap build)};
 
-$Portage::all_flags{'-*'} = 1 if defined $Portage::make_conf_flags{'*'} && !$Portage::make_conf_flags{'*'};
+$Portage::make_conf_flags{'-*'} = 1 if defined $Portage::make_conf_flags{'*'} && !$Portage::make_conf_flags{'*'};
 
 Portage::merge %Portage::use_masked_flags, %Portage::archs;
 
@@ -44,21 +44,13 @@ for(keys %Portage::use_masked_flags) {
 flags_dialog;
 
 sub finalise(@) {
-	my %flags;
-	@flags{@_} = ();
-	if(exists $flags{'-*'}) {
-		return sort keys %flags;
-	} else {
-		my(@enabled, @disabled);
-		my %all_flags;
-		@all_flags{keys %flags, keys %Portage::default_flags} = ();
-		for(sort keys %all_flags) {
-			next if $_ eq '*';
-			push @enabled,    $_  if exists $flags{$_} && !$Portage::default_flags{$_};
-			push @disabled, "-$_" if $Portage::default_flags{$_} && !exists $flags{$_};
-		}
-		return @enabled, @disabled;
-	}
+	return sort {
+		($a ne '-*') <=> ($b ne '-*')
+		||
+		($a =~ /^-/) <=> ($b =~ /^-/)
+		||
+		$a cmp $b
+	} @_;
 }
 
 sub flags_dialog() {
@@ -87,7 +79,8 @@ sub flags_dialog() {
 		my %descriptions;
 		for(my $flag=0; $flag<@flags; $flag++) {
 			my $flag = $flags[$flag];
-			print $fh $flag, $Portage::all_flags{$flag} ? ' on ' : ' off ';
+			print $fh $flag;
+			print $fh defined $Portage::make_conf_flags{$flag} ? $Portage::make_conf_flags{$flag} ? ' on ' : ' off ' : ' def ';
 			print $fh exists $Portage::make_defaults_flags{$flag} ? $Portage::make_defaults_flags{$flag} ? '(+' :'(-' :'( ' ;
 			print $fh exists  $Portage::use_defaults_flags{$flag} ?  $Portage::use_defaults_flags{$flag} ?  '+' : '-' : ' ' ;
 			print $fh exists     $Portage::make_conf_flags{$flag} ?     $Portage::make_conf_flags{$flag} ?  '+)': '-)': ' )';
@@ -104,8 +97,8 @@ sub flags_dialog() {
 	if(POSIX::WIFEXITED($?)) {
 		my $rc = POSIX::WEXITSTATUS($?);
 		if($rc==0) {
-			my @flags = do { local $/; split /\n/, <$fh> };
-			save_flags finalise sort @flags;
+			my @flags = grep { $_ ne '--*' } do { local $/; split /\n/, <$fh> };
+			save_flags finalise @flags;
 		} elsif($rc==1)
 		{ print "Cancelled, not saving changes.\n" }
 		exit $rc;
