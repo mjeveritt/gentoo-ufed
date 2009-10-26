@@ -21,7 +21,7 @@ static const char *subtitle;
 static const struct key *keys;
 
 static struct item *items, *currentitem;
-int topy, minheight, minwidth;
+int topy, minwidth;
 
 static void checktermsize(void);
 
@@ -53,7 +53,7 @@ void cursesdone(void) {
 }
 
 static void checktermsize(void) {
-	while(wHeight(List) < minheight
+	while(wHeight(List) < 1
 	   || wWidth(List)  < minwidth) {
 #ifdef KEY_RESIZE
 		clear();
@@ -226,32 +226,13 @@ static void draw(void) {
 }
 
 void scrollcurrent(void) {
-	int oldtopy = topy;
 	if(currentitem->top < topy)
-		topy = currentitem->top;
+		topy = max(currentitem->top, currentitem->top+currentitem->height-wHeight(List));
 	else if(currentitem->top+currentitem->height > topy+wHeight(List))
-		topy = currentitem->top+currentitem->height-wHeight(List);
+		topy = min(currentitem->top+currentitem->height-wHeight(List), currentitem->top);
 	else
 		return;
-	if(abs(topy-oldtopy)>wHeight(List)) {
-		drawitems();
-	} else {
-		struct item *item = currentitem;
-		scrollok(win(List), TRUE);
-		wscrl(win(List), topy-oldtopy);
-		scrollok(win(List), FALSE);
-		if(topy<oldtopy)
-			while((item=item->next)!=items
-			 && item->top < oldtopy
-			 && item->top < topy + wHeight(List))
-				(*drawitem)(item, FALSE);
-		else
-			while((item=item->prev)->next!=items
-			 && item->top > oldtopy
-			 && item->top + item->height-1 >= topy)
-				(*drawitem)(item, FALSE);
-		mvwhline(win(List), wHeight(List), 0, ' ', wWidth(List));
-	}
+	drawitems();
 	drawscrollbar();
 }
 
@@ -281,8 +262,8 @@ bool yesno(const char *prompt) {
 					window[w].win = newwin(wHeight(w), wWidth(w), wTop(w), wLeft(w));
 				} }
 				/* this won't work for the help viewer, but it doesn't use yesno() */
-				currentitem = items;
 				topy = 0;
+				scrollcurrent();
 				draw();
 				wattrset(win(Input), COLOR_PAIR(4) | A_BOLD | A_REVERSE);
 				mvwhline(win(Input), 0, 0, ' ', wWidth(Input));
@@ -460,7 +441,11 @@ int maineventloop(
 
 			switch(c) {
 				case KEY_UP:
-					if(currentitem!=items) {
+					if(currentitem->top<topy) {
+						(*drawitem)(currentitem, FALSE);
+						topy--;
+						(*drawitem)(currentitem, TRUE);
+					} else if(currentitem!=items || topy>currentitem->top) {
 						(*drawitem)(currentitem, FALSE);
 						currentitem = currentitem->prev;
 						scrollcurrent();
@@ -469,7 +454,11 @@ int maineventloop(
 					break;
 	
 				case KEY_DOWN:
-					if(currentitem->next!=items) {
+					if(currentitem->top+currentitem->height>topy+wHeight(List)) {
+						(*drawitem)(currentitem, FALSE);
+						topy++;
+						(*drawitem)(currentitem, TRUE);
+					} else if(currentitem->next!=items) {
 						(*drawitem)(currentitem, FALSE);
 						currentitem = currentitem->next;
 						scrollcurrent();
@@ -481,9 +470,9 @@ int maineventloop(
 					if(currentitem!=items) {
 						struct item *olditem = currentitem;
 						(*drawitem)(currentitem, FALSE);
+						do currentitem = currentitem->prev;
 						while(currentitem!=items
-						 && olditem->top - currentitem->prev->top <= wHeight(List))
-							currentitem = currentitem->prev;
+						 && olditem->top - currentitem->prev->top <= wHeight(List));
 						scrollcurrent();
 						(*drawitem)(currentitem, TRUE);
 					}
@@ -493,10 +482,10 @@ int maineventloop(
 					if(currentitem->next!=items) {
 						struct item *olditem = currentitem;
 						(*drawitem)(currentitem, FALSE);
+						do currentitem = currentitem->next;
 						while(currentitem->next!=items
 						 && (currentitem->next->top + currentitem->next->height)
-						     - (olditem->top + olditem->height) <= wHeight(List))
-							currentitem = currentitem->next;
+						     - (olditem->top + olditem->height) <= wHeight(List));
 						scrollcurrent();
 						(*drawitem)(currentitem, TRUE);
 					}
@@ -528,11 +517,11 @@ int maineventloop(
 						delwin(window[w].win);
 						window[w].win = newwin(wHeight(w), wWidth(w), wTop(w), wLeft(w));
 					} }
-					if(result==-1)
-						currentitem = items;
-					else
+					if(result==-1) {
+						topy = 0;
+						scrollcurrent();
+					} else
 						items = currentitem;
-					topy = 0;
 					draw();
 					break;
 #endif

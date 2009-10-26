@@ -109,8 +109,6 @@ static void read_flags(void) {
 		flag->state = &line[state.start];
 
 		flag->item.height = ndescr;
-		if(ndescr > minheight)
-			minheight = ndescr;
 		{ int i; for(i=0; i<ndescr; i++) {
 			flag->descr[i] = getline(input);
 		} }
@@ -174,11 +172,12 @@ static void drawflag(struct item *item, bool highlight) {
 		wattrset(win(List), COLOR_PAIR(3));
 	else
 		wattrset(win(List), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
-	if(y < 0) {
+	if(y >= 0 || -y >= flag->item.height) {
+		d = &flag->descr[0];
+	} else {
 		wmove(win(List), 0, 0);
 		d = &flag->descr[-y];
 		y = 0;
-		goto descriptiononly;
 	}
 	wmove(win(List), y, 0);
 	sprintf(buf, " %c%c%c %-*s %-5.5s ",
@@ -187,7 +186,6 @@ static void drawflag(struct item *item, bool highlight) {
 		flag->on == ' ' ? ')' : ']',
 		minwidth-12, flag->name,
 		flag->state);
-	d = &flag->descr[0];
 	if(d != &flag->descr[flag->item.height]) {
 		for(;;) {
 			sprintf(buf+minwidth, "%-*.*s",
@@ -198,7 +196,6 @@ static void drawflag(struct item *item, bool highlight) {
 			waddstr(win(List), buf);
 			d++;
 			y++;
-		descriptiononly:
 			if(d!=&flag->descr[flag->item.height] && y<wHeight(List)) {
 				char *p;
 				for(p=buf; p!=buf+minwidth; p++)
@@ -214,7 +211,7 @@ static void drawflag(struct item *item, bool highlight) {
 		y++;
 	}
 	if(highlight)
-		wmove(win(List), flag->item.top - topy, 2);
+		wmove(win(List), max(flag->item.top - topy, 0), 2);
 	wnoutrefresh(win(List));
 }
 
