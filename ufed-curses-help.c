@@ -177,11 +177,7 @@ static const struct key keys[] = {
 
 static void drawline(struct item *item, bool highlight) {
 	struct line *line = (struct line *) item;
-#if C99
 	char buf[wWidth(List)+1];
-#else
-	char *buf = __builtin_alloca(wWidth(List)+1);
-#endif
 	sprintf(buf, "%-*.*s", wWidth(List), wWidth(List), line->text);
 	if(!highlight)
 		wattrset(win(List), COLOR_PAIR(3));

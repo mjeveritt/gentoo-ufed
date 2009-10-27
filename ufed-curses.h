@@ -1,15 +1,8 @@
-#define C99 (__STDC_VERSION__ >= 199901L)
-#if !C99
-#if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 95
-#error Either a C99 compiler, or gcc 2.95.* or higher is required.
-#endif
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <curses.h>
-
-#if !C99
-#define inline __inline
-#endif
 
 enum win { Top, Left, List, Input, Scrollbar, Right, Bottom, wCount };
 struct window {
@@ -37,6 +30,7 @@ extern int maineventloop(
 	void(*drawitem)(struct item *item, bool highlight),
 	struct item *items,
 	const struct key *keys);
+extern void drawitems(void);
 extern void scrollcurrent(void);
 extern bool yesno(const char *);
 

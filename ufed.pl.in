@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I/usr/lib/ufed
+#!@PERL@ -I@perldir@
 use strict;
 use warnings;
 
@@ -8,7 +8,7 @@ use warnings;
 
 use Portage;
 
-my $version = '0.40';
+my $version = '@PACKAGE_VERSION@';
 
 my %use_descriptions;
 
@@ -76,7 +76,7 @@ sub flags_dialog() {
 		POSIX::dup2 $owrite, 4;
 		POSIX::close $owrite;
 		my $interface = 'ufed-curses';
-		exec { "/usr/lib/ufed/$interface" } $interface or
+		exec { "@libexecdir@/$interface" } $interface or
 		do { print STDERR "Couldn't launch $interface\n"; exit 3 }
 	}
 	POSIX::close $iread;

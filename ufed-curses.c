@@ -70,7 +70,7 @@ static void checktermsize(void) {
 
 static void (*drawitem)(struct item *, bool);
 
-static void drawitems(void) {
+void drawitems(void) {
 	struct item *item;
 	int y;
 
@@ -86,11 +86,7 @@ static void drawitems(void) {
 		if(y>=wHeight(List))
 			break;
 		if(item==items) {
-#if C99
 			char buf[wWidth(List)];
-#else
-			char *buf = __builtin_alloca(wWidth(List));
-#endif
 			memset(buf, ' ', wWidth(List));
 			buf[wWidth(List)] = '\0';
 			wmove(win(List), y, 0);
@@ -117,11 +113,8 @@ static void drawscrollbar(void) {
 }
 
 static void draw(void) {
-#if C99
-	char buf[COLS+1];
-#else
-	char *buf = __builtin_alloca(COLS+1);
-#endif
+	size_t bufsize = COLS+1;
+	char buf[bufsize];
 	WINDOW *w;
 
 	wnoutrefresh(stdscr);
@@ -129,7 +122,7 @@ static void draw(void) {
 	w = win(Top);
 
 	wattrset(w, COLOR_PAIR(1) | A_BOLD);
-	sprintf(buf, "%-*.*s", wWidth(Top), wWidth(Top), "Gentoo USE flags editor 0.40");
+	sprintf(buf, "%-*.*s", wWidth(Top), wWidth(Top), "Gentoo USE flags editor " PACKAGE_VERSION);
 	mvwaddstr(w, 0, 0, buf);
 
 	whline(w, ACS_HLINE, wWidth(Top));

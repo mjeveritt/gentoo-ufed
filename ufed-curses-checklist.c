@@ -52,11 +52,7 @@ static struct flag {
 	char *name;
 	char on;
 	char *state;
-#if C99
-	char *descr[];
-#else
-	__extension__ char *descr[0];
-#endif
+	char *descr[FLEXIBLE_ARRAY_MEMBER];
 } *flags;
 static int descriptionleft;
 
@@ -160,11 +156,7 @@ static const struct key keys[] = {
 
 static void drawflag(struct item *item, bool highlight) {
 	struct flag *flag = (struct flag *) item;
-#if C99
 	char buf[wWidth(List)+1];
-#else
-	char *buf = __builtin_alloca(wWidth(List)+1);
-#endif
 	char **d;
 
 	int y = flag->item.top - topy;
@@ -182,7 +174,9 @@ static void drawflag(struct item *item, bool highlight) {
 	wmove(win(List), y, 0);
 	sprintf(buf, " %c%c%c %-*s %-5.5s ",
 		flag->on == ' ' ? '(' : '[',
-		flag->on == ' ' ? flag->state[1] : flag->on,
+		flag->on == ' '
+			? flags->on == ' ' ? flag->state[1] : ' '
+			: flag->on,
 		flag->on == ' ' ? ')' : ']',
 		minwidth-12, flag->name,
 		flag->state);
@@ -310,9 +304,13 @@ static int callback(struct item **currentitem, int key) {
 			((struct flag *) *currentitem)->on = '+';
 			break;
 		}
-		drawflag(*currentitem, TRUE);
-		wmove(win(List), (*currentitem)->top-topy, 2);
-		wrefresh(win(List));
+		if (*currentitem != &flags->item) {
+			drawflag(*currentitem, TRUE);
+			wmove(win(List), (*currentitem)->top-topy, 2);
+			wrefresh(win(List));
+		} else {
+			drawitems();
+		}
 		break;
 	}
 	case KEY_LEFT:
@@ -341,9 +339,13 @@ static int callback(struct item **currentitem, int key) {
 			((struct flag *) *currentitem)->on = '+';
 			break;
 		}
-		drawflag(*currentitem, TRUE);
-		wmove(win(List), (*currentitem)->top-topy, 2);
-		wrefresh(win(List));
+		if (*currentitem != &flags->item) {
+			drawflag(*currentitem, TRUE);
+			wmove(win(List), (*currentitem)->top-topy, 2);
+			wrefresh(win(List));
+		} else {
+			drawitems();
+		}
 		break;
 #endif
 	case '?':
