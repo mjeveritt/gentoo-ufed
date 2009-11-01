@@ -85,8 +85,8 @@ static void read_flags(void) {
 		flag->item.top = y;
 
 		line[name.end] = '\0';
-		if(name.end-name.start+12 > minwidth)
-			minwidth = name.end-name.start+12;
+		if(name.end-name.start+11 > minwidth)
+			minwidth = name.end-name.start+11;
 		flag->name = &line[name.start];
 
 		line[on.end] = '\0';
@@ -100,7 +100,7 @@ static void read_flags(void) {
 			exit(-1);
 
 		line[state.end] = '\0';
-		if(state.end-state.start != 5)
+		if(state.end-state.start != 4)
 			exit(-1);
 		flag->state = &line[state.start];
 
@@ -172,13 +172,13 @@ static void drawflag(struct item *item, bool highlight) {
 		y = 0;
 	}
 	wmove(win(List), y, 0);
-	sprintf(buf, " %c%c%c %-*s %-5.5s ",
+	sprintf(buf, " %c%c%c %-*s %-4.4s ",
 		flag->on == ' ' ? '(' : '[',
 		flag->on == ' '
 			? flags->on == ' ' ? flag->state[1] : ' '
 			: flag->on,
 		flag->on == ' ' ? ')' : ']',
-		minwidth-12, flag->name,
+		minwidth-11, flag->name,
 		flag->state);
 	if(d != &flag->descr[flag->item.height]) {
 		for(;;) {
@@ -359,8 +359,8 @@ int main(void) {
 	int result;
 
 	read_flags();
-	fayt = malloc((minwidth-12+2) * sizeof *fayt);
-	faytsave = malloc((minwidth-12+2) * sizeof *faytsave);
+	fayt = malloc((minwidth-11+2) * sizeof *fayt);
+	faytsave = malloc((minwidth-11+2) * sizeof *faytsave);
 	if(fayt==NULL || faytsave==NULL)
 		exit(-1);
 	fayt[0] = '\0';

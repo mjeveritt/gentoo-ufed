@@ -37,18 +37,14 @@ static void init_lines(void) {
 "and Right arrow keys to scroll the descriptions.",
 "",
 "ufed attempts to show you where a particular use setting came from. "
-"Each USE flag has a 3 character descriptor that represents the three "
+"Each USE flag has a 2 character descriptor that represents the two "
 "ways a use flag can be set.",
 "",
 "The 1st char is the setting from the /etc/make.profile/make.defaults "
 "file. These are the defaults for Gentoo as a whole. These should not be "
 "changed.",
 "",
-"The 2nd char is the setting from the /etc/make.profile/use.defaults "
-"file. These will change as packages are added and removes from the "
-"system.",
-"",
-"The 3rd char is the settings from the /etc/make.conf file. these are "
+"The 2nd char is the settings from the /etc/make.conf file. these are "
 "the only ones that should be changed by the user and these are the ones "
 "that ufed changes.",
 "",
@@ -87,7 +83,7 @@ static void init_lines(void) {
 "for more information on USE flags.",
 "",
 "Please also note that if ufed describes a flag as (Unknown) it "
-"generally means that it is either a spelling error in one of the three "
+"generally means that it is either a spelling error in one of the two "
 "configuration files or it is not an offically sanctioned USE flag. "
 "Sanctioned USE flags can be found in",
 " /usr/portage/profiles/use.desc",

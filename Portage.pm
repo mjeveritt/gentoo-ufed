@@ -10,7 +10,6 @@ $environment{$_}={} for qw(USE); # INCREMENTALS, except we only need USE
 our %packages;
 our @profiles;
 our %use_masked_flags;
-our %use_defaults_flags;
 our %make_defaults_flags;
 our %default_flags;
 our %make_conf_flags;
@@ -29,26 +28,21 @@ sub read_make_globals();
 sub read_packages();
 sub read_profiles();
 sub read_sh($);
-sub read_use_defaults();
 sub read_use_mask();
 
 read_packages;
 read_profiles;
 read_use_mask;
-read_use_defaults;
 read_make_globals;
 read_make_defaults;
 read_make_conf;
 read_archs;
 
 my $lastorder;
-for(reverse split /:/, $environment{USE_ORDER} || "env:pkg:conf:auto:defaults") {
+for(reverse split /:/, $environment{USE_ORDER} || "env:pkg:conf:defaults:pkginternal:env.d") {
 	if($_ eq 'defaults') {
 		merge %default_flags, %make_defaults_flags;
 		merge %all_flags, %make_defaults_flags;
-	} elsif($_ eq 'auto') {
-		merge %default_flags, %use_defaults_flags;
-		merge %all_flags, %use_defaults_flags;
 	} elsif($_ eq 'conf') {
 		merge %all_flags, %make_conf_flags;
 	} else {
@@ -282,16 +276,6 @@ sub read_sh($) {
 	}
 	merge_env %env;
 	return %env if wantarray;
-}
-
-sub read_use_defaults() {
-	for my $dir(@profiles) {
-		for(noncomments "$dir/use.defaults") {
-			my ($flag, @packages) = split;
-			for(@packages)
-			{ $use_defaults_flags{$flag} = 1 if have_package $_ }
-		}
-	}
 }
 
 sub read_use_mask() {

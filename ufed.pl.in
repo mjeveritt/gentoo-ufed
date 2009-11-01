@@ -89,7 +89,6 @@ sub flags_dialog() {
 			print $fh $flag;
 			print $fh defined $Portage::make_conf_flags{$flag} ? $Portage::make_conf_flags{$flag} ? ' on ' : ' off ' : ' def ';
 			print $fh exists $Portage::make_defaults_flags{$flag} ? $Portage::make_defaults_flags{$flag} ? '(+' :'(-' :'( ' ;
-			print $fh exists  $Portage::use_defaults_flags{$flag} ?  $Portage::use_defaults_flags{$flag} ?  '+' : '-' : ' ' ;
 			print $fh exists     $Portage::make_conf_flags{$flag} ?     $Portage::make_conf_flags{$flag} ?  '+)': '-)': ' )';
 			print $fh ' ', scalar(@{$use_descriptions{$flag}}), "\n";
 			print $fh $_, "\n" for(@{$use_descriptions{$flag}});
