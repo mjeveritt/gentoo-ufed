@@ -526,18 +526,10 @@ int maineventloop(
 		doupdate();
 	}
 exit:
-	{ const char *temp = subtitle;
-		subtitle=_subtitle;
-		_subtitle=temp; }
-	{ void(*temp)(struct item *, bool) = drawitem;
-		drawitem=_drawitem;
-		_drawitem=temp; }
-	{ struct item *temp=items;
-		items=_items;
-		_items=temp; }
-	{ const struct key *temp=keys;
-		keys=_keys;
-		_keys=temp; }
+	subtitle=_subtitle;
+	drawitem=_drawitem;
+	items=_items;
+	keys=_keys;
 
 	if(items!=NULL) {
 		currentitem = items;

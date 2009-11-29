@@ -202,7 +202,6 @@ static void drawflag(struct item *item, bool highlight) {
 		memset(buf+minwidth, ' ', wWidth(List)-minwidth);
 		buf[wWidth(List)] = '\0';
 		waddstr(win(List), buf);
-		y++;
 	}
 	if(highlight)
 		wmove(win(List), max(flag->item.top - topy, 0), 2);
