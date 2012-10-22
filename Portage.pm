@@ -144,7 +144,7 @@ sub read_make_defaults() {
 }
 
 sub read_make_globals() {
-	for my $dir(@profiles, '/etc') {
+	for my $dir(@profiles, '/usr/share/portage/config') {
 		read_sh "$dir/make.globals";
 	}
 }
