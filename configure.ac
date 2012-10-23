@@ -1,5 +1,5 @@
 AC_PREREQ(2.63)
-AC_INIT([ufed],[0.40.1],[https://bugs.gentoo.org/])
+AC_INIT([ufed],[git],[https://bugs.gentoo.org/])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 AC_CONFIG_SRCDIR([ufed-curses.c])
 AC_CONFIG_HEADERS([config.h])
