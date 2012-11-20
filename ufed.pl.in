@@ -29,7 +29,7 @@ for(keys %Portage::all_flags) {
 	@{$use_descriptions{$_}} = "(Unknown)"
 	if not exists $use_descriptions{$_};
 }
-@{$use_descriptions{'-*'}} = 'Never enable any flags other than those specified in /etc/make.conf';
+@{$use_descriptions{'-*'}} = 'Never enable any flags other than those specified in make.conf';
 
 for(@Portage::archs) {
 	delete $Portage::default_flags{$_};
@@ -155,8 +155,8 @@ sub save_flags(@) {
 	my (@flags) = @_;
 	my $contents;
 
-	my $makeconf_name = '/etc/portage/make.conf';
-	$makeconf_name = '/etc/make.conf' unless(-r $makeconf_name);
+	my $makeconf_name = "$Portage::eprefix/etc/portage/make.conf";
+	$makeconf_name = "$Portage::eprefix/etc/make.conf" unless(-r $makeconf_name);
 	{
 		open my $makeconf, '<', $makeconf_name or die "Couldn't open $makeconf_name\n";
 		open my $makeconfold, '>', $makeconf_name . '.old' or die "Couldn't open $makeconf_name.old\n";

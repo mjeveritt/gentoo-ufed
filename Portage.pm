@@ -15,7 +15,9 @@ our %default_flags;
 our %make_conf_flags;
 our %archs;
 our %all_flags;
+our $eprefix;
 
+sub get_eprefix();
 sub have_package($);
 sub merge(\%%);
 sub merge_env(\%);
@@ -30,6 +32,7 @@ sub read_profiles();
 sub read_sh($);
 sub read_use_mask();
 
+get_eprefix;
 read_packages;
 read_profiles;
 read_use_mask;
@@ -52,6 +55,13 @@ for(reverse split /:/, $environment{USE_ORDER} || "env:pkg:conf:defaults:pkginte
 }
 if($lastorder ne 'conf') {
 	die "Sorry, USE_ORDER without make.conf overriding global USE flags are not currently supported by ufed.\n";
+}
+
+
+sub get_eprefix() {
+	$eprefix = `portageq envvar EPREFIX 2>&1`;
+	die "Couldn't determine EPREFIX from Portage" if $? != 0;
+	chomp($eprefix);
 }
 
 sub have_package($) {
@@ -130,8 +140,8 @@ sub read_archs() {
 }
 
 sub read_make_conf() {
-	my %env = read_sh "/etc/make.conf";
-	merge (%env, read_sh('/etc/portage/make.conf'));
+	my %env = read_sh "$eprefix/etc/make.conf";
+	merge (%env, read_sh("$eprefix/etc/portage/make.conf"));
 	merge %make_conf_flags, %{$env{USE}} if exists $env{USE};
 	@portagedirs = $environment{PORTDIR};
 	push @portagedirs, split ' ', $environment{PORTDIR_OVERLAY} if defined $environment{PORTDIR_OVERLAY};
@@ -145,13 +155,13 @@ sub read_make_defaults() {
 }
 
 sub read_make_globals() {
-	for my $dir(@profiles, '/usr/share/portage/config') {
+	for my $dir(@profiles, "$eprefix/usr/share/portage/config") {
 		read_sh "$dir/make.globals";
 	}
 }
 
 sub read_packages() {
-	die "Couldn't read /var/db/pkg\n" unless opendir my $pkgdir, '/var/db/pkg';
+	die "Couldn't read $eprefix/var/db/pkg\n" unless opendir my $pkgdir, "$eprefix/var/db/pkg";
 	while(my $cat = readdir $pkgdir) {
 		next if $cat eq '.' or $cat eq '..';
 		next unless opendir my $catdir, "/var/db/pkg/$cat";
@@ -199,16 +209,16 @@ sub read_packages() {
 }
 
 sub read_profiles() {
-	$_ = readlink '/etc/make.profile';
-	$_ = readlink '/etc/portage/make.profile' if not defined $_;
-	die "/etc\{,/portage\}/make.profile is not a symlink\n" if not defined $_;
+	$_ = readlink "$eprefix/etc/make.profile";
+	$_ = readlink "$eprefix/etc/portage/make.profile" if not defined $_;
+	die "$eprefix/etc\{,/portage\}/make.profile is not a symlink\n" if not defined $_;
 	@profiles = norm_path '/etc', $_;
 	for (my $i = -1; $i >= -@profiles; $i--) {
 		for(noncomments "$profiles[$i]/parent") {
 			splice @profiles, $i, 0, norm_path $profiles[$i], $_;
 		}
 	}
-	push @profiles, '/etc/portage/profile';
+	push @profiles, "$eprefix/etc/portage/profile";
 }
 
 sub read_sh($) {

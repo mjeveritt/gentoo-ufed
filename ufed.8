@@ -12,15 +12,14 @@ UFED attempts to show you where a  particular use setting came from.  Each USE
 flag has a 3 character descriptor that represents the three ways a use flag can
 be set.
 
-The 1st char is the setting from the /etc/make.profile/make.defaults file.
-These are the defaults for Gentoo as a whole. These should not be changed.
+The 1st char is the setting from the make.defaults file.  These are the defaults
+for Gentoo as a whole. These should not be changed.
 
-The 2nd char is the setting from the /etc/make.profile/use.defaults file. These
-will change as packages are added and removes from the system.
+The 2nd char is the setting from the use.defaults file. These will change as
+packages are added and removes from the system.
 
-The 3rd char is the settings from the /etc/make.conf file. these are the only
-ones that should be changed by the user and these are the ones that UFED
-changes.
+The 3rd char is the settings from the make.conf file. these are the only ones
+that should be changed by the user and these are the ones that UFED changes.
 
 If the character is a + then that USE flag was set in that file, if it is a
 space then the flag was not mentioned in that file and if it is a - then that
@@ -64,25 +63,27 @@ Please report bugs via http://bugs.gentoo.org/
 .BR make.conf (5)
 .SH "FILES"
 .TP
-\fB/etc/make.conf\fR 
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.conf\fR 
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/portage/make.conf\fR 
 Contains user specified USE flags
 .TP
-\fB/etc/make.conf.old \fR
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.conf.old \fR
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/portage/make.conf.old \fR
 This is where ufed places a backup of your make.conf file.
 .TP
-\fB/etc/make.profile/make.defaults\fR
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.profile/make.defaults\fR
 Contains system default USE flags
 .TP
-\fB/etc/make.profile/use.defaults\fR
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.profile/use.defaults\fR
 Provides an automatic ebuild to USE flag mapping ('auto' flags)
 .TP
-\fB/etc/make.profile/use.mask\fR
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.profile/use.mask\fR
 Restricted USE flags
 .TP
-\fB/usr/portage/profiles/use.desc\fR
+\fB@GENTOO_PORTAGE_EPREFIX@/usr/portage/profiles/use.desc\fR
 Description strings for global USE flags
 .TP
-\fB/usr/portage/profiles/use.local.desc\fR
+\fB@GENTOO_PORTAGE_EPREFIX@/usr/portage/profiles/use.local.desc\fR
 Description strings for local USE flags
 .SH "AUTHORS"
 Robin Johnson <robbat2@gentoo.org>

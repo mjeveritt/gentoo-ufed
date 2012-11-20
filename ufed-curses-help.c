@@ -40,11 +40,10 @@ static void init_lines(void) {
 "Each USE flag has a 2 character descriptor that represents the two "
 "ways a use flag can be set.",
 "",
-"The 1st char is the setting from the /etc/make.profile/make.defaults "
-"file. These are the defaults for Gentoo as a whole. These should not be "
-"changed.",
+"The 1st char is the setting from the make.defaults file. These are "
+"the defaults for Gentoo as a whole. These should not be changed.",
 "",
-"The 2nd char is the settings from the /etc/make.conf file. these are "
+"The 2nd char is the settings from the make.conf file. these are "
 "the only ones that should be changed by the user and these are the ones "
 "that ufed changes.",
 "",
