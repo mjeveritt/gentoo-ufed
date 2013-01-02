@@ -5,3 +5,14 @@ configure
 Makefile
 Makefile.in
 run
+.??*
+TODO
+*~
+*.bak
+*.old
+*.o
+config.*
+!config.h.in
+stamp*
+ufed
+ufed-curses
