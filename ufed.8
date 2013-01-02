@@ -65,17 +65,19 @@ Please report bugs via http://bugs.gentoo.org/
 .TP
 \fB@GENTOO_PORTAGE_EPREFIX@/etc/make.conf\fR 
 \fB@GENTOO_PORTAGE_EPREFIX@/etc/portage/make.conf\fR 
+.br
 Contains user specified USE flags
 .TP
-\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.conf.old \fR
-\fB@GENTOO_PORTAGE_EPREFIX@/etc/portage/make.conf.old \fR
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.conf.old\fR
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/portage/make.conf.old\fR
+.br
 This is where ufed places a backup of your make.conf file.
 .TP
 \fB@GENTOO_PORTAGE_EPREFIX@/etc/make.profile/make.defaults\fR
 Contains system default USE flags
 .TP
-\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.profile/use.defaults\fR
-Provides an automatic ebuild to USE flag mapping ('auto' flags)
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.profile/package.use\fR
+Contains per package default USE flags
 .TP
 \fB@GENTOO_PORTAGE_EPREFIX@/etc/make.profile/use.mask\fR
 Restricted USE flags
