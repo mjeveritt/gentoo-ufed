@@ -5,20 +5,20 @@ ufed \- Gentoo Linux USE flags editor
 .B ufed 
 .SH "DESCRIPTION"
 UFED is a simple program designed to help you configure the systems USE flags
-(see below) to your liking.  To select of unselect a flag highlight it and hit
+(see below) to your liking.  To select or unselect a flag highlight it and hit
 space.
 
-UFED attempts to show you where a  particular use setting came from.  Each USE
+UFED attempts to show you where a particular use setting came from. Each USE
 flag has a 3 character descriptor that represents the three ways a use flag can
 be set.
 
-The 1st char is the setting from the make.defaults file.  These are the defaults
+The 1st char is the setting from the make.defaults file(s). These are the defaults
 for Gentoo as a whole. These should not be changed.
 
-The 2nd char is the setting from the use.defaults file. These will change as
-packages are added and removes from the system.
+The 2nd char is the setting from the package.use file(s). These will change as
+packages are added or removed from the system.
 
-The 3rd char is the settings from the make.conf file. these are the only ones
+The 3rd char is the setting from the make.conf file. These are the only ones
 that should be changed by the user and these are the ones that UFED changes.
 
 If the character is a + then that USE flag was set in that file, if it is a
@@ -29,23 +29,23 @@ flag was unset in that file.
 
 The USE settings system is a flexible way to enable or disable various features
 at package build-time on a global level and for individual packages. This
-allows an administrator control over how packages are built in regards to the
+allows an administrator to control how packages are built in regards to the
 optional features which can be compiled into those packages.
 
 For instance, packages with optional GNOME support can have this support
-disabled at compile time by disabling the "gnome" USE setting. Enabling the
-"gnome" USE setting would enable GNOME support in these same packages.
+disabled at compile time by disabling the "gnome" USE flag. Enabling the
+"gnome" USE flag would enable GNOME support in these packages.
 
-The effect of USE settings on packages is dependent on whether both the
-software itself and the package ebuild supports the USE setting as an optional
+The effect of USE flags on packages is dependent on whether both the
+software itself and the package ebuild supports the USE flag as an optional
 feature. If the software does not have support for an optional feature then the
-corresponding USE setting will obviously have no effect.
+corresponding USE flag will obviously have no effect.
 
 Also many package dependencies are not considered optional by the software and
-thus USE settings will have no effect on those mandatory dependencies.
+thus USE flags will have no effect on those mandatory dependencies.
 
 A list of USE keywords used by a particular package can be found by checking
-the IUSE line in any ebuild file.
+the IUSE line in any ebuild file or by using "equery" from gentoolkit.
 
 See http://www.gentoo.org/doc/en/handbook/handbook-x86.xml?part=2&chap=2
 for more information on USE flags.
