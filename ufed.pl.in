@@ -12,6 +12,8 @@ use Portage;
 my $version = 'XX_PACKAGE_VERSION@';
 
 my %use_descriptions;
+my %masked_flags;
+my %masked_descriptions;
 
 sub finalise(@);
 sub flags_dialog();
@@ -45,6 +47,8 @@ for(keys %Portage::use_masked_flags) {
 		last if not($masked &&= $_);
 	}
 	if($masked) {
+		$masked_flags{$_}        = $Portage::all_flags{$_};
+		$masked_descriptions{$_} = $use_descriptions{$_};
 		delete $Portage::default_flags{$_};
 		delete $Portage::all_flags{$_};
 		delete $use_descriptions{$_};
