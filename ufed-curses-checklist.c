@@ -96,6 +96,8 @@ static void read_flags(void) {
 			flag->on = '-';
 		else if(!strcmp(&line[on.start], "def"))
 			flag->on = ' ';
+		else if(!strcmp(&line[on.start], "msk"))
+			flag->on = 'm';
 		else
 			exit(-1);
 
@@ -173,12 +175,16 @@ static void drawflag(struct item *item, bool highlight) {
 	}
 	wmove(win(List), y, 0);
 	sprintf(buf, " %c%c%c %-*s %-4.4s ",
+		/* State of selection */
 		flag->on == ' ' ? '(' : '[',
 		flag->on == ' '
-			? flags->on == ' ' ? flag->state[1] : ' '
+			? flags->on == ' '
+				? flag->state[1] : ' '
 			: flag->on,
 		flag->on == ' ' ? ')' : ']',
+		/* distance and name being masked or not */
 		minwidth-11, flag->name,
+		/* current selection state */
 		flag->state);
 	if(d != &flag->descr[flag->item.height]) {
 		for(;;) {
@@ -292,6 +298,10 @@ static int callback(struct item **currentitem, int key) {
 			return 1;
 		break;
 	case ' ': {
+		// do not toggle masked flags using the keyboard
+		if ('m' == ((struct flag *) *currentitem)->on)
+			break;
+		// Not masked? Then cycle through the states.
 		switch (((struct flag *) *currentitem)->on) {
 		case '+':
 			((struct flag *) *currentitem)->on = '-';
@@ -327,6 +337,10 @@ static int callback(struct item **currentitem, int key) {
 		break;
 #ifdef NCURSES_MOUSE_VERSION
 	case KEY_MOUSE:
+		// do not toggle masked flags using the double click
+		if ('m' == ((struct flag *) *currentitem)->on)
+			break;
+		// Not masked? Then cycle through the states.
 		switch (((struct flag *) *currentitem)->on) {
 		case '+':
 			((struct flag *) *currentitem)->on = '-';

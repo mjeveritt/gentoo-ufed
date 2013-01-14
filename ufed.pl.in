@@ -12,7 +12,6 @@ use Portage;
 my $version = 'XX_PACKAGE_VERSION@';
 
 my %use_descriptions;
-my %masked_flags;
 my %masked_descriptions;
 
 sub finalise(@);
@@ -32,7 +31,7 @@ $Portage::make_conf_flags{'-*'} = 1
 
 for(keys %Portage::all_flags) {
 	@{$use_descriptions{$_}} = "(Unknown)"
-	if not exists $use_descriptions{$_};
+		if not exists $use_descriptions{$_};
 }
 @{$use_descriptions{'-*'}} = 'Never enable any flags other than those specified in make.conf';
 
@@ -47,8 +46,8 @@ for(keys %Portage::use_masked_flags) {
 		last if not($masked &&= $_);
 	}
 	if($masked) {
-		$masked_flags{$_}        = $Portage::all_flags{$_};
-		$masked_descriptions{$_} = $use_descriptions{$_};
+		@{$masked_descriptions{$_}} = @{$use_descriptions{$_}}
+			if (defined($use_descriptions{$_}));
 		delete $Portage::default_flags{$_};
 		delete $Portage::all_flags{$_};
 		delete $use_descriptions{$_};
@@ -89,15 +88,33 @@ sub flags_dialog() {
 	POSIX::close $iread;
 	POSIX::close $owrite;
 	if(open my $fh, '>&=', $iwrite) {
-		my @flags = sort { uc $a cmp uc $b } keys %use_descriptions;
-		my %descriptions;
-		for(my $flag=0; $flag<@flags; $flag++) {
-			my $flag = $flags[$flag];
-			print $fh $flag;
-			print $fh defined $Portage::make_conf_flags{$flag} ? $Portage::make_conf_flags{$flag} ? ' on ' : ' off ' : ' def ';
-			print $fh exists $Portage::make_defaults_flags{$flag} ? $Portage::make_defaults_flags{$flag} ? '(+' :'(-' :'( ' ;
-			print $fh exists     $Portage::make_conf_flags{$flag} ?     $Portage::make_conf_flags{$flag} ?  '+)': '-)': ' )';
-			print $fh ' ', scalar(@{$use_descriptions{$flag}}), "\n";
+		
+		# Write masked flags first so they sort at the beginning of the list
+		for my $flag (sort { uc $a cmp uc $b } keys %masked_descriptions) {
+			print $fh "(" . $flag . ") msk "
+			. (exists($Portage::make_defaults_flags{$flag})
+				? $Portage::make_defaults_flags{$flag} ? '(+' :'(-'
+				: '( ')
+			. (exists($Portage::make_conf_flags{$flag})
+				? $Portage::make_conf_flags{$flag}     ? '+)': '-)'
+				: ' )')
+			. ' ' . scalar(@{$masked_descriptions{$flag}}) . "\n";
+			print $fh $_, "\n" for(@{$masked_descriptions{$flag}});
+		}
+
+		# Then write regular flags
+		for my $flag (sort { uc $a cmp uc $b } keys %use_descriptions) {
+			print $fh $flag
+			. (defined($Portage::make_conf_flags{$flag})
+				? $Portage::make_conf_flags{$flag} ? ' on ' : ' off '
+				: ' def ' )
+			. (exists($Portage::make_defaults_flags{$flag})
+				? $Portage::make_defaults_flags{$flag} ? '(+' :'(-'
+				: '( ')
+			. (exists($Portage::make_conf_flags{$flag})
+				? $Portage::make_conf_flags{$flag}     ? '+)': '-)'
+				: ' )')
+			. ' ' . scalar(@{$use_descriptions{$flag}}) . "\n";
 			print $fh $_, "\n" for(@{$use_descriptions{$flag}});
 		}
 		close $fh;
