@@ -15,10 +15,10 @@ EXTRA_DIST = ufed.pl.in
 ufed: ufed.pl.in
 	rm -f $@.tmp
 	sed \
-		-e 's|@PACKAGE_VERSION[@]|$(PACKAGE_VERSION)|g' \
-		-e 's|@PERL[@]|$(PERL)|g' \
-		-e 's|@libexecdir[@]|$(libexecdir)|g' \
-		-e 's|@perldir[@]|$(perldir)|g' \
+		-e 's|XX_PACKAGE_VERSION[@]|$(PACKAGE_VERSION)|g' \
+		-e 's|XX_PERL[@]|$(PERL)|g' \
+		-e 's|XX_libexecdir[@]|$(libexecdir)|g' \
+		-e 's|XX_perldir[@]|$(perldir)|g' \
 		$< >$@.tmp
 	chmod +x $@.tmp
 	mv $@.tmp $@

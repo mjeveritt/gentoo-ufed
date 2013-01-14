@@ -1,4 +1,4 @@
-#!@PERL@ -I@perldir@
+#!XX_PERL@
 use strict;
 use warnings;
 
@@ -6,9 +6,10 @@ use warnings;
 # Distributed under the terms of the GNU General Public License v2
 # $Header: /var/cvsroot/gentoo-src/ufed/ufed.pl,v 1.45 2005/10/18 11:14:33 truedfx Exp $
 
+use lib qw{XX_perldir@};
 use Portage;
 
-my $version = '@PACKAGE_VERSION@';
+my $version = 'XX_PACKAGE_VERSION@';
 
 my %use_descriptions;
 
@@ -23,7 +24,9 @@ read_use_descs;
 
 delete @use_descriptions{qw(bootstrap build)};
 
-$Portage::make_conf_flags{'-*'} = 1 if defined $Portage::make_conf_flags{'*'} && !$Portage::make_conf_flags{'*'};
+$Portage::make_conf_flags{'-*'} = 1
+	if defined $Portage::make_conf_flags{'*'}
+		&& !$Portage::make_conf_flags{'*'};
 
 for(keys %Portage::all_flags) {
 	@{$use_descriptions{$_}} = "(Unknown)"
@@ -76,7 +79,7 @@ sub flags_dialog() {
 		POSIX::dup2 $owrite, 4;
 		POSIX::close $owrite;
 		my $interface = 'ufed-curses';
-		exec { "@libexecdir@/$interface" } $interface or
+		exec { "XX_libexecdir@/$interface" } $interface or
 		do { print STDERR "Couldn't launch $interface\n"; exit 3 }
 	}
 	POSIX::close $iread;

@@ -292,6 +292,7 @@ sub read_sh($) {
 
 sub read_use_mask() {
 	for my $dir(@profiles) {
+		-r "$dir/use.mask" or next;
 		for(noncomments "$dir/use.mask") {
 			my $off = s/^-//;
 			$use_masked_flags{$_} = { '' => !$off };
@@ -300,6 +301,7 @@ sub read_use_mask() {
 			my($pkg, @flags) = split;
 			for(@flags) {
 				my $off = s/^-//;
+
 				$use_masked_flags{$_}{''} ||= 0;
 				$use_masked_flags{$_}{$pkg} = !$off;
 			}
