@@ -5,14 +5,19 @@
 #include <curses.h>
 
 enum win { Top, Left, List, Input, Scrollbar, Right, Bottom, wCount };
+enum mask { show_unmasked, show_both, show_masked };
+
 struct window {
 	WINDOW *win;
 	const int top, left, height, width;
 };
+
 struct item {
 	struct item *prev, *next;
 	int top, height;
+	bool isMasked;
 };
+
 struct key {
 	char key;
 	const char *descr;

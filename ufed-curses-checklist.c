@@ -11,6 +11,41 @@
 
 #include "ufed-curses-help.h"
 
+/* internal types */
+struct flag {
+	struct item item;
+	char *name;
+	char on;
+	char *state;
+	char *descr[FLEXIBLE_ARRAY_MEMBER];
+};
+
+
+/* internal members */
+static struct flag *flags;
+static int descriptionleft;
+static char *fayt;
+static struct item **faytsave;
+
+#define mkKey(x) x, sizeof(x)-1
+static const struct key keys[] = {
+	{ '?',    mkKey("Help (?)")            },
+	{ '\n',   mkKey("Save (Return/Enter)") },
+	{ '\033', mkKey("Cancel (Esc)")        },
+	{ '\0',   mkKey("")                    }
+};
+#undef mkKey
+
+
+/* internal prototypes */
+static void free_flags(void);
+
+
+/* external members */
+enum mask showMasked = show_unmasked; //!< Set whether to show masked, unmasked or both flags
+
+
+/* static functions */
 static char *getline(FILE *fp) {
 	size_t size;
 	char *result;
@@ -45,22 +80,14 @@ static char *getline(FILE *fp) {
 		}
 		size += size/2;
 	}
+	return NULL; // never reached.
 }
 
-static struct flag {
-	struct item item;
-	char *name;
-	char on;
-	char *state;
-	char *descr[FLEXIBLE_ARRAY_MEMBER];
-} *flags;
-static int descriptionleft;
-
-static void free_flags(void);
 static void read_flags(void) {
 	FILE *input = fdopen(3, "r");
 	char *line;
 	int y=0;
+
 	if(input==NULL)
 		exit(-1);
 	atexit(&free_flags);
@@ -89,23 +116,29 @@ static void read_flags(void) {
 			minwidth = name.end-name.start+11;
 		flag->name = &line[name.start];
 
+		/* check and save current flag setting from configuration */
 		line[on.end] = '\0';
+		flag->item.isMasked = false;
 		if(!strcmp(&line[on.start], "on"))
 			flag->on = '+';
 		else if(!strcmp(&line[on.start], "off"))
 			flag->on = '-';
 		else if(!strcmp(&line[on.start], "def"))
 			flag->on = ' ';
-		else if(!strcmp(&line[on.start], "msk"))
+		else if(!strcmp(&line[on.start], "msk")) {
 			flag->on = 'm';
+			flag->item.isMasked = true;
+		}
 		else
 			exit(-1);
 
+		/* check and set flag state */
 		line[state.end] = '\0';
 		if(state.end-state.start != 4)
 			exit(-1);
 		flag->state = &line[state.start];
 
+		/* check and set flag item height */
 		flag->item.height = ndescr;
 		{ int i; for(i=0; i<ndescr; i++) {
 			flag->descr[i] = getline(input);
@@ -113,6 +146,7 @@ static void read_flags(void) {
 
 		y += ndescr;
 
+		/* Save flag in our linked list */
 		if(flags==NULL) {
 			flag->item.prev = (struct item *) flag;
 			flag->item.next = (struct item *) flag;
@@ -147,14 +181,6 @@ static void free_flags(void) {
 	}
 }
 
-static const struct key keys[] = {
-#define key(x) x, sizeof(x)-1
-	{ '?',    key("Help (?)")            },
-	{ '\n',   key("Save (Return/Enter)") },
-	{ '\033', key("Cancel (Esc)")        },
-	{ '\0',   key("")                    }
-#undef key
-};
 
 static void drawflag(struct item *item, bool highlight) {
 	struct flag *flag = (struct flag *) item;
@@ -182,7 +208,7 @@ static void drawflag(struct item *item, bool highlight) {
 				? flag->state[1] : ' '
 			: flag->on,
 		flag->on == ' ' ? ')' : ']',
-		/* distance and name being masked or not */
+		/* distance and name */
 		minwidth-11, flag->name,
 		/* current selection state */
 		flag->state);
@@ -213,9 +239,6 @@ static void drawflag(struct item *item, bool highlight) {
 		wmove(win(List), max(flag->item.top - topy, 0), 2);
 	wnoutrefresh(win(List));
 }
-
-static char *fayt;
-static struct item **faytsave;
 
 static int callback(struct item **currentitem, int key) {
 	if(*fayt!='\0' && key!=KEY_BACKSPACE && (key==' ' || key!=(unsigned char) key || !isprint(key))) {

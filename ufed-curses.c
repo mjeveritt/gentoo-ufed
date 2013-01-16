@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <locale.h>
 
+/* internal types */
 struct window window[wCount] = {
 	{ NULL,  0,  0,  5,  0 }, /* Top       */
 	{ NULL,  5,  0, -8,  3 }, /* Left      */
@@ -16,15 +17,22 @@ struct window window[wCount] = {
 	{ NULL, -3,  0,  3,  0 }, /* Bottom    */
 };
 
+
+/* internal members */
 static const char *subtitle;
-
 static const struct key *keys;
-
 static struct item *items, *currentitem;
-int topy, minwidth;
 
+
+/* external members */
+int topy, minwidth;
+extern enum mask showMasked;
+
+/* internal prototypes */
 static void checktermsize(void);
 
+
+/* internal functions */
 void initcurses(void) {
 	setlocale(LC_CTYPE, "");
 	initscr();
@@ -71,19 +79,35 @@ static void checktermsize(void) {
 static void (*drawitem)(struct item *, bool);
 
 void drawitems(void) {
-	struct item *item;
-	int y;
+	struct item *item = currentitem;
+	int y = item->top - topy;
 
-	item = currentitem;
-	while((y=item->top-topy) > 0)
+	/* move to the top of the displayed list */
+	for ( ; (y > 0) && item; y = item->top - topy)
 		item = item->prev;
+
+	/* advance in the list if the top item would be a masked
+	 * flag that is to be filtered out.
+	 * This is needed in two situations. First at the very start
+	 * of the program and second whenever the filtering is
+	 * toggled. The latter resets the list position to guarantee
+	 * a valid display.
+	 */
+	if ((show_unmasked == showMasked) && item->isMasked) {
+		while (item && item->isMasked) {
+			if (currentitem == item)
+				currentitem = item->next;
+			topy += item->height;
+			item  = item->next;
+		}
+	}
 
 	for(;;) {
 		if(item!=currentitem)
 			(*drawitem)(item, FALSE);
 		y += item->height;
 		item = item->next;
-		if(y>=wHeight(List))
+		if(y >= wHeight(List))
 			break;
 		if(item==items) {
 			char buf[wWidth(List)];
@@ -221,9 +245,9 @@ static void draw(void) {
 
 void scrollcurrent(void) {
 	if(currentitem->top < topy)
-		topy = max(currentitem->top, currentitem->top+currentitem->height-wHeight(List));
-	else if(currentitem->top+currentitem->height > topy+wHeight(List))
-		topy = min(currentitem->top+currentitem->height-wHeight(List), currentitem->top);
+		topy = max(currentitem->top, currentitem->top + currentitem->height - wHeight(List));
+	else if( (currentitem->top + currentitem->height) > (topy + wHeight(List)))
+		topy = min(currentitem->top + currentitem->height - wHeight(List), currentitem->top);
 	else
 		return;
 	drawitems();
@@ -267,6 +291,7 @@ bool yesno(const char *prompt) {
 				break;
 #endif
 	}
+	return FALSE;
 }
 
 int maineventloop(
@@ -313,7 +338,8 @@ int maineventloop(
 		if(c==KEY_MOUSE) {
 			MEVENT event;
 			if(getmouse(&event)==OK) {
-				if(mousekey != ERR && event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED | BUTTON1_RELEASED)) {
+				if( (mousekey != ERR)
+					&& (event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED | BUTTON1_RELEASED)) ) {
 					cbreak();
 					mousekey = ERR;
 					if(!(event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED)))
@@ -344,8 +370,8 @@ int maineventloop(
 						(*drawitem)(currentitem, TRUE);
 					}
 				} else if(wmouse_trafo(win(Scrollbar), &event.y, &event.x, FALSE)) {
-					if(event.bstate & (BUTTON1_PRESSED | BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED)
-					 && event.y < wHeight(Scrollbar)-1) {
+					if( (event.bstate & (BUTTON1_PRESSED | BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED))
+					 && (event.y < wHeight(Scrollbar)-1) ) {
 						halfdelay(1);
 
 #define SIM(key) \
@@ -371,8 +397,6 @@ int maineventloop(
 								for(;;) {
 									c = getch();
 									switch(c) {
-									default:
-										goto check_key;
 									case ERR:
 										continue;
 									case KEY_MOUSE:
@@ -393,14 +417,17 @@ int maineventloop(
 												wrefresh(win(List));
 											}
 										}
+										break;
+									default:
+										goto check_key;
 									}
 									break;
 								}
 							}
 					}
 				} else if(wmouse_trafo(win(Bottom), &event.y, &event.x, FALSE)) {
-					if(event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED)
-					 && event.y == 1) {
+					if( (event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED))
+					 && (event.y == 1) ) {
 						const struct key *key;
 						int x = event.x;
 						if(x < 2)
@@ -437,11 +464,13 @@ int maineventloop(
 
 			switch(c) {
 				case KEY_UP:
-					if(currentitem->top<topy) {
+					if(currentitem->top < topy ) {
 						(*drawitem)(currentitem, FALSE);
 						topy--;
 						(*drawitem)(currentitem, TRUE);
-					} else if(currentitem!=items || topy>currentitem->top) {
+					} else if( (currentitem!=items || topy>currentitem->top)
+							&& (	!currentitem->prev->isMasked
+								||	(show_unmasked != showMasked)) ) {
 						(*drawitem)(currentitem, FALSE);
 						currentitem = currentitem->prev;
 						scrollcurrent();
@@ -450,11 +479,13 @@ int maineventloop(
 					break;
 	
 				case KEY_DOWN:
-					if(currentitem->top+currentitem->height>topy+wHeight(List)) {
+					if( (currentitem->top + currentitem->height) > (topy + wHeight(List)) ) {
 						(*drawitem)(currentitem, FALSE);
 						topy++;
 						(*drawitem)(currentitem, TRUE);
-					} else if(currentitem->next!=items) {
+					} else if( (currentitem->next != items)
+							&& (	currentitem->next->isMasked
+								||	(show_masked != showMasked)) ){
 						(*drawitem)(currentitem, FALSE);
 						currentitem = currentitem->next;
 						scrollcurrent();
