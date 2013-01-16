@@ -44,6 +44,7 @@ static void free_flags(void);
 
 /* external members */
 enum mask showMasked = show_unmasked; //!< Set whether to show masked, unmasked or both flags
+int firstNormalY = -1; //!< y of first not masked flag
 
 
 /* static functions */
@@ -132,6 +133,10 @@ static void read_flags(void) {
 		}
 		else
 			exit(-1);
+
+		/* record first not masked y if not done, yet */
+		if (firstNormalY < 0 && !flag->item.isMasked)
+			firstNormalY = flag->item.top;
 
 		/* check and set flag state */
 		line[state.end] = '\0';

@@ -27,6 +27,7 @@ static struct item *items, *currentitem;
 /* external members */
 int topy, minwidth;
 extern enum mask showMasked;
+extern int firstNormalY;
 
 /* internal prototypes */
 static void checktermsize(void);
@@ -129,8 +130,34 @@ static void drawscrollbar(void) {
 	wattrset(w, COLOR_PAIR(3) | A_BOLD);
 	mvwaddch(w, 0, 0, ACS_UARROW);
 	wvline(w, ACS_CKBOARD, wHeight(Scrollbar)-3);
-	if(items->prev->top+items->prev->height > wHeight(List))
-		mvwaddch(w, 1+(wHeight(Scrollbar)-3)*topy/(items->prev->top+items->prev->height-(wHeight(List)-1)), 0, ACS_BLOCK);
+
+	/* The scrollbar location differs related to the
+	 * current filtering of masked flags.
+	 */
+	int bottomY    = items->prev->top + items->prev->height;
+	// Case 1: Masked flags are not displayed (the default)
+	int listHeight = bottomY - firstNormalY;
+	int listTopY   = topy    - firstNormalY;
+	if (show_masked == showMasked) {
+		// Case 2: Only masked flags are displayed
+		listHeight = firstNormalY;
+		listTopY   = topy;
+	}
+	else if (show_both == showMasked) {
+		// case 3: All flags are shown
+		listHeight = bottomY;
+		listTopY   = topy;
+	}
+
+	// Only show a scrollbar if the list is actually longer than can be displayed:
+	if (listHeight > wHeight(List)) {
+		int sbHeight = wHeight(Scrollbar) - 3;
+		int barStart = 1 + (sbHeight * listTopY / listHeight);
+		int barEnd   = barStart + (sbHeight * wHeight(List) / listHeight);
+		for ( ; barStart <= barEnd; ++barStart)
+			mvwaddch(w, barStart, 0, ACS_BLOCK);
+	}
+
 	mvwaddch(w, wHeight(Scrollbar)-2, 0, ACS_DARROW);
 	mvwaddch(w, wHeight(Scrollbar)-1, 0, ACS_VLINE);
 	wnoutrefresh(w);
