@@ -21,7 +21,7 @@ struct item {
 struct key {
 	char key;
 	const char *descr;
-	int length;
+	size_t length;
 };
 
 extern struct window window[wCount];

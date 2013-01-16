@@ -208,18 +208,30 @@ static void draw(void) {
 	{
 		char *p = buf;
 		const struct key *key;
+		const size_t maxAdr = (const size_t)(buf+wWidth(Bottom)-3);
 		*p++ = ' ';
 		for(key=keys; key->key!='\0'; key++) {
-			int n = (buf+wWidth(Bottom)-3) - p;
+			size_t n = maxAdr - (size_t)p;
 			if(n > key->length)
 				n = key->length;
 			memcpy(p, key->descr, n);
 			p += n;
-			*p++ = ' ';
-			if(p == buf+wWidth(Bottom)-3)
+			if ((size_t)p == maxAdr)
 				break;
+			*p++ = ' ';
 		}
-		memset(p, ' ', buf+wWidth(Bottom)-2-p);
+		/* If there is enough space, show which kind of flags
+		 * are displayed: normal, masked or all
+		 */
+		if ((size_t)p < (maxAdr - 9)) {
+			memset(p, ' ', maxAdr - 9 - (size_t)p);
+			p += maxAdr - 9 - (size_t)p;
+			if (show_unmasked == showMasked) strcpy(p, "[normal]");
+			if (show_masked   == showMasked) strcpy(p, "[masked]");
+			if (show_both     == showMasked) strcpy(p, "[ all  ]");
+			p += 8;
+		}
+		memset(p, ' ', maxAdr + 1 - (size_t)p);
 		buf[wWidth(Bottom)-2] = '\0';
 	}
 	waddstr(w, buf);
@@ -434,7 +446,7 @@ int maineventloop(
 							continue;
 						x -= 2;
 						for(key = keys; key->key!='\0'; key++) {
-							if(x < key->length) {
+							if((size_t)x < key->length) {
 								event.x -= x;
 								wattrset(win(Bottom), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
 								mvwaddstr(win(Bottom), event.y, event.x, key->descr);
@@ -549,7 +561,25 @@ int maineventloop(
 						(*drawitem)(currentitem, TRUE);
 					}
 					break;
-	
+
+				case '\t':
+					if      (show_masked   == showMasked) showMasked = show_unmasked;
+					else if (show_both     == showMasked) showMasked = show_masked;
+					else if (show_unmasked == showMasked) showMasked = show_both;
+					currentitem = items;
+					topy = 0;
+					draw();
+					break;
+
+				case KEY_BTAB:
+					if      (show_masked   == showMasked) showMasked = show_both;
+					else if (show_both     == showMasked) showMasked = show_unmasked;
+					else if (show_unmasked == showMasked) showMasked = show_masked;
+					currentitem = items;
+					topy = 0;
+					draw();
+					break;
+
 #ifdef KEY_RESIZE
 				case KEY_RESIZE:
 					resizeterm(LINES, COLS);

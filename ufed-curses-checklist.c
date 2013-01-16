@@ -32,6 +32,7 @@ static const struct key keys[] = {
 	{ '?',    mkKey("Help (?)")            },
 	{ '\n',   mkKey("Save (Return/Enter)") },
 	{ '\033', mkKey("Cancel (Esc)")        },
+	{ '\t',   mkKey("Toggle Masked (Tab)") },
 	{ '\0',   mkKey("")                    }
 };
 #undef mkKey
