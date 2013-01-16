@@ -497,9 +497,12 @@ int maineventloop(
 					if(currentitem!=items) {
 						struct item *olditem = currentitem;
 						(*drawitem)(currentitem, FALSE);
-						do currentitem = currentitem->prev;
-						while(currentitem!=items
-						 && olditem->top - currentitem->prev->top <= wHeight(List));
+						while( (currentitem != items)
+							&& ( (olditem->top - currentitem->prev->top) <= wHeight(List))
+							&& ( (	!currentitem->prev->isMasked
+								||	(show_unmasked != showMasked)) ) ) {
+							currentitem = currentitem->prev;
+						}
 						scrollcurrent();
 						(*drawitem)(currentitem, TRUE);
 					}
@@ -509,10 +512,13 @@ int maineventloop(
 					if(currentitem->next!=items) {
 						struct item *olditem = currentitem;
 						(*drawitem)(currentitem, FALSE);
-						do currentitem = currentitem->next;
-						while(currentitem->next!=items
-						 && (currentitem->next->top + currentitem->next->height)
-						     - (olditem->top + olditem->height) <= wHeight(List));
+						while( (currentitem->next != items)
+							&& (((currentitem->next->top + currentitem->next->height)
+								-(olditem->top + olditem->height) ) <= wHeight(List))
+							&& ( (	currentitem->next->isMasked
+								||	(show_masked != showMasked)) ) ) {
+							currentitem = currentitem->next;
+						}
 						scrollcurrent();
 						(*drawitem)(currentitem, TRUE);
 					}
@@ -522,6 +528,10 @@ int maineventloop(
 					if(currentitem!=items) {
 						(*drawitem)(currentitem, FALSE);
 						currentitem = items;
+						if (show_unmasked == showMasked) {
+							while (currentitem->isMasked)
+								currentitem = currentitem->next;
+						}
 						scrollcurrent();
 						(*drawitem)(currentitem, TRUE);
 					}
@@ -531,6 +541,10 @@ int maineventloop(
 					if(currentitem->next!=items) {
 						(*drawitem)(currentitem, FALSE);
 						currentitem = items->prev;
+						if (show_masked == showMasked) {
+							while (!currentitem->isMasked)
+								currentitem = currentitem->prev;
+						}
 						scrollcurrent();
 						(*drawitem)(currentitem, TRUE);
 					}

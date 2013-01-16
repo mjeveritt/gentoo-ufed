@@ -262,14 +262,28 @@ static int callback(struct item **currentitem, int key) {
 			faytsave[n] = *currentitem;
 			n++;
 			fayt[n] = '\0';
+
+			/* if the current flag already matches the input string,
+			 * then update the input area only.
+			 */
 			if(strncasecmp(((struct flag *) item)->name, fayt, n)==0) {
 				wattrset(win(Input), COLOR_PAIR(3) | A_BOLD);
 				mvwaddstr(win(Input), 0, 0, fayt);
 				wrefresh(win(Input));
-			} else {
+			}
+			/* if the current flag does not match, search one that does. */
+			else {
 				do item = item->next;
 				while(item!=*currentitem && strncasecmp(((struct flag *) item)->name, fayt, n)!=0);
-				if(item==*currentitem) {
+
+				/* if there was no match (or the match is filtered),
+				 * update the input area to show that there is no match
+				 */
+				if ( (item == *currentitem)
+					|| ( item->isMasked && (show_unmasked == showMasked))
+					|| (!item->isMasked && (show_masked   == showMasked)) ) {
+					if (item != *currentitem)
+						item = *currentitem;
 					wattrset(win(Input), COLOR_PAIR(4) | A_BOLD | A_REVERSE);
 					mvwaddstr(win(Input), 0, 0, fayt);
 					wmove(win(Input), 0, n-1);
@@ -322,7 +336,7 @@ static int callback(struct item **currentitem, int key) {
 		break;
 	case ' ': {
 		// do not toggle masked flags using the keyboard
-		if ('m' == ((struct flag *) *currentitem)->on)
+		if ((*currentitem)->isMasked)
 			break;
 		// Not masked? Then cycle through the states.
 		switch (((struct flag *) *currentitem)->on) {
@@ -361,7 +375,7 @@ static int callback(struct item **currentitem, int key) {
 #ifdef NCURSES_MOUSE_VERSION
 	case KEY_MOUSE:
 		// do not toggle masked flags using the double click
-		if ('m' == ((struct flag *) *currentitem)->on)
+		if ((*currentitem)->isMasked)
 			break;
 		// Not masked? Then cycle through the states.
 		switch (((struct flag *) *currentitem)->on) {
