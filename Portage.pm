@@ -59,8 +59,19 @@ if($lastorder ne 'conf') {
 
 
 sub get_eprefix() {
-	$eprefix = `portageq envvar EPREFIX 2>&1`;
+	my $tmp = "/tmp/ufed_$$.tmp";
+	$eprefix = qx{portageq envvar EPREFIX 2>$tmp};
 	die "Couldn't determine EPREFIX from Portage" if $? != 0;
+
+	if ( -s $tmp ) {
+		my $fTmp = undef;
+		if (open ($fTmp, "<", $tmp)) {
+			print STDERR "$_" while (<$fTmp>);
+			close $fTmp;
+		}
+	}
+	-e $tmp and unlink $tmp;
+
 	chomp($eprefix);
 }
 
