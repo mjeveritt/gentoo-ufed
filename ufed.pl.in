@@ -14,10 +14,10 @@ my $version = 'XX_PACKAGE_VERSION@';
 my %use_descriptions;
 my %masked_descriptions;
 
-sub finalise(@);
-sub flags_dialog();
-sub read_use_descs();
-sub save_flags(@);
+sub finalise;
+sub flags_dialog;
+sub read_use_descs;
+sub save_flags;
 
 delete $Portage::all_flags{'*'};
 
@@ -56,17 +56,19 @@ for(keys %Portage::use_masked_flags) {
 
 flags_dialog;
 
-sub finalise(@) {
-	return sort {
+sub finalise {
+	my @arg = @_;
+	my @result = sort {
 		($a ne '-*') <=> ($b ne '-*')
 		||
 		($a =~ /^-/) <=> ($b =~ /^-/)
 		||
 		$a cmp $b
-	} @_;
+	} @arg;
+	return @result;
 }
 
-sub flags_dialog() {
+sub flags_dialog {
 	use POSIX ();
 	POSIX::dup2 1, 3;
 	POSIX::dup2 1, 4;
@@ -87,47 +89,47 @@ sub flags_dialog() {
 	}
 	POSIX::close $iread;
 	POSIX::close $owrite;
-	if(open my $fh, '>&=', $iwrite) {
-		
-		# Write masked flags first so they sort at the beginning of the list
-		for my $flag (sort { uc $a cmp uc $b } keys %masked_descriptions) {
-			print $fh "(" . $flag . ") msk "
-			. (exists($Portage::make_defaults_flags{$flag})
-				? $Portage::make_defaults_flags{$flag} ? '(+' :'(-'
-				: '( ')
-			. (exists($Portage::make_conf_flags{$flag})
-				? $Portage::make_conf_flags{$flag}     ? '+)': '-)'
-				: ' )')
-			. ' ' . scalar(@{$masked_descriptions{$flag}}) . "\n";
-			print $fh $_, "\n" for(@{$masked_descriptions{$flag}});
-		}
+	my $outTxt = "";
 
-		# Then write regular flags
-		for my $flag (sort { uc $a cmp uc $b } keys %use_descriptions) {
-			print $fh $flag
-			. (defined($Portage::make_conf_flags{$flag})
-				? $Portage::make_conf_flags{$flag} ? ' on ' : ' off '
-				: ' def ' )
-			. (exists($Portage::make_defaults_flags{$flag})
-				? $Portage::make_defaults_flags{$flag} ? '(+' :'(-'
-				: '( ')
-			. (exists($Portage::make_conf_flags{$flag})
-				? $Portage::make_conf_flags{$flag}     ? '+)': '-)'
-				: ' )')
-			. ' ' . scalar(@{$use_descriptions{$flag}}) . "\n";
-			print $fh $_, "\n" for(@{$use_descriptions{$flag}});
-		}
+	# Write masked flags first so they sort at the beginning of the list
+	for my $flag (sort { uc $a cmp uc $b } keys %masked_descriptions) {
+		$outTxt .= sprintf ("(%s) msk (%s%s) %d\n", $flag,
+					exists($Portage::make_defaults_flags{$flag})
+						? $Portage::make_defaults_flags{$flag} ? '+' : '-' : ' ',
+					exists($Portage::make_conf_flags{$flag})
+						? $Portage::make_conf_flags{$flag}     ? '+' : '-' : ' ',
+					scalar @{$masked_descriptions{$flag}} );
+		$outTxt .= sprintf ("%s\n", $_) for(@{$masked_descriptions{$flag}});
+	}
+
+	# Then write regular flags
+	for my $flag (sort { uc $a cmp uc $b } keys %use_descriptions) {
+		$outTxt .= sprintf ("%s %s (%s%s) %d\n", $flag,
+					defined($Portage::make_conf_flags{$flag})
+						? $Portage::make_conf_flags{$flag} ? ' on ' : ' off ' : ' def ',
+					exists($Portage::make_defaults_flags{$flag})
+						? $Portage::make_defaults_flags{$flag} ? '+' : '-' : ' ',
+					exists($Portage::make_conf_flags{$flag})
+						? $Portage::make_conf_flags{$flag}     ? '+' : '-' : ' ',
+					scalar @{$use_descriptions{$flag}}  );
+		$outTxt .= sprintf ("%s\n", $_) for(@{$use_descriptions{$flag}});
+	}
+
+	# Now let the interface know of the result
+	if (open my $fh, '>&=', $iwrite) {
+		print $fh $outTxt;
 		close $fh;
 	} else {
 		die "Couldn't let interface know of flags\n";
 	}
 	POSIX::close $iwrite;
 	wait;
-	open my $fh, '<&=', $oread or die "Couldn't read output.\n";
 	if(POSIX::WIFEXITED($?)) {
 		my $rc = POSIX::WEXITSTATUS($?);
 		if($rc==0) {
+			open my $fh, '<&=', $oread or die "Couldn't read output.\n";
 			my @flags = grep { $_ ne '--*' } do { local $/; split /\n/, <$fh> };
+			close $fh;
 			save_flags finalise @flags;
 		} elsif($rc==1)
 		{ print "Cancelled, not saving changes.\n" }
@@ -136,9 +138,10 @@ sub flags_dialog() {
 	{ kill POSIX::WTERMSIG($?), $$ }
 	else
 	{ exit 127 }
+	return;
 }
 
-sub read_use_descs() {
+sub read_use_descs {
 	my %_use_descriptions;
 	for my $dir(@Portage::portagedirs) {
 		for(Portage::noncomments "$dir/profiles/use.desc") {
@@ -160,9 +163,11 @@ sub read_use_descs() {
 		for my $desc(sort keys %{$_use_local_descriptions{$_}})
 		{ push @{$use_descriptions{$_}}, "Local flag: $desc (@{[sort keys %{$_use_local_descriptions{$_}{$desc}}]})" }
 	}
+	return;
 }
 
-sub save_flags(@) {
+sub save_flags {
+	my (@flags) = @_;
 	my $BLANK = qr{(?:[ \n\t]+|#.*)+};              # whitespace and comments
 	my $UBLNK = qr{(?:                              # as above, but scan for #USE=
 		[ \n\t]+ |
@@ -176,7 +181,6 @@ sub save_flags(@) {
 	my $BNUQV = qr{(?:[^ \\\n\t'"#]+|\\\n()|\\.)+}s;# unquoted value (scan for \\\n)
 	my $BNDQV = qr{"(?:[^\\"]|\\\n()|\\.)*"}s;      # doublequoted value (scan for \\\n)
 
-	my (@flags) = @_;
 	my $contents;
 
 	my $makeconf_name = "$Portage::eprefix/etc/portage/make.conf";
@@ -257,7 +261,7 @@ sub save_flags(@) {
 						$flags   = $nl.$flag;
 						$length  = length $flag;
 					}
-					for $flag(@flags[1..$#flags]) {
+					for my $flag (@flags[1..$#flags]) {
 						if($length + 1 + length $flag <= $linelength) {
 							$flags  .= " $flag";
 							$length += 1+length $flag;
@@ -326,4 +330,6 @@ EOF
 		print $makeconf $_;
 		close $makeconf;
 	}
+	
+	return;
 }
