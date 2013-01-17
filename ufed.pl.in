@@ -56,6 +56,9 @@ for(keys %Portage::use_masked_flags) {
 
 flags_dialog;
 
+# Take a list and return it ordered the following way:
+# Put "-*" first, followed by enabling flags and put
+# disabling flags to the end.
 sub finalise {
 	my @arg = @_;
 	my @result = sort {
@@ -68,6 +71,10 @@ sub finalise {
 	return @result;
 }
 
+# Launch the curses inteface. Communication is done using
+# pipes. Waiting for pipe read/write to finish is done
+# automatically.
+# No arguments accepted.
 sub flags_dialog {
 	use POSIX ();
 	POSIX::dup2 1, 3;
@@ -141,6 +148,14 @@ sub flags_dialog {
 	return;
 }
 
+# Build the global %use_descriptions hash.
+# Parsed files are:
+# 1. PORTDIR/profiles/use.desc
+# 2. PORTDIR/profiles/use.local.desc
+# No arguments accepted.
+# @todo : The local descriptions must be written in a different
+#         way (how?) to allow the wanted filtering/distinction
+#         between global/local flags.
 sub read_use_descs {
 	my %_use_descriptions;
 	for my $dir(@Portage::portagedirs) {
@@ -166,6 +181,8 @@ sub read_use_descs {
 	return;
 }
 
+# Write given list of flags back to make.conf if
+# the file has not been changed since reading it.
 sub save_flags {
 	my (@flags) = @_;
 	my $BLANK = qr{(?:[ \n\t]+|#.*)+};              # whitespace and comments
