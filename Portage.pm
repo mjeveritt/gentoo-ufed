@@ -243,12 +243,14 @@ sub read_packages {
 			# Load PROVIDE
 			## FIXME: There is no file "PROVIDE" anywhere, at least on my system!
 			if(open my $provide, '<', "$eprefix/var/db/pkg/$cat/$pkg/PROVIDE") {
+				local $/;
 				@provide = split ' ', <$provide>;
 				close $provide;
 			}
 			
 			# Load USE
 			if(open my $use, '<', "$eprefix/var/db/pkg/$cat/$pkg/USE") {
+				local $/;
 				@use = split ' ', <$use>;
 				close $use;
 			}
@@ -256,9 +258,11 @@ sub read_packages {
 			# could be shortened, but make sure not to strip off part of the name
 			$pkg =~ s/-\d+(?:\.\d+)*\w?(?:_(?:alpha|beta|pre|rc|p)\d*)?(?:-r\d+)?$//;
 			$packages{"$cat/$pkg"} = 1;
-			local $/;
 			
 			# FIXME: What is this supposed to achieve?
+			# Currently this does nothing as there is no PROVIDE anywhere,
+			# but even if it were, there is nothing really done at all with
+			# @use.
 			for(my $i=0; $i<@provide; $i++) {
 				my $pkg = $provide[$i];
 				next if $pkg eq '(' || $pkg eq ')';
