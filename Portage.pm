@@ -4,9 +4,13 @@ package Portage;
 # Distributed under the terms of the GNU General Public License v2
 # $Header: /var/cvsroot/gentoo-src/ufed/Portage.pm,v 1.3 2005/11/13 00:28:17 truedfx Exp $
 
+use strict;
+use warnings;
+
 my %environment;
 $environment{$_}={} for qw(USE); # INCREMENTALS, except we only need USE
 
+our @portagedirs;
 our %packages;
 our @profiles;
 our %use_masked_flags;
@@ -17,20 +21,20 @@ our %archs;
 our %all_flags;
 our $eprefix;
 
-sub get_eprefix();
-sub have_package($);
+sub get_eprefix;
+sub have_package;
 sub merge(\%%);
 sub merge_env(\%);
-sub noncomments($);
-sub norm_path($$);
-sub read_archs();
-sub read_make_conf();
-sub read_make_defaults();
-sub read_make_globals();
-sub read_packages();
-sub read_profiles();
-sub read_sh($);
-sub read_use_mask();
+sub noncomments;
+sub norm_path;
+sub read_archs;
+sub read_make_conf;
+sub read_make_defaults;
+sub read_make_globals;
+sub read_packages;
+sub read_profiles;
+sub read_sh;
+sub read_use_mask;
 
 get_eprefix;
 read_packages;
@@ -44,10 +48,10 @@ read_archs;
 my $lastorder;
 for(reverse split /:/, $environment{USE_ORDER} || "env:pkg:conf:defaults:pkginternal:env.d") {
 	if($_ eq 'defaults') {
-		merge %default_flags, %make_defaults_flags;
-		merge %all_flags, %make_defaults_flags;
+		merge(%default_flags, %make_defaults_flags);
+		merge(%all_flags, %make_defaults_flags);
 	} elsif($_ eq 'conf') {
-		merge %all_flags, %make_conf_flags;
+		merge(%all_flags, %make_conf_flags);
 	} else {
 		next;
 	}
@@ -58,14 +62,18 @@ if($lastorder ne 'conf') {
 }
 
 
-sub get_eprefix() {
+# Determine the value for EPREFIX and save it
+# in $eprefix. This is done using 'portageq'.
+# Other output from portageq is printed on
+# STDERR.
+# No parameters accepted.
+sub get_eprefix {
 	my $tmp = "/tmp/ufed_$$.tmp";
 	$eprefix = qx{portageq envvar EPREFIX 2>$tmp};
 	die "Couldn't determine EPREFIX from Portage" if $? != 0;
 
 	if ( -s $tmp ) {
-		my $fTmp = undef;
-		if (open ($fTmp, "<", $tmp)) {
+		if (open (my $fTmp, "<", $tmp)) {
 			print STDERR "$_" while (<$fTmp>);
 			close $fTmp;
 		}
@@ -73,19 +81,33 @@ sub get_eprefix() {
 	-e $tmp and unlink $tmp;
 
 	chomp($eprefix);
+	return;
 }
 
-sub have_package($) {
+
+# returns the content of %packages for the given
+# scalar or undef.
+# Parameter 1: Package to test of the form <category>/<name>
+sub have_package {
 	my ($cp) = @_;
 	return $packages{$cp};
 }
 
+
+# merges two hashes into the first.
+# Parameter 1: destination hash
+# Parameter 2: source hash
 sub merge(\%%) {
 	my ($env, %env) = @_;
 	%{$env} = () if(exists $env{'*'});
 	$env->{$_} = $env{$_} for(keys %env);
+	return;
 }
 
+
+# Splits content of the source hash at spaces and
+# merges its contents into %environment.
+# Parameter 1: hash to merge
 sub merge_env(\%) {
 	my ($env) = @_;
 	for(keys %environment) {
@@ -98,18 +120,23 @@ sub merge_env(\%) {
 					$split{$_} = !$off;
 				}
 				$env->{$_} = { %split };
-				merge %{$environment{$_}}, %{$env->{$_}};
+				merge(%{$environment{$_}}, %{$env->{$_}});
 			}
 		}
 	}
-	for(keys %{$env}) {
+	for(keys %$env) {
 		if(ref $environment{$_} ne 'HASH') {
 			$environment{$_} = $env->{$_};
 		}
 	}
+	return;
 }
 
-sub noncomments($) {
+
+# returns a list of all lines of a given file
+# that are no pure comments
+# Parameter 1: filename
+sub noncomments {
 	my ($fname) = @_;
 	my @result;
 	local $/;
@@ -121,7 +148,12 @@ sub noncomments($) {
 	return @result;
 }
 
-sub norm_path($$) {
+
+# normalizes a given path behind a base
+# Parameter 1: base path 
+# Parameter 2: sub path
+# return: normalized base path / normalized sub path
+sub norm_path {
 	my ($base, $path) = @_;
 	my @pathcomp = ($path !~ m!^/! && split(m!/!, $base), split(m!/!, $path));
 	for(my $i=0;;$i++) {
@@ -142,84 +174,127 @@ sub norm_path($$) {
 	return '/'.join '/', @pathcomp;
 }
 
-sub read_archs() {
+
+# reads all arch.list in all profiles sub directories
+# of found @portagedirs and saves the found architectures
+# in %arch
+# No parameters accepted
+sub read_archs {
 	for my $dir(@portagedirs) {
 		for(noncomments "$dir/profiles/arch.list") {
 			$archs{$_} = 1;
 		}
 	}
+	return;
 }
 
-sub read_make_conf() {
+
+# read /etc/make.conf and/or /etc/portage/make.conf and
+# merge set USE flags into %make_conf_flags. Additionally
+# all set portage directories (plus overlays) are recorded
+# in @portagedirs.
+# No parameters accepted.
+sub read_make_conf {
 	my %env = read_sh "$eprefix/etc/make.conf";
 	merge (%env, read_sh("$eprefix/etc/portage/make.conf"));
-	merge %make_conf_flags, %{$env{USE}} if exists $env{USE};
+	merge (%make_conf_flags, %{$env{USE}}) if exists $env{USE};
 	@portagedirs = $environment{PORTDIR};
 	push @portagedirs, split ' ', $environment{PORTDIR_OVERLAY} if defined $environment{PORTDIR_OVERLAY};
+	return;
 }
 
-sub read_make_defaults() {
+
+# read all found make.defaults files and merge their flags
+# into %make_default_flags.
+# No parameters accepted.
+sub read_make_defaults {
 	for my $dir(@profiles) {
 		my %env = read_sh "$dir/make.defaults";
-		merge %make_defaults_flags, %{$env{USE}} if exists $env{USE};
+		merge (%make_defaults_flags, %{$env{USE}}) if exists $env{USE};
 	}
+	return
 }
 
-sub read_make_globals() {
+
+# read all found make.globals and merge their
+# settings into %environment.
+# No parameters accepted
+sub read_make_globals {
 	for my $dir(@profiles, "$eprefix/usr/share/portage/config") {
 		read_sh "$dir/make.globals";
 	}
+	return;
 }
 
-sub read_packages() {
+
+# Analyze EPREFIX/var/db/pkg and note all installed
+# packages in %packages.
+# No parameters accepted.
+sub read_packages {
 	die "Couldn't read $eprefix/var/db/pkg\n" unless opendir my $pkgdir, "$eprefix/var/db/pkg";
 	while(my $cat = readdir $pkgdir) {
 		next if $cat eq '.' or $cat eq '..';
-		next unless opendir my $catdir, "/var/db/pkg/$cat";
+		next unless opendir my $catdir, "$eprefix/var/db/pkg/$cat";
 		while(my $pkg = readdir $catdir) {
 			next if $pkg eq '.' or $pkg eq '..';
-			if(open my $provide, '<', "/var/db/pkg/$cat/$pkg/PROVIDE") {
-				if(open my $use, '<', "/var/db/pkg/$cat/$pkg/USE") {
-					# could be shortened, but make sure not to strip off part of the name
+			my @provide = ();
+			my @use = ();
+			
+			# Load PROVIDE
+			## FIXME: There is no file "PROVIDE" anywhere, at least on my system!
+			if(open my $provide, '<', "$eprefix/var/db/pkg/$cat/$pkg/PROVIDE") {
+				@provide = split ' ', <$provide>;
+				close $provide;
+			}
+			
+			# Load USE
+			if(open my $use, '<', "$eprefix/var/db/pkg/$cat/$pkg/USE") {
+				@use = split ' ', <$use>;
+				close $use;
+			}
+
+			# could be shortened, but make sure not to strip off part of the name
+			$pkg =~ s/-\d+(?:\.\d+)*\w?(?:_(?:alpha|beta|pre|rc|p)\d*)?(?:-r\d+)?$//;
+			$packages{"$cat/$pkg"} = 1;
+			local $/;
+			
+			# FIXME: What is this supposed to achieve?
+			for(my $i=0; $i<@provide; $i++) {
+				my $pkg = $provide[$i];
+				next if $pkg eq '(' || $pkg eq ')';
+				if($pkg !~ s/\?$//) {
 					$pkg =~ s/-\d+(?:\.\d+)*\w?(?:_(?:alpha|beta|pre|rc|p)\d*)?(?:-r\d+)?$//;
-					$packages{"$cat/$pkg"} = 1;
-					local $/;
-					my @provide = split ' ', <$provide>;
-					my @use = split ' ', <$use>;
-					for(my $i=0; $i<@provide; $i++) {
-						my $pkg = $provide[$i];
-						next if $pkg eq '(' || $pkg eq ')';
-						if($pkg !~ s/\?$//) {
-							$pkg =~ s/-\d+(?:\.\d+)*\w?(?:_(?:alpha|beta|pre|rc|p)\d*)?(?:-r\d+)?$//;
-							$packages{$pkg} = 1;
-						} else {
-							my $musthave = $pkg !~ s/^!//;
-							my $have = 0;
-							for(@use) {
-								if($pkg eq $_)
-								{ $have = 1; last }
-							}
-							if($musthave != $have) {
-								my $level = 0;
-								for($i++;$i<@provide;$i++) {
-									$level++ if $provide[$i] eq '(';
-									$level-- if $provide[$i] eq ')';
-									last if $level==0;
-								}
-							}
+					$packages{$pkg} = 1;
+				} else {
+					my $musthave = $pkg !~ s/^!//;
+					my $have = 0;
+					for(@use) {
+						if($pkg eq $_)
+						{ $have = 1; last }
+					}
+					if($musthave != $have) {
+						my $level = 0;
+						for($i++;$i<@provide;$i++) {
+							$level++ if $provide[$i] eq '(';
+							$level-- if $provide[$i] eq ')';
+							last if $level==0;
 						}
 					}
-					close $use;
 				}
-				close $provide;
 			}
 		}
 		closedir $catdir;
 	}
 	closedir $pkgdir;
+	return;
 }
 
-sub read_profiles() {
+
+# read /etc/make.profile and /etc/portage/make.profile
+# and analyze the complete profile tree using the found
+# parent files. Add all found paths to @profiles.
+# No parameters accepted.
+sub read_profiles {
 	$_ = readlink "$eprefix/etc/make.profile";
 	$_ = readlink "$eprefix/etc/portage/make.profile" if not defined $_;
 	die "$eprefix/etc\{,/portage\}/make.profile is not a symlink\n" if not defined $_;
@@ -230,9 +305,18 @@ sub read_profiles() {
 		}
 	}
 	push @profiles, "$eprefix/etc/portage/profile";
+	return;
 }
 
-sub read_sh($) {
+
+# reads the given file and parses it for key=value pairs.
+# "source" entries are added to the file and parsed as
+# well. The results of the parsing are merged into
+# %environment.
+# Parameter 1: The path of the file to parse.
+# In a non-scalar context the function returns the found values.
+sub read_sh {
+	my ($fname) = @_;
 	my $BLANK = qr{(?:[ \n\t]+|#.*)+};         # whitespace and comments
 	my $IDENT = qr{([^ \\\n\t'"{}=#]+)};       # identifiers
 	my $ASSIG = qr{=};                         # assignment operator
@@ -240,10 +324,10 @@ sub read_sh($) {
 	my $SQVAL = qr{'([^']*)'};                 # singlequoted value
 	my $DQVAL = qr{"((?:[^\\"]|\\.)*)"}s;      # doublequoted value
 
-	my ($fname) = @_;
 	my %env;
 	if(open my $file, '<', $fname) {
 		{ local $/; $_ = <$file> }
+		close $file;
 		eval {
 			for(;;) {
 				/\G$BLANK/gc;
@@ -279,7 +363,7 @@ sub read_sh($) {
 					}
 				}
 				if($name eq 'source') {
-					open my $f, '<', $value or die;
+					open my $f, '<', $value or die "Unable to open $value\n$!\n";
 					my $pos = pos;
 					substr($_, pos, 0) = do {
 						local $/;
@@ -288,20 +372,25 @@ sub read_sh($) {
 						$text;
 					};
 					pos = $pos;
-					close $f or die;
+					close $f or die "Unable to open $value\n$!\n";
 				} else {
 				$env{$name} = $value;
 				}
 			}
 		};
 		die "Parse error in $fname\n" if $@;
-		close $file;
 	}
-	merge_env %env;
+	merge_env(%env);
 	return %env if wantarray;
+	return;
 }
 
-sub read_use_mask() {
+
+# read all masked flags from all found use.mask
+# and package.use.mask files. Save the found
+# masks in %use_masked_flags.
+# No parameters accepted.
+sub read_use_mask {
 	for my $dir(@profiles) {
 		-r "$dir/use.mask" or next;
 		for(noncomments "$dir/use.mask") {
@@ -318,6 +407,7 @@ sub read_use_mask() {
 			}
 		}
 	}
+	return;
 }
 
 1;
