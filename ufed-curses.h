@@ -16,6 +16,8 @@ struct item {
 	struct item *prev, *next;
 	int top, height;
 	bool isMasked;
+	bool isGlobal;
+	bool isInstalled;
 };
 
 struct key {

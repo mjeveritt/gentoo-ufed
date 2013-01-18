@@ -11,6 +11,19 @@
 
 #include "ufed-curses-help.h"
 
+#define DEBUG_EXIT 1
+
+#if defined(DEBUG_EXIT)
+#  define ERROR_EXIT(code, fmt, ...) { \
+	fprintf(stderr, "ERROR in %s:%d (%s): \n -> ", \
+		__FILE__, __LINE__, __FUNCTION__); \
+	fprintf(stderr, fmt, __VA_ARGS__); \
+	exit(code); \
+}
+#else
+#  define ERROR_EXIT(code, ...) { exit(code); }
+#endif // DEBUG_EXIT
+
 /* internal types */
 struct flag {
 	struct item item;
@@ -54,9 +67,9 @@ static char *getline(FILE *fp) {
 
 	size = LINE_MAX;
 	result = malloc(size);
-	if(result==NULL)
-		exit(-1);
-	if(fgets(result, size, fp)==NULL)
+	if(result == NULL)
+		ERROR_EXIT(-1, "Can not allocate %lu bytes\n", sizeof(char) * size);
+	if(fgets(result, size, fp) == NULL)
 		return NULL;
 	{
 		char *p = strchr(result, '\n');
@@ -68,8 +81,8 @@ static char *getline(FILE *fp) {
 	}
 	for(;;) {
 		result = realloc(result, size+size/2);
-		if(result==NULL)
-			exit(-1);
+		if(result == NULL)
+			ERROR_EXIT(-1, "Can not reallocate %lu bytes\n", (size_t)(sizeof(char) * size * 1.5));
 		if(fgets(result+size, size/2, fp)==NULL)
 			return NULL;
 		{
@@ -91,7 +104,7 @@ static void read_flags(void) {
 	int y=0;
 
 	if(input==NULL)
-		exit(-1);
+		ERROR_EXIT(-1, "fdopen failed with error %d\n", errno);
 	atexit(&free_flags);
 	for(;;) {
 		struct {
@@ -107,10 +120,10 @@ static void read_flags(void) {
 				&on.start,    &on.end,
 				&state.start, &state.end,
 				&ndescr)!=1)
-			exit(-1);
+			ERROR_EXIT(-1, "sscanf failed on line\n\"%s\"\n", line);
 		flag = malloc(sizeof *flag + ndescr * sizeof *flag->descr);
 		if(flag==NULL)
-			exit(-1);
+			ERROR_EXIT(-1, "Can not allocate %lu bytes\n", sizeof *flag + ndescr * sizeof *flag->descr);
 		flag->item.top = y;
 
 		line[name.end] = '\0';
@@ -120,19 +133,14 @@ static void read_flags(void) {
 
 		/* check and save current flag setting from configuration */
 		line[on.end] = '\0';
-		flag->item.isMasked = false;
 		if(!strcmp(&line[on.start], "on"))
 			flag->on = '+';
 		else if(!strcmp(&line[on.start], "off"))
 			flag->on = '-';
 		else if(!strcmp(&line[on.start], "def"))
 			flag->on = ' ';
-		else if(!strcmp(&line[on.start], "msk")) {
-			flag->on = 'm';
-			flag->item.isMasked = true;
-		}
 		else
-			exit(-1);
+			ERROR_EXIT(-1, "flag->on can not be determined with \"%s\"\n", &line[on.start]);
 
 		/* record first not masked y if not done, yet */
 		if (firstNormalY < 0 && !flag->item.isMasked)
@@ -141,14 +149,29 @@ static void read_flags(void) {
 		/* check and set flag state */
 		line[state.end] = '\0';
 		if(state.end-state.start != 4)
-			exit(-1);
+			ERROR_EXIT(-1, "state.end - state.start is %d (must be 4)\n", state.end - state.start);
 		flag->state = &line[state.start];
 
 		/* check and set flag item height */
 		flag->item.height = ndescr;
-		{ int i; for(i=0; i<ndescr; i++) {
+
+		/* read description(s) and determine flag status */
+		flag->item.isMasked    = false;
+		flag->item.isGlobal    = false;
+		flag->item.isInstalled = false;
+		for (int i = 0; i < ndescr; ++i) {
 			flag->descr[i] = getline(input);
-		} }
+			if ('g' == flag->descr[i][1])
+				flag->item.isGlobal = true;
+			else if ('L' == flag->descr[i][1])
+				flag->item.isInstalled = true;
+			else if ('M' == flag->descr[i][1]) {
+				flag->item.isMasked = true;
+				flag->item.isInstalled = true;
+			}
+			else if ('m' == flag->descr[i][1])
+				flag->item.isMasked = true;
+		}
 
 		y += ndescr;
 

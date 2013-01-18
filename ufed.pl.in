@@ -40,17 +40,22 @@ for(@Portage::archs) {
 	delete $Portage::all_flags{$_};
 	delete $use_descriptions{$_};
 }
-for(keys %Portage::use_masked_flags) {
+for my $flag (keys %Portage::use_masked_flags) {
 	my $masked = 1;
-	for(values %{$Portage::use_masked_flags{$_}}) {
-		last if not($masked &&= $_);
+	for my $mask (values %{$Portage::use_masked_flags{$flag}}) {
+		last if not($masked &&= $mask);
 	}
 	if($masked) {
-		@{$masked_descriptions{$_}} = @{$use_descriptions{$_}}
-			if (defined($use_descriptions{$_}));
-		delete $Portage::default_flags{$_};
-		delete $Portage::all_flags{$_};
-		delete $use_descriptions{$_};
+		if (defined($use_descriptions{$flag})) {
+			@{$masked_descriptions{$flag}} = @{$use_descriptions{$flag}};
+			for (my $i = 0; $i < scalar @{$masked_descriptions{$flag}}; ++$i) {
+				$masked_descriptions{$flag}->[$i] =~ s/^\[[lg]\]/[m]/ ;
+				$masked_descriptions{$flag}->[$i] =~ s/^\[L\]/[M]/ ;
+			}
+		}
+		delete $use_descriptions{$flag};
+		delete $Portage::default_flags{$flag};
+		delete $Portage::all_flags{$flag};
 	}
 }
 
@@ -101,7 +106,9 @@ sub flags_dialog {
 
 	# Write masked flags first so they sort at the beginning of the list
 	for my $flag (sort { uc $a cmp uc $b } keys %masked_descriptions) {
-		$outTxt .= sprintf ("(%s) msk (%s%s) %d\n", $flag,
+		$outTxt .= sprintf ("(%s) %s (%s%s) %d\n", $flag,
+					defined($Portage::make_conf_flags{$flag})
+						? $Portage::make_conf_flags{$flag} ? 'on' : 'off' : 'def',
 					exists($Portage::make_defaults_flags{$flag})
 						? $Portage::make_defaults_flags{$flag} ? '+' : '-' : ' ',
 					exists($Portage::make_conf_flags{$flag})
@@ -114,7 +121,7 @@ sub flags_dialog {
 	for my $flag (sort { uc $a cmp uc $b } keys %use_descriptions) {
 		$outTxt .= sprintf ("%s %s (%s%s) %d\n", $flag,
 					defined($Portage::make_conf_flags{$flag})
-						? $Portage::make_conf_flags{$flag} ? ' on ' : ' off ' : ' def ',
+						? $Portage::make_conf_flags{$flag} ? 'on' : 'off' : 'def',
 					exists($Portage::make_defaults_flags{$flag})
 						? $Portage::make_defaults_flags{$flag} ? '+' : '-' : ' ',
 					exists($Portage::make_conf_flags{$flag})
@@ -172,12 +179,26 @@ sub read_use_descs {
 			$_use_local_descriptions{$flag}{$desc}{$pkg} = 1;
 		}
 	}
-	local $"=", ";
-	for(sort keys %_use_descriptions)
-	{ @{$use_descriptions{$_}} = sort keys %{$_use_descriptions{$_}} }
-	for(sort keys %_use_local_descriptions) {
-		for my $desc(sort keys %{$_use_local_descriptions{$_}})
-		{ push @{$use_descriptions{$_}}, "Local flag: $desc (@{[sort keys %{$_use_local_descriptions{$_}{$desc}}]})" }
+	# Record all global flags first, their description is printed first
+	# in the ncurses interface as well.
+	for my $key (sort keys %_use_descriptions) {
+		for my $desc (sort keys %{$_use_descriptions{$key}}) {
+			push @{$use_descriptions{$key}}, "[g] " . $desc;
+		}
+	}
+
+	# Add local flags
+	for my $key (sort keys %_use_local_descriptions) {
+		for my $desc (sort keys %{$_use_local_descriptions{$key}}) {
+			my $flagPrefix = "l";
+			my @pkgs = ();
+			for my $pkg (sort keys %{$_use_local_descriptions{$key}{$desc}}) {
+				$flagPrefix = "L" if (Portage::have_package($pkg));
+				push @pkgs, $pkg;
+			}
+			local $"=", ";
+			push @{$use_descriptions{$key}}, sprintf("[%s] (%s) %s", $flagPrefix, "@pkgs", $desc);
+		}
 	}
 	return;
 }
