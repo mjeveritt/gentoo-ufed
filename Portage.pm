@@ -23,8 +23,8 @@ our $eprefix;
 
 sub get_eprefix;
 sub have_package;
-sub merge(\%%);
-sub merge_env(\%);
+sub merge;
+sub merge_env;
 sub noncomments;
 sub norm_path;
 sub read_archs;
@@ -48,10 +48,10 @@ read_archs;
 my $lastorder;
 for(reverse split /:/, $environment{USE_ORDER} || "env:pkg:conf:defaults:pkginternal:env.d") {
 	if($_ eq 'defaults') {
-		merge(%default_flags, %make_defaults_flags);
-		merge(%all_flags, %make_defaults_flags);
+		merge(\%default_flags, \%make_defaults_flags);
+		merge(\%all_flags, \%make_defaults_flags);
 	} elsif($_ eq 'conf') {
-		merge(%all_flags, %make_conf_flags);
+		merge(\%all_flags, \%make_conf_flags);
 	} else {
 		next;
 	}
@@ -95,38 +95,38 @@ sub have_package {
 
 
 # merges two hashes into the first.
-# Parameter 1: destination hash
-# Parameter 2: source hash
-sub merge(\%%) {
-	my ($env, %env) = @_;
-	%{$env} = () if(exists $env{'*'});
-	$env->{$_} = $env{$_} for(keys %env);
+# Parameter 1: reference of the destination hash
+# Parameter 2: reference of the source hash
+sub merge {
+	my ($dst, $src) = @_;
+	%{$dst} = () if(exists $src->{'*'});
+	$dst->{$_} = $src->{$_} for(keys %$src);
 	return;
 }
 
 
 # Splits content of the source hash at spaces and
 # merges its contents into %environment.
-# Parameter 1: hash to merge
-sub merge_env(\%) {
-	my ($env) = @_;
+# Parameter 1: reference of the hash to merge
+sub merge_env {
+	my ($src) = @_;
 	for(keys %environment) {
 		if(ref $environment{$_} eq 'HASH') {
-			if(exists $env->{$_}) {
+			if(exists $src->{$_}) {
 				my %split;
-				for(split ' ', $env->{$_}) {
+				for(split ' ', $src->{$_}) {
 					my $off = s/^-//;
 					%split = () if($_ eq '*');
 					$split{$_} = !$off;
 				}
-				$env->{$_} = { %split };
-				merge(%{$environment{$_}}, %{$env->{$_}});
+				$src->{$_} = { %split };
+				merge(\%{$environment{$_}}, \%{$src->{$_}});
 			}
 		}
 	}
-	for(keys %$env) {
+	for(keys %$src) {
 		if(ref $environment{$_} ne 'HASH') {
-			$environment{$_} = $env->{$_};
+			$environment{$_} = $src->{$_};
 		}
 	}
 	return;
@@ -195,9 +195,10 @@ sub read_archs {
 # in @portagedirs.
 # No parameters accepted.
 sub read_make_conf {
-	my %env = read_sh "$eprefix/etc/make.conf";
-	merge (%env, read_sh("$eprefix/etc/portage/make.conf"));
-	merge (%make_conf_flags, %{$env{USE}}) if exists $env{USE};
+	my %oldEnv = read_sh("$eprefix/etc/make.conf");
+	my %newEnv = read_sh("$eprefix/etc/portage/make.conf");
+	merge (\%oldEnv, \%newEnv);
+	merge (\%make_conf_flags,\ %{$oldEnv{USE}}) if exists $oldEnv{USE};
 	@portagedirs = $environment{PORTDIR};
 	push @portagedirs, split ' ', $environment{PORTDIR_OVERLAY} if defined $environment{PORTDIR_OVERLAY};
 	return;
@@ -210,7 +211,7 @@ sub read_make_conf {
 sub read_make_defaults {
 	for my $dir(@profiles) {
 		my %env = read_sh "$dir/make.defaults";
-		merge (%make_defaults_flags, %{$env{USE}}) if exists $env{USE};
+		merge (\%make_defaults_flags, \%{$env{USE}}) if exists $env{USE};
 	}
 	return
 }
@@ -384,7 +385,7 @@ sub read_sh {
 		};
 		die "Parse error in $fname\n" if $@;
 	}
-	merge_env(%env);
+	merge_env(\%env);
 	return %env if wantarray;
 	return;
 }
