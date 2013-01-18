@@ -11,26 +11,14 @@
 
 #include "ufed-curses-help.h"
 
-#define DEBUG_EXIT 1
-
-#if defined(DEBUG_EXIT)
-#  define ERROR_EXIT(code, fmt, ...) { \
-	fprintf(stderr, "ERROR in %s:%d (%s): \n -> ", \
-		__FILE__, __LINE__, __FUNCTION__); \
-	fprintf(stderr, fmt, __VA_ARGS__); \
-	exit(code); \
-}
-#else
-#  define ERROR_EXIT(code, ...) { exit(code); }
-#endif // DEBUG_EXIT
-
 /* internal types */
 struct flag {
 	struct item item;
 	char *name;
 	char on;
 	char *state;
-	char *descr[FLEXIBLE_ARRAY_MEMBER];
+	char **pkgs;
+	char **descr;
 };
 
 
@@ -109,9 +97,11 @@ static void read_flags(void) {
 	for(;;) {
 		struct {
 			int start, end;
-		} name, on, state;
+		} name, on, state, pkgs, desc;
 		int ndescr;
 		struct flag *flag;
+		char descState;
+
 		line = getline(input);
 		if(line==NULL)
 			break;
@@ -120,10 +110,17 @@ static void read_flags(void) {
 				&on.start,    &on.end,
 				&state.start, &state.end,
 				&ndescr)!=1)
-			ERROR_EXIT(-1, "sscanf failed on line\n\"%s\"\n", line);
-		flag = malloc(sizeof *flag + ndescr * sizeof *flag->descr);
-		if(flag==NULL)
-			ERROR_EXIT(-1, "Can not allocate %lu bytes\n", sizeof *flag + ndescr * sizeof *flag->descr);
+			ERROR_EXIT(-1, "flag sscanf failed on line\n\"%s\"\n", line);
+
+		/* Allocate memory for the struct and the arrays */
+		if (NULL == (flag = (struct flag*)calloc(1, sizeof(struct flag))))
+			ERROR_EXIT(-1, "Can not allocate %lu bytes for flag\n", sizeof(struct flag));
+		if (NULL == (flag->pkgs = (char**)calloc(ndescr, sizeof(char*))))
+			ERROR_EXIT(-1, "Can not allocate %lu bytes for pkg array\n", ndescr * sizeof(char*));
+		if (NULL == (flag->descr = (char**)calloc(ndescr, sizeof(char*))))
+			ERROR_EXIT(-1, "Can not allocate %lu bytes for descr array\n", ndescr * sizeof(char*));
+
+		/* note position and name of the flag */
 		flag->item.top = y;
 
 		line[name.end] = '\0';
@@ -156,18 +153,59 @@ static void read_flags(void) {
 		flag->item.isGlobal    = false;
 		flag->item.isInstalled = false;
 		for (int i = 0; i < ndescr; ++i) {
-			flag->descr[i] = getline(input);
-			if ('g' == flag->descr[i][1])
+			pkgs.start = pkgs.end = -1;
+			desc.start = desc.end = -1;
+			line = getline(input);
+			if(line == NULL)
+				break;
+			/* There are two possible layouts:
+			 * a: "g [description]" for global flag descriptions and
+			 * b: "x (pkg(s)) [description]" for local flag descriptions
+			 * We therefore need two sscanf attempts. Use b first, as
+			 * it is more common.
+			 */
+			if ((sscanf(line, "(%n%*[^)]%n) [%n%*[^]]%n] %c",
+					&pkgs.start,  &pkgs.end,
+					&desc.start,  &desc.end,
+					&descState) !=1 )
+			  &&(sscanf(line, "[%n%*[^]]%n] %c",
+					&desc.start,  &desc.end,
+					&descState) !=1))
+				ERROR_EXIT(-1, "desc sscanf failed on line\n\"%s\"\n", line);
+
+			// Set general state of the flag
+			if ('g' == descState)
 				flag->item.isGlobal = true;
-			else if ('L' == flag->descr[i][1])
+			else if ('L' == descState)
 				flag->item.isInstalled = true;
-			else if ('M' == flag->descr[i][1]) {
+			else if ('M' == descState) {
 				flag->item.isMasked = true;
 				flag->item.isInstalled = true;
 			}
-			else if ('m' == flag->descr[i][1])
+			else if ('m' == descState)
 				flag->item.isMasked = true;
-		}
+
+			// Save packages
+			if (pkgs.start > -1) {
+				int pkgLen = pkgs.end - pkgs.start;
+				if (NULL == (flag->pkgs[i] = (char*)calloc(pkgLen + 1, sizeof(char))) )
+					ERROR_EXIT(-1, "Unable to allocate %lu bytes for pkg list %d\n",
+						sizeof(char) * (pkgLen + 1), i);
+				strncpy(flag->pkgs[i], &line[pkgs.start], pkgLen);
+			}
+
+			// Save description
+			if (desc.start > -1) {
+				int descLen = desc.end - desc.start;
+				if (NULL == (flag->descr[i] = (char*)calloc(descLen + 1, sizeof(char))) )
+					ERROR_EXIT(-1, "Unable to allocate %lu bytes for description %d\n",
+						sizeof(char) * (descLen + 1), i);
+				strncpy(flag->descr[i], &line[desc.start], descLen);
+			} else
+				ERROR_EXIT(-1, "Flag %s has no description at line %d\n", flag->name, i);
+
+			free(line);
+		} // loop through description lines
 
 		/* record first not masked y if not done, yet */
 		if (firstNormalY < 0 && !flag->item.isMasked)
@@ -186,7 +224,7 @@ static void read_flags(void) {
 			flags->item.prev->next = (struct item *) flag;
 			flags->item.prev = (struct item *) flag;
 		}
-	}
+	} // loop while input given
 	fclose(input);
 	if(flags==NULL) {
 		fputs("No input!\n", stderr);
@@ -196,16 +234,17 @@ static void read_flags(void) {
 
 static void free_flags(void) {
 	struct flag *flag = flags;
-	if(flag!=NULL) {
+	if(flag != NULL) {
 		flag->item.prev->next = NULL;
 		do {
 			void *p = flag;
-			char **descr;
-			for(descr=&flag->descr[0]; descr!=&flag->descr[flag->item.height]; descr++)
-				free(*descr);
+			for (int i = 0; i < flag->item.height; ++i) {
+				if (flag->pkgs[i])  free(flag->pkgs[i]);
+				if (flag->descr[i]) free(flag->descr[i]);
+			}
 			flag = (struct flag *) flag->item.next;
 			free(p);
-		} while(flag!=NULL);
+		} while(flag != NULL);
 		flags = NULL;
 	}
 }
@@ -214,22 +253,28 @@ static void free_flags(void) {
 static void drawflag(struct item *item, bool highlight) {
 	struct flag *flag = (struct flag *) item;
 	char buf[wWidth(List)+1];
-	char **d;
-
 	int y = flag->item.top - topy;
+	int idx = 0;
+
+	/* Set correct color set according to highlighting */
 	if(!highlight)
 		wattrset(win(List), COLOR_PAIR(3));
 	else
 		wattrset(win(List), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
-	if(y >= 0 || -y >= flag->item.height) {
-		d = &flag->descr[0];
-	} else {
-		wmove(win(List), 0, 0);
-		d = &flag->descr[-y];
-		y = 0;
+
+	/* Determine with which description to start.
+	 * Overly long description lists might not fit on one screen,
+	 * and therefore must be scrolled instead of the flags
+	 * themselves.
+	 */
+	if(y < 0 && (-y < flag->item.height)) {
+		idx = -y;
+		y   = 0;
 	}
 	wmove(win(List), y, 0);
-	sprintf(buf, " %c%c%c %-*s %-4.4s ",
+
+	/* print the selection, name and state of the flag */
+	sprintf(buf, " %c%c%c %s%s%s%-*s %-4.4s ",
 		/* State of selection */
 		flag->on == ' ' ? '(' : '[',
 		flag->on == ' '
@@ -237,23 +282,29 @@ static void drawflag(struct item *item, bool highlight) {
 				? flag->state[1] : ' '
 			: flag->on,
 		flag->on == ' ' ? ')' : ']',
-		/* distance and name */
-		minwidth-11, flag->name,
+		/* name */
+		flag->item.isMasked ? "(" : "", flag->name, flag->item.isMasked ? ")" : "",
+		/* distance */
+		(int)(minwidth - (flag->item.isMasked ? 13 : 11) - strlen(flag->name)), "",
 		/* current selection state */
 		flag->state);
-	if(d != &flag->descr[flag->item.height]) {
+
+	/* print descriptions according to filters
+	 * TODO: Implement local/global and installed/all filters
+	 */
+	if(idx < flag->item.height) {
 		for(;;) {
-			sprintf(buf+minwidth, "%-*.*s",
+			sprintf(buf + minwidth, "%-*.*s",
 				wWidth(List)-minwidth, wWidth(List)-minwidth,
-				strlen(*d) > (size_t)descriptionleft
-					? &(*d)[descriptionleft]
+				strlen(flag->descr[idx]) > (size_t)descriptionleft
+					? &flag->descr[idx][descriptionleft]
 					: "");
 			waddstr(win(List), buf);
-			d++;
 			y++;
-			if(d!=&flag->descr[flag->item.height] && y<wHeight(List)) {
+			idx++;
+			if((idx < flag->item.height) && (y < wHeight(List)) ) {
 				char *p;
-				for(p=buf; p!=buf+minwidth; p++)
+				for(p = buf; p != buf + minwidth; p++)
 					*p = ' ';
 				continue;
 			}
@@ -445,6 +496,7 @@ int main(void) {
 	fayt[0] = '\0';
 
 	initcurses();
+
 	result=maineventloop("Select desired USE flags from the list below:",
 			&callback, &drawflag, (struct item *) flags, keys);
 	cursesdone();

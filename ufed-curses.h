@@ -4,6 +4,29 @@
 
 #include <curses.h>
 
+
+#define DEBUG_EXIT 1
+#define DEBUG_TRACE 1
+
+#if defined(DEBUG_EXIT)
+#  define ERROR_EXIT(code, fmt, ...) { \
+	fprintf(stderr, "ERROR in %s:%d (%s): \n -> ", \
+		__FILE__, __LINE__, __FUNCTION__); \
+	fprintf(stderr, fmt, __VA_ARGS__); \
+	exit(code); \
+}
+#else
+#  define ERROR_EXIT(code, ...) { exit(code); }
+#endif // DEBUG_EXIT
+#if defined(DEBUG_TRACE)
+# define TRACE { \
+	fprintf(stderr, "(TRACE) %s:%d - %s\n", __FILE__, __LINE__, __FUNCTION__); \
+}
+#else
+# define TRACE
+#endif // DEBUG_TRACE
+
+
 enum win { Top, Left, List, Input, Scrollbar, Right, Bottom, wCount };
 enum mask { show_unmasked, show_both, show_masked };
 

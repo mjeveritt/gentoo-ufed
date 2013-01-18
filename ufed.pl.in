@@ -11,6 +11,12 @@ use Portage;
 
 my $version = 'XX_PACKAGE_VERSION@';
 
+my $interface = 'ufed-curses';
+#my $memcheck  = "/usr/bin/valgrind -v --trace-children=yes --tool=memcheck"
+#			  . " --track-origins=yes --leak-check=full --show-reachable=yes"
+#			  . " --read-var-info=yes"
+#              . " XX_libexecdir@/ufed-curses 2>/tmp/ufed_memcheck.log";
+
 my %use_descriptions;
 my %masked_descriptions;
 
@@ -30,10 +36,10 @@ $Portage::make_conf_flags{'-*'} = 1
 		&& !$Portage::make_conf_flags{'*'};
 
 for(keys %Portage::all_flags) {
-	@{$use_descriptions{$_}} = "(Unknown)"
+	@{$use_descriptions{$_}} = "[(Unknown)] g"
 		if not exists $use_descriptions{$_};
 }
-@{$use_descriptions{'-*'}} = 'Never enable any flags other than those specified in make.conf';
+@{$use_descriptions{'-*'}} = '[Never enable any flags other than those specified in make.conf] g';
 
 for(@Portage::archs) {
 	delete $Portage::default_flags{$_};
@@ -49,8 +55,8 @@ for my $flag (keys %Portage::use_masked_flags) {
 		if (defined($use_descriptions{$flag})) {
 			@{$masked_descriptions{$flag}} = @{$use_descriptions{$flag}};
 			for (my $i = 0; $i < scalar @{$masked_descriptions{$flag}}; ++$i) {
-				$masked_descriptions{$flag}->[$i] =~ s/^\[[lg]\]/[m]/ ;
-				$masked_descriptions{$flag}->[$i] =~ s/^\[L\]/[M]/ ;
+				$masked_descriptions{$flag}->[$i] =~ s/ [lg]$/ m/ ;
+				$masked_descriptions{$flag}->[$i] =~ s/ L$/ M/ ;
 			}
 		}
 		delete $use_descriptions{$flag};
@@ -96,9 +102,10 @@ sub flags_dialog {
 		POSIX::close $iread;
 		POSIX::dup2 $owrite, 4;
 		POSIX::close $owrite;
-		my $interface = 'ufed-curses';
 		exec { "XX_libexecdir@/$interface" } $interface or
 		do { print STDERR "Couldn't launch $interface\n"; exit 3 }
+#		exec $memcheck or
+#		do { print STDERR "Couldn't launch valgrind\n$!\n"; exit 3 }
 	}
 	POSIX::close $iread;
 	POSIX::close $owrite;
@@ -106,7 +113,7 @@ sub flags_dialog {
 
 	# Write masked flags first so they sort at the beginning of the list
 	for my $flag (sort { uc $a cmp uc $b } keys %masked_descriptions) {
-		$outTxt .= sprintf ("(%s) %s (%s%s) %d\n", $flag,
+		$outTxt .= sprintf ("%s %s (%s%s) %d\n", $flag,
 					defined($Portage::make_conf_flags{$flag})
 						? $Portage::make_conf_flags{$flag} ? 'on' : 'off' : 'def',
 					exists($Portage::make_defaults_flags{$flag})
@@ -183,7 +190,7 @@ sub read_use_descs {
 	# in the ncurses interface as well.
 	for my $key (sort keys %_use_descriptions) {
 		for my $desc (sort keys %{$_use_descriptions{$key}}) {
-			push @{$use_descriptions{$key}}, "[g] " . $desc;
+			push @{$use_descriptions{$key}}, "[" . $desc . "] g";
 		}
 	}
 
@@ -197,7 +204,7 @@ sub read_use_descs {
 				push @pkgs, $pkg;
 			}
 			local $"=", ";
-			push @{$use_descriptions{$key}}, sprintf("[%s] (%s) %s", $flagPrefix, "@pkgs", $desc);
+			push @{$use_descriptions{$key}}, sprintf("(%s) [%s] %s", "@pkgs", $desc, $flagPrefix);
 		}
 	}
 	return;
