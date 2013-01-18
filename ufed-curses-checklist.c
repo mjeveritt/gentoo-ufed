@@ -17,6 +17,7 @@ struct flag {
 	char *name;
 	char on;
 	char *state;
+	bool *isInstalled;
 	char **pkgs;
 	char **descr;
 };
@@ -27,6 +28,7 @@ static struct flag *flags;
 static int descriptionleft;
 static char *fayt;
 static struct item **faytsave;
+static size_t maxDescWidth = 0;
 
 #define mkKey(x) x, sizeof(x)-1
 static const struct key keys[] = {
@@ -113,10 +115,16 @@ static void read_flags(void) {
 			ERROR_EXIT(-1, "flag sscanf failed on line\n\"%s\"\n", line);
 
 		/* Allocate memory for the struct and the arrays */
+		// struct
 		if (NULL == (flag = (struct flag*)calloc(1, sizeof(struct flag))))
 			ERROR_EXIT(-1, "Can not allocate %lu bytes for flag\n", sizeof(struct flag));
+		// isInstalled
+		if (NULL == (flag->isInstalled = (bool*)calloc(ndescr, sizeof(bool))))
+			ERROR_EXIT(-1, "Can not allocate %lu bytes for isInstalled array\n", ndescr * sizeof(bool));
+		// pkgs
 		if (NULL == (flag->pkgs = (char**)calloc(ndescr, sizeof(char*))))
 			ERROR_EXIT(-1, "Can not allocate %lu bytes for pkg array\n", ndescr * sizeof(char*));
+		// descr
 		if (NULL == (flag->descr = (char**)calloc(ndescr, sizeof(char*))))
 			ERROR_EXIT(-1, "Can not allocate %lu bytes for descr array\n", ndescr * sizeof(char*));
 
@@ -151,7 +159,6 @@ static void read_flags(void) {
 		/* read description(s) and determine flag status */
 		flag->item.isMasked    = false;
 		flag->item.isGlobal    = false;
-		flag->item.isInstalled = false;
 		for (int i = 0; i < ndescr; ++i) {
 			pkgs.start = pkgs.end = -1;
 			desc.start = desc.end = -1;
@@ -174,13 +181,14 @@ static void read_flags(void) {
 				ERROR_EXIT(-1, "desc sscanf failed on line\n\"%s\"\n", line);
 
 			// Set general state of the flag
+			flag->isInstalled[i] = false;
 			if ('g' == descState)
-				flag->item.isGlobal = true;
+				flag->item.isGlobal  = true;
 			else if ('L' == descState)
-				flag->item.isInstalled = true;
+				flag->isInstalled[i] = true;
 			else if ('M' == descState) {
-				flag->item.isMasked = true;
-				flag->item.isInstalled = true;
+				flag->item.isMasked  = true;
+				flag->isInstalled[i] = true;
 			}
 			else if ('m' == descState)
 				flag->item.isMasked = true;
@@ -192,7 +200,8 @@ static void read_flags(void) {
 					ERROR_EXIT(-1, "Unable to allocate %lu bytes for pkg list %d\n",
 						sizeof(char) * (pkgLen + 1), i);
 				strncpy(flag->pkgs[i], &line[pkgs.start], pkgLen);
-			}
+			} else
+				flag->pkgs[i] = NULL;
 
 			// Save description
 			if (desc.start > -1) {
@@ -203,6 +212,11 @@ static void read_flags(void) {
 				strncpy(flag->descr[i], &line[desc.start], descLen);
 			} else
 				ERROR_EXIT(-1, "Flag %s has no description at line %d\n", flag->name, i);
+
+			// Note new max length if this line is longest:
+			size_t fullWidth = 1 + strlen(flag->descr[i]) + (flag->pkgs[i] ? strlen(flag->pkgs[i] + 3) : 0);
+			if (fullWidth > maxDescWidth)
+				maxDescWidth = fullWidth;
 
 			free(line);
 		} // loop through description lines
@@ -242,6 +256,9 @@ static void free_flags(void) {
 				if (flag->pkgs[i])  free(flag->pkgs[i]);
 				if (flag->descr[i]) free(flag->descr[i]);
 			}
+			if (flag->isInstalled) free(flag->isInstalled);
+			if (flag->pkgs)        free(flag->pkgs);
+			if (flag->descr)       free(flag->descr);
 			flag = (struct flag *) flag->item.next;
 			free(p);
 		} while(flag != NULL);
@@ -253,14 +270,9 @@ static void free_flags(void) {
 static void drawflag(struct item *item, bool highlight) {
 	struct flag *flag = (struct flag *) item;
 	char buf[wWidth(List)+1];
+	char desc[maxDescWidth];
 	int y = flag->item.top - topy;
 	int idx = 0;
-
-	/* Set correct color set according to highlighting */
-	if(!highlight)
-		wattrset(win(List), COLOR_PAIR(3));
-	else
-		wattrset(win(List), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
 
 	/* Determine with which description to start.
 	 * Overly long description lists might not fit on one screen,
@@ -294,11 +306,34 @@ static void drawflag(struct item *item, bool highlight) {
 	 */
 	if(idx < flag->item.height) {
 		for(;;) {
-			sprintf(buf + minwidth, "%-*.*s",
-				wWidth(List)-minwidth, wWidth(List)-minwidth,
-				strlen(flag->descr[idx]) > (size_t)descriptionleft
-					? &flag->descr[idx][descriptionleft]
+			// Display flag state
+			sprintf(buf + minwidth, "[%c] ",
+				flag->item.isMasked ? flag->isInstalled[idx] ? 'M' : 'm'
+					: flag->item.isGlobal && !flag->pkgs[idx] ? 'g'
+					: flag->isInstalled[idx] ? 'L' : 'l');
+
+			// Assemble description line:
+			if (flag->pkgs[idx])
+				sprintf(desc, "(%s) %s", flag->pkgs[idx], flag->descr[idx]);
+			else
+				sprintf(desc, "%s", flag->descr[idx]);
+
+			// Now display the description line according to its horizontal position
+			sprintf(buf + minwidth + 4, "%-*.*s",
+				wWidth(List)-minwidth - 4, wWidth(List)-minwidth - 4,
+				strlen(desc) > (size_t)descriptionleft
+					? &desc[descriptionleft]
 					: "");
+
+			/* Set correct color set according to highlighting and status*/
+			if(highlight)
+				wattrset(win(List), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
+			else if (flag->item.isGlobal && !flag->pkgs[idx])
+				wattrset(win(List), COLOR_PAIR(5));
+			else
+				wattrset(win(List), COLOR_PAIR(3));
+
+			// Finally put the line on the screen
 			waddstr(win(List), buf);
 			y++;
 			idx++;
