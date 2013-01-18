@@ -142,10 +142,6 @@ static void read_flags(void) {
 		else
 			ERROR_EXIT(-1, "flag->on can not be determined with \"%s\"\n", &line[on.start]);
 
-		/* record first not masked y if not done, yet */
-		if (firstNormalY < 0 && !flag->item.isMasked)
-			firstNormalY = flag->item.top;
-
 		/* check and set flag state */
 		line[state.end] = '\0';
 		if(state.end-state.start != 4)
@@ -172,6 +168,10 @@ static void read_flags(void) {
 			else if ('m' == flag->descr[i][1])
 				flag->item.isMasked = true;
 		}
+
+		/* record first not masked y if not done, yet */
+		if (firstNormalY < 0 && !flag->item.isMasked)
+			firstNormalY = flag->item.top;
 
 		y += ndescr;
 
