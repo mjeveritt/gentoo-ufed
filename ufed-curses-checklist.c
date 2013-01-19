@@ -313,6 +313,7 @@ static void drawflag(struct item *item, bool highlight) {
 					: flag->isInstalled[idx] ? 'L' : 'l');
 
 			// Assemble description line:
+			memset(desc, 0, maxDescWidth * sizeof(char));
 			if (flag->pkgs[idx])
 				sprintf(desc, "(%s) %s", flag->pkgs[idx], flag->descr[idx]);
 			else
