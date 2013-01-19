@@ -16,7 +16,7 @@ struct flag {
 	struct item item;
 	char *name;
 	char on;
-	char *state;
+	char state[5];
 	bool *isInstalled;
 	char **pkgs;
 	char **descr;
@@ -29,6 +29,7 @@ static int descriptionleft;
 static char *fayt;
 static struct item **faytsave;
 static size_t maxDescWidth = 0;
+static char *lineBuf = NULL;
 
 #define mkKey(x) x, sizeof(x)-1
 static const struct key keys[] = {
@@ -52,35 +53,37 @@ int firstNormalY = -1; //!< y of first not masked flag
 
 /* static functions */
 static char *getline(FILE *fp) {
-	size_t size;
-	char *result;
+	static size_t size = LINE_MAX;
 
-	size = LINE_MAX;
-	result = malloc(size);
-	if(result == NULL)
-		ERROR_EXIT(-1, "Can not allocate %lu bytes\n", sizeof(char) * size);
-	if(fgets(result, size, fp) == NULL)
+	if (NULL == lineBuf) {
+		lineBuf = malloc(size);
+		if (NULL == lineBuf)
+			ERROR_EXIT(-1, "Can not allocate %lu bytes for line buffer\n", sizeof(char) * size);
+	}
+
+	if(fgets(lineBuf, size, fp) == NULL)
 		return NULL;
-	{
-		char *p = strchr(result, '\n');
-		if(p!=NULL) {
-			*p++ = '\0';
-			p = realloc(result, p-result);
-			return p ? p : result;
+	else {
+		char *p = strchr(lineBuf, '\n');
+		if(p != NULL) {
+			*p = '\0';
+			return lineBuf;
 		}
 	}
 	for(;;) {
-		result = realloc(result, size+size/2);
-		if(result == NULL)
-			ERROR_EXIT(-1, "Can not reallocate %lu bytes\n", (size_t)(sizeof(char) * size * 1.5));
-		if(fgets(result+size, size/2, fp)==NULL)
+		char *newLine = realloc(lineBuf, size + size / 2);
+		if(newLine == NULL)
+			ERROR_EXIT(-1, "Can not reallocate %lu bytes for line buffer\n",
+				(size_t)(sizeof(char) * size * 1.5));
+		lineBuf = newLine;
+		newLine = NULL;
+		if(fgets(lineBuf + size, size / 2, fp) == NULL)
 			return NULL;
-		{
-			char *p = strchr(result+size, '\n');
-			if(p!=NULL) {
-				*p++ = '\0';
-				p = realloc(result, p-result);
-				return p ? p : result;
+		else {
+			char *p = strchr(lineBuf + size, '\n');
+			if(p != NULL) {
+				*p = '\0';
+				return lineBuf;
 			}
 		}
 		size += size/2;
@@ -90,37 +93,42 @@ static char *getline(FILE *fp) {
 
 static void read_flags(void) {
 	FILE *input = fdopen(3, "r");
-	char *line;
-	int y=0;
+	int   y     = 0;
+	char *line  = NULL;
 
-	if(input==NULL)
+	if(input == NULL)
 		ERROR_EXIT(-1, "fdopen failed with error %d\n", errno);
 	atexit(&free_flags);
+
 	for(;;) {
 		struct {
 			int start, end;
 		} name, on, state, pkgs, desc;
-		int ndescr;
-		struct flag *flag;
-		char descState;
+		int ndescr = 0;
+		struct flag *flag = NULL;
+		char descState = 0;
 
 		line = getline(input);
-		if(line==NULL)
+		if(NULL == line)
 			break;
 		if(sscanf(line, "%n%*s%n %n%*s%n %n(%*[ +-])%n %d",
 				&name.start,  &name.end,
 				&on.start,    &on.end,
 				&state.start, &state.end,
-				&ndescr)!=1)
+				&ndescr) != 1)
 			ERROR_EXIT(-1, "flag sscanf failed on line\n\"%s\"\n", line);
 
 		/* Allocate memory for the struct and the arrays */
 		// struct
-		if (NULL == (flag = (struct flag*)calloc(1, sizeof(struct flag))))
+		if (NULL == (flag = (struct flag*)malloc(sizeof(struct flag))))
 			ERROR_EXIT(-1, "Can not allocate %lu bytes for flag\n", sizeof(struct flag));
 		// isInstalled
 		if (NULL == (flag->isInstalled = (bool*)calloc(ndescr, sizeof(bool))))
 			ERROR_EXIT(-1, "Can not allocate %lu bytes for isInstalled array\n", ndescr * sizeof(bool));
+		// name
+		if (NULL == (flag->name = (char*)calloc(name.end - name.start + 1, sizeof(char))))
+			ERROR_EXIT(-1, "Can not allocate %lu bytes for flag name\n",
+				(name.end - name.start + 1) * sizeof(char));
 		// pkgs
 		if (NULL == (flag->pkgs = (char**)calloc(ndescr, sizeof(char*))))
 			ERROR_EXIT(-1, "Can not allocate %lu bytes for pkg array\n", ndescr * sizeof(char*));
@@ -131,10 +139,9 @@ static void read_flags(void) {
 		/* note position and name of the flag */
 		flag->item.top = y;
 
-		line[name.end] = '\0';
-		if(name.end-name.start+11 > minwidth)
-			minwidth = name.end-name.start+11;
-		flag->name = &line[name.start];
+		if(name.end - name.start + 11 > minwidth)
+			minwidth = name.end - name.start + 11;
+		strncpy(flag->name, &line[name.start], name.end - name.start);
 
 		/* check and save current flag setting from configuration */
 		line[on.end] = '\0';
@@ -148,10 +155,9 @@ static void read_flags(void) {
 			ERROR_EXIT(-1, "flag->on can not be determined with \"%s\"\n", &line[on.start]);
 
 		/* check and set flag state */
-		line[state.end] = '\0';
-		if(state.end-state.start != 4)
-			ERROR_EXIT(-1, "state.end - state.start is %d (must be 4)\n", state.end - state.start);
-		flag->state = &line[state.start];
+		if(state.end - state.start != 4)
+			ERROR_EXIT(-1, "state length is %d (must be 4)\n", state.end - state.start);
+		strncpy(flag->state, &line[state.start], 4);
 
 		/* check and set flag item height */
 		flag->item.height = ndescr;
@@ -162,9 +168,10 @@ static void read_flags(void) {
 		for (int i = 0; i < ndescr; ++i) {
 			pkgs.start = pkgs.end = -1;
 			desc.start = desc.end = -1;
+
 			line = getline(input);
-			if(line == NULL)
-				break;
+			if (!line) break;
+
 			/* There are two possible layouts:
 			 * a: "g [description]" for global flag descriptions and
 			 * b: "x (pkg(s)) [description]" for local flag descriptions
@@ -217,8 +224,6 @@ static void read_flags(void) {
 			size_t fullWidth = 1 + strlen(flag->descr[i]) + (flag->pkgs[i] ? strlen(flag->pkgs[i] + 3) : 0);
 			if (fullWidth > maxDescWidth)
 				maxDescWidth = fullWidth;
-
-			free(line);
 		} // loop through description lines
 
 		/* record first not masked y if not done, yet */
@@ -248,6 +253,8 @@ static void read_flags(void) {
 
 static void free_flags(void) {
 	struct flag *flag = flags;
+
+	// Clear all flags
 	if(flag != NULL) {
 		flag->item.prev->next = NULL;
 		do {
@@ -256,6 +263,7 @@ static void free_flags(void) {
 				if (flag->pkgs[i])  free(flag->pkgs[i]);
 				if (flag->descr[i]) free(flag->descr[i]);
 			}
+			if (flag->name)        free(flag->name);
 			if (flag->isInstalled) free(flag->isInstalled);
 			if (flag->pkgs)        free(flag->pkgs);
 			if (flag->descr)       free(flag->descr);
@@ -264,6 +272,10 @@ static void free_flags(void) {
 		} while(flag != NULL);
 		flags = NULL;
 	}
+
+	// Clear line buffer
+	if (lineBuf)
+		free(lineBuf);
 }
 
 
@@ -554,6 +566,9 @@ int main(void) {
 		} while(flag!=flags);
 		fclose(output);
 	}
+
+	if (fayt)     free(fayt);
+	if (faytsave) free(faytsave);
 
 	return result;
 }
