@@ -141,6 +141,7 @@ sub noncomments {
 	my @result;
 	local $/;
 	if(open my $file, '<', $fname) {
+		binmode( $file, ":encoding(UTF-8)" );
 		@result = split /(?:[^\S\n]*(?:#.*)?\n)+/, <$file>."\n";
 		shift @result if @result>0 && $result[0] eq '';
 		close $file;
