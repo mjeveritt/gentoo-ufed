@@ -137,8 +137,14 @@ sub flags_dialog {
 		$outTxt .= sprintf ("%s\n", $_) for(@{$use_descriptions{$flag}});
 	}
 
+	# Some overlays (like sunrise) use UTF-8 characters in their
+	# use descriptions. They cause problems unless the whole
+	# interface is changed to use wchar. Substitute with ISO:
+	$outTxt =~ tr/\x{2014}\x{201c}\x{201d}/\x2d\x22\x22/ ;
+	
 	# Now let the interface know of the result
 	if (open my $fh, '>&=', $iwrite) {
+		binmode( $fh, ":encoding(ISO-8859-1)" );
 		print $fh $outTxt;
 		close $fh;
 	} else {
