@@ -27,6 +27,7 @@ static struct item *items, *currentitem;
 /* external members */
 int topy, minwidth;
 extern enum mask showMasked;
+extern enum order pkgOrder;
 extern int firstNormalY;
 
 /* internal prototypes */
@@ -590,12 +591,18 @@ int maineventloop(
 					}
 					break;
 
-				case '\t':
+				case KEY_F(5):
 					if      (show_masked   == showMasked) showMasked = show_unmasked;
 					else if (show_both     == showMasked) showMasked = show_masked;
 					else if (show_unmasked == showMasked) showMasked = show_both;
 					currentitem = items;
 					topy = 0;
+					draw();
+					break;
+
+				case KEY_F(6):
+					if (pkgs_left == pkgOrder) pkgOrder = pkgs_right;
+					else                       pkgOrder = pkgs_left;
 					draw();
 					break;
 

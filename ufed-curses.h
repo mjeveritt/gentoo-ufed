@@ -29,6 +29,7 @@
 
 enum win { Top, Left, List, Input, Scrollbar, Right, Bottom, wCount };
 enum mask { show_unmasked, show_both, show_masked };
+enum order { pkgs_left, pkgs_right };
 
 struct window {
 	WINDOW *win;
@@ -43,7 +44,7 @@ struct item {
 };
 
 struct key {
-	char key;
+	int key;
 	const char *descr;
 	size_t length;
 };

@@ -33,11 +33,14 @@ static char *lineBuf = NULL;
 
 #define mkKey(x) x, sizeof(x)-1
 static const struct key keys[] = {
-	{ '?',    mkKey("Help (?)")            },
-	{ '\n',   mkKey("Save (Return/Enter)") },
-	{ '\033', mkKey("Cancel (Esc)")        },
-	{ '\t',   mkKey("Toggle Masked (Tab)") },
-	{ '\0',   mkKey("")                    }
+	{ '?',      mkKey("Help (?)")            },
+	{ '\n',     mkKey("Save (Return/Enter)") },
+	{ '\033',   mkKey("Cancel (Esc)")        },
+	{ KEY_F(5), mkKey("Toggle (F5: Mask")    },
+	{ KEY_F(6), mkKey("F6: Pkg")             },
+//	{ KEY_F(7), mkKey("F7: Local")           },
+//	{ KEY_F(8), mkKey("F8: Installed)")      },
+	{ '\0',     mkKey("")                    }
 };
 #undef mkKey
 
@@ -47,8 +50,9 @@ static void free_flags(void);
 
 
 /* external members */
-enum mask showMasked = show_unmasked; //!< Set whether to show masked, unmasked or both flags
-int firstNormalY = -1; //!< y of first not masked flag
+enum mask  showMasked = show_unmasked; //!< Set whether to show masked, unmasked or both flags
+enum order pkgOrder   = pkgs_left;     //!< Set whether to display package lists left or right of the description
+int firstNormalY      = -1;            //!< y of first not masked flag
 
 
 /* static functions */
@@ -326,8 +330,12 @@ static void drawflag(struct item *item, bool highlight) {
 
 			// Assemble description line:
 			memset(desc, 0, maxDescWidth * sizeof(char));
-			if (flag->pkgs[idx])
-				sprintf(desc, "(%s) %s", flag->pkgs[idx], flag->descr[idx]);
+			if (flag->pkgs[idx]) {
+				if (pkgs_left == pkgOrder)
+					sprintf(desc, "(%s) %s", flag->pkgs[idx], flag->descr[idx]);
+				else
+					sprintf(desc, "%s (%s)", flag->descr[idx], flag->pkgs[idx]);
+			}
 			else
 				sprintf(desc, "%s", flag->descr[idx]);
 
