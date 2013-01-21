@@ -28,10 +28,15 @@ static struct item *items, *currentitem;
 int topy, minwidth;
 extern enum mask showMasked;
 extern enum order pkgOrder;
+extern enum scope showScope;
 extern int firstNormalY;
+
 
 /* internal prototypes */
 static void checktermsize(void);
+void resetDisplay();
+void setNextItem(int count, bool strict);
+void setPrevItem(int count, bool strict);
 
 
 /* internal functions */
@@ -79,7 +84,7 @@ static void checktermsize(void) {
 	}
 }
 
-static void (*drawitem)(struct item *, bool);
+static int (*drawitem)(struct item *, bool);
 
 void drawitems(void) {
 	struct item *item = currentitem;
@@ -107,8 +112,9 @@ void drawitems(void) {
 
 	for(;;) {
 		if(item!=currentitem)
-			(*drawitem)(item, FALSE);
-		y += item->height;
+			y += (*drawitem)(item, FALSE);
+		else
+			y += item->height;
 		item = item->next;
 		if(y >= wHeight(List))
 			break;
@@ -338,7 +344,7 @@ bool yesno(const char *prompt) {
 int maineventloop(
 		const char *_subtitle,
 		int(*_callback)(struct item **, int),
-		void(*_drawitem)(struct item *, bool),
+		int(*_drawitem)(struct item *, bool),
 		struct item *_items,
 		const struct key *_keys) {
 	int result;
@@ -346,7 +352,7 @@ int maineventloop(
 	{ const char *temp = subtitle;
 		subtitle=_subtitle;
 		_subtitle=temp; }
-	{ void(*temp)(struct item *, bool) = drawitem;
+	{ int(*temp)(struct item *, bool) = drawitem;
 		drawitem=_drawitem;
 		_drawitem=temp; }
 	{ struct item *temp=items;
@@ -475,7 +481,7 @@ int maineventloop(
 							continue;
 						x -= 2;
 						for(key = keys; key->key!='\0'; key++) {
-							if((size_t)x < key->length) {
+							if( (key->key > 0) && ((size_t)x < key->length)) {
 								event.x -= x;
 								wattrset(win(Bottom), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
 								mvwaddstr(win(Bottom), event.y, event.x, key->descr);
@@ -509,83 +515,41 @@ int maineventloop(
 						(*drawitem)(currentitem, FALSE);
 						topy--;
 						(*drawitem)(currentitem, TRUE);
-					} else if( (currentitem!=items || topy>currentitem->top)
-							&& (	!currentitem->prev->isMasked
-								||	(show_unmasked != showMasked)) ) {
-						(*drawitem)(currentitem, FALSE);
-						currentitem = currentitem->prev;
-						scrollcurrent();
-						(*drawitem)(currentitem, TRUE);
-					}
+					} else
+						setPrevItem(1, true);
 					break;
 	
 				case KEY_DOWN:
 					if( (currentitem->top + currentitem->height) > (topy + wHeight(List)) ) {
+						// Scroll through descriptions if their list is longer than the window
 						(*drawitem)(currentitem, FALSE);
 						topy++;
 						(*drawitem)(currentitem, TRUE);
-					} else if( (currentitem->next != items)
-							&& (	currentitem->next->isMasked
-								||	(show_masked != showMasked)) ){
-						(*drawitem)(currentitem, FALSE);
-						currentitem = currentitem->next;
-						scrollcurrent();
-						(*drawitem)(currentitem, TRUE);
-					}
+					} else
+						setNextItem(1, true);
 					break;
 	
 				case KEY_PPAGE:
-					if(currentitem!=items) {
-						struct item *olditem = currentitem;
-						(*drawitem)(currentitem, FALSE);
-						while( (currentitem != items)
-							&& ( (olditem->top - currentitem->prev->top) <= wHeight(List))
-							&& ( (	!currentitem->prev->isMasked
-								||	(show_unmasked != showMasked)) ) ) {
-							currentitem = currentitem->prev;
-						}
-						scrollcurrent();
-						(*drawitem)(currentitem, TRUE);
-					}
+					if(currentitem!=items)
+						setPrevItem(wHeight(List), false);
 					break;
 	
 				case KEY_NPAGE:
-					if(currentitem->next!=items) {
-						struct item *olditem = currentitem;
-						(*drawitem)(currentitem, FALSE);
-						while( (currentitem->next != items)
-							&& (((currentitem->next->top + currentitem->next->height)
-								-(olditem->top + olditem->height) ) <= wHeight(List))
-							&& ( (	currentitem->next->isMasked
-								||	(show_masked != showMasked)) ) ) {
-							currentitem = currentitem->next;
-						}
-						scrollcurrent();
-						(*drawitem)(currentitem, TRUE);
-					}
+					if(currentitem->next!=items)
+						setNextItem(wHeight(List), false);
 					break;
 	
 				case KEY_HOME:
-					if(currentitem!=items) {
-						(*drawitem)(currentitem, FALSE);
-						currentitem = items;
-						if (show_unmasked == showMasked) {
-							while (currentitem->isMasked)
-								currentitem = currentitem->next;
-						}
-						scrollcurrent();
-						(*drawitem)(currentitem, TRUE);
-					}
+					if(currentitem!=items)
+						resetDisplay();
 					break;
 	
 				case KEY_END:
 					if(currentitem->next!=items) {
 						(*drawitem)(currentitem, FALSE);
 						currentitem = items->prev;
-						if (show_masked == showMasked) {
-							while (!currentitem->isMasked)
-								currentitem = currentitem->prev;
-						}
+						while (!isLegalItem(currentitem))
+							currentitem = currentitem->prev;
 						scrollcurrent();
 						(*drawitem)(currentitem, TRUE);
 					}
@@ -595,25 +559,21 @@ int maineventloop(
 					if      (show_masked   == showMasked) showMasked = show_unmasked;
 					else if (show_both     == showMasked) showMasked = show_masked;
 					else if (show_unmasked == showMasked) showMasked = show_both;
-					currentitem = items;
-					topy = 0;
-					draw();
+					resetDisplay();
 					break;
 
 				case KEY_F(6):
 					if (pkgs_left == pkgOrder) pkgOrder = pkgs_right;
 					else                       pkgOrder = pkgs_left;
-					draw();
+					drawitems();
 					break;
 
-				case KEY_BTAB:
-					if      (show_masked   == showMasked) showMasked = show_both;
-					else if (show_both     == showMasked) showMasked = show_unmasked;
-					else if (show_unmasked == showMasked) showMasked = show_masked;
-					currentitem = items;
-					topy = 0;
-					draw();
-					break;
+//				case KEY_F(7):
+//					if      (show_local  == showScope) showScope = show_all;
+//					else if (show_global == showScope) showScope = show_local;
+//					else if (show_all    == showScope) showScope = show_global;
+//					resetDisplay();
+//					break;
 
 #ifdef KEY_RESIZE
 				case KEY_RESIZE:
@@ -649,3 +609,93 @@ exit:
 
 	return result;
 }
+
+
+/* @brief Set display to first legal item and redraw
+ */
+void resetDisplay()
+{
+	(*drawitem)(currentitem, FALSE);
+	currentitem = items;
+	while (!isLegalItem(currentitem))
+		currentitem = currentitem->next;
+	topy = currentitem->top;
+	draw();
+}
+
+
+/* @brief set currentitem to the next item @a count lines away
+ * @param count set how many lines should be skipped
+ * @param strict if set to false, at least one item has to be skipped.
+ */
+void setNextItem(int count, bool strict)
+{
+	bool         result  = true;
+	struct item *curr    = currentitem;
+	int          skipped = 0;
+
+	while (result && (skipped < count)) {
+		if (curr->next == items)
+			result = false; // The list is finished, no next item to display
+		else
+			curr = curr->next;
+
+		// curr is only counted if it is not filtered out:
+		if (isLegalItem(curr))
+			++skipped;
+	} // End of trying to find a next item
+
+	if ( (result && strict) || (!strict && skipped) ) {
+		(*drawitem)(currentitem, FALSE);
+		currentitem = curr;
+		scrollcurrent();
+		(*drawitem)(currentitem, TRUE);
+	}
+}
+
+
+/* @brief set currentitem to the previous item @a count lines away
+ * @param count set how many lines should be skipped
+ * @param strict if set to false, at least one item has to be skipped.
+ */
+void setPrevItem(int count, bool strict)
+{
+	bool         result  = true;
+	struct item *curr    = currentitem;
+	int          skipped = 0;
+
+	while (result && (skipped < count)) {
+		if (curr == items)
+			result = false; // The list is finished, no previous item to display
+		else
+			curr = curr->prev;
+
+		// curr is only counted if it is not filtered out:
+		if (isLegalItem(curr))
+			++skipped;
+	} // End of trying to find next item
+
+	if ( (result && strict) || (!strict && skipped) ) {
+		(*drawitem)(currentitem, FALSE);
+		currentitem = curr;
+		scrollcurrent();
+		(*drawitem)(currentitem, TRUE);
+	}
+}
+
+
+/* @brief return true if the given @a item is not filtered out
+ */
+bool isLegalItem(struct item *item)
+{
+	if ( // 1: Mask filter
+	     ( ( item->isMasked && (show_unmasked != showMasked))
+	    || (!item->isMasked && (show_masked   != showMasked)) )
+	     // 2: Global / Local filter
+	  && ( ( item->isGlobal && ( (show_local  != showScope) || (item->height > 1) ) )
+	    || (!item->isGlobal && (  show_global != showScope)) ) )
+		return true;
+	return false;
+}
+
+

@@ -6,7 +6,7 @@
 
 
 #define DEBUG_EXIT 1
-#define DEBUG_TRACE 1
+#undef DEBUG_TRACE
 
 #if defined(DEBUG_EXIT)
 #  define ERROR_EXIT(code, fmt, ...) { \
@@ -30,6 +30,7 @@
 enum win { Top, Left, List, Input, Scrollbar, Right, Bottom, wCount };
 enum mask { show_unmasked, show_both, show_masked };
 enum order { pkgs_left, pkgs_right };
+enum scope { show_all, show_global, show_local };
 
 struct window {
 	WINDOW *win;
@@ -57,12 +58,13 @@ extern void cursesdone(void);
 extern int maineventloop(
 	const char *subtitle,
 	int (*callback)(struct item **currentitem, int key),
-	void(*drawitem)(struct item *item, bool highlight),
+	int (*drawitem)(struct item *item, bool highlight),
 	struct item *items,
 	const struct key *keys);
 extern void drawitems(void);
 extern void scrollcurrent(void);
 extern bool yesno(const char *);
+bool isLegalItem(struct item *item);
 
 static inline WINDOW *win(enum win w) { return window[w].win; }
 static inline int wTop   (enum win w) { return (window[w].top   >= 0 ? 0 : LINES) + window[w].top   ; }

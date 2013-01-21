@@ -170,7 +170,7 @@ static const struct key keys[] = {
 #undef key
 };
 
-static void drawline(struct item *item, bool highlight) {
+static int drawline(struct item *item, bool highlight) {
 	struct line *line = (struct line *) item;
 	char buf[wWidth(List)+1];
 	sprintf(buf, "%-*.*s", wWidth(List), wWidth(List), line->text);
@@ -182,6 +182,7 @@ static void drawline(struct item *item, bool highlight) {
 	if(highlight)
 		wmove(win(List), line->item.top-topy, 0);
 	wnoutrefresh(win(List));
+	return 1;
 }
 
 static int callback(struct item **currentitem, int key) {

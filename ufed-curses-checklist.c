@@ -36,10 +36,12 @@ static const struct key keys[] = {
 	{ '?',      mkKey("Help (?)")            },
 	{ '\n',     mkKey("Save (Return/Enter)") },
 	{ '\033',   mkKey("Cancel (Esc)")        },
-	{ KEY_F(5), mkKey("Toggle (F5: Mask")    },
-	{ KEY_F(6), mkKey("F6: Pkg")             },
-//	{ KEY_F(7), mkKey("F7: Local")           },
-//	{ KEY_F(8), mkKey("F8: Installed)")      },
+	{ -1,       mkKey("Display (")           },
+	{ KEY_F(5), mkKey("Mask (F5)")           },
+	{ KEY_F(6), mkKey("Order (F6)")          },
+//	{ KEY_F(7), mkKey("Local/Global (F7)")   },
+//	{ KEY_F(8), mkKey("Installed (F8)")      },
+	{ -1,       mkKey(")")                   },
 	{ '\0',     mkKey("")                    }
 };
 #undef mkKey
@@ -52,6 +54,7 @@ static void free_flags(void);
 /* external members */
 enum mask  showMasked = show_unmasked; //!< Set whether to show masked, unmasked or both flags
 enum order pkgOrder   = pkgs_left;     //!< Set whether to display package lists left or right of the description
+enum scope showScope  = show_all;      //!< Set whether global, local or all flags are shown
 int firstNormalY      = -1;            //!< y of first not masked flag
 
 
@@ -283,12 +286,17 @@ static void free_flags(void) {
 }
 
 
-static void drawflag(struct item *item, bool highlight) {
+static int drawflag(struct item *item, bool highlight) {
 	struct flag *flag = (struct flag *) item;
 	char buf[wWidth(List)+1];
 	char desc[maxDescWidth];
 	int y = flag->item.top - topy;
 	int idx = 0;
+	int usedY = 0;
+
+	// Return early if there is nothing to display:
+	if (!isLegalItem(item))
+		return 0;
 
 	/* Determine with which description to start.
 	 * Overly long description lists might not fit on one screen,
@@ -318,10 +326,20 @@ static void drawflag(struct item *item, bool highlight) {
 		flag->state);
 
 	/* print descriptions according to filters
-	 * TODO: Implement local/global and installed/all filters
+	 * TODO: Implement installed/all filters
 	 */
 	if(idx < flag->item.height) {
 		for(;;) {
+			// Filter global description if it is not wanted:
+			if (!idx && (show_local == showScope) && flag->item.isGlobal) {
+				++idx;
+				continue;
+			}
+
+			// Break on local descriptions if they are not wanted:
+			if (idx && (show_global == showScope))
+				break;
+
 			// Display flag state
 			sprintf(buf + minwidth, "[%c] ",
 				flag->item.isMasked ? flag->isInstalled[idx] ? 'M' : 'm'
@@ -358,6 +376,7 @@ static void drawflag(struct item *item, bool highlight) {
 			waddstr(win(List), buf);
 			y++;
 			idx++;
+			usedY++;
 			if((idx < flag->item.height) && (y < wHeight(List)) ) {
 				char *p;
 				for(p = buf; p != buf + minwidth; p++)
@@ -374,6 +393,7 @@ static void drawflag(struct item *item, bool highlight) {
 	if(highlight)
 		wmove(win(List), max(flag->item.top - topy, 0), 2);
 	wnoutrefresh(win(List));
+	return usedY;
 }
 
 static int callback(struct item **currentitem, int key) {
@@ -410,14 +430,14 @@ static int callback(struct item **currentitem, int key) {
 			/* if the current flag does not match, search one that does. */
 			else {
 				do item = item->next;
-				while(item!=*currentitem && strncasecmp(((struct flag *) item)->name, fayt, n)!=0);
+				while( (item != *currentitem)
+				    && ( ( strncasecmp(((struct flag *) item)->name, fayt, n)
+				    	|| !isLegalItem(item)) ) );
 
 				/* if there was no match (or the match is filtered),
 				 * update the input area to show that there is no match
 				 */
-				if ( (item == *currentitem)
-					|| ( item->isMasked && (show_unmasked == showMasked))
-					|| (!item->isMasked && (show_masked   == showMasked)) ) {
+				if (item == *currentitem) {
 					if (item != *currentitem)
 						item = *currentitem;
 					wattrset(win(Input), COLOR_PAIR(4) | A_BOLD | A_REVERSE);
