@@ -11,6 +11,8 @@
 #include <strings.h>
 #include <unistd.h>
 
+extern int topy;
+
 static struct line {
 	struct item item;
 	char *text;

@@ -5,6 +5,7 @@
 #include <curses.h>
 
 
+/* debugging macros */
 #define DEBUG_EXIT 1
 #undef DEBUG_TRACE
 
@@ -27,6 +28,7 @@
 #endif // DEBUG_TRACE
 
 
+/* global types */
 enum win { Top, Left, List, Input, Scrollbar, Right, Bottom, wCount };
 enum mask { show_unmasked, show_both, show_masked };
 enum order { pkgs_left, pkgs_right };
@@ -50,22 +52,25 @@ struct key {
 	size_t length;
 };
 
-extern struct window window[wCount];
 
-extern void initcurses(void);
-extern void cursesdone(void);
+/* global prototypes */
+void cursesdone(void);
+void initcurses(void);
+bool isLegalItem(struct item *item);
 
-extern int maineventloop(
+int maineventloop(
 	const char *subtitle,
 	int (*callback)(struct item **currentitem, int key),
 	int (*drawitem)(struct item *item, bool highlight),
 	struct item *items,
 	const struct key *keys);
-extern void drawitems(void);
-extern void scrollcurrent(void);
-extern bool yesno(const char *);
-bool isLegalItem(struct item *item);
+void drawitems(void);
+void scrollcurrent(void);
+bool yesno(const char *);
 
+
+/* global inline functions */
+extern struct window window[wCount];
 static inline WINDOW *win(enum win w) { return window[w].win; }
 static inline int wTop   (enum win w) { return (window[w].top   >= 0 ? 0 : LINES) + window[w].top   ; }
 static inline int wLeft  (enum win w) { return (window[w].left  >= 0 ? 0 : COLS ) + window[w].left  ; }
@@ -73,6 +78,3 @@ static inline int wHeight(enum win w) { return (window[w].height > 0 ? 0 : LINES
 static inline int wWidth (enum win w) { return (window[w].width  > 0 ? 0 : COLS ) + window[w].width ; }
 static inline int min(int a, int b) { return a < b ? a : b; }
 static inline int max(int a, int b) { return a > b ? a : b; }
-
-extern int minwidth;
-extern int topy;

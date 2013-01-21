@@ -56,7 +56,7 @@ enum mask  showMasked = show_unmasked; //!< Set whether to show masked, unmasked
 enum order pkgOrder   = pkgs_left;     //!< Set whether to display package lists left or right of the description
 enum scope showScope  = show_all;      //!< Set whether global, local or all flags are shown
 int firstNormalY      = -1;            //!< y of first not masked flag
-
+extern int topy, minwidth;
 
 /* static functions */
 static char *getline(FILE *fp) {
