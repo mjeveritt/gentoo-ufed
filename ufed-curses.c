@@ -25,21 +25,60 @@ static struct item *items, *currentitem;
 
 
 /* external members */
-int topy, minwidth;
+int topline, minwidth;
 extern enum mask showMasked;
 extern enum order pkgOrder;
 extern enum scope showScope;
-extern int firstNormalY;
+extern int lineCountGlobal;
+extern int lineCountLocal;
+extern int lineCountLocalInstalled;
+extern int lineCountMasked;
+extern int lineCountMaskedInstalled;
+extern int lineCountMasked;
 
 
 /* internal prototypes */
 static void checktermsize(void);
+int  getListHeight();
 void resetDisplay();
 void setNextItem(int count, bool strict);
 void setPrevItem(int count, bool strict);
 
 
 /* internal functions */
+/** @brief return the number of lines the full item display needs
+**/
+int getItemHeight(struct item *item)
+{
+	// TODO : Add filtering and possible line break
+	return item->ndescr;
+}
+
+
+/** @brief get the sum of lines the list holds respecting current filtering
+**/
+int getListHeight()
+{
+	int result = 0;
+
+	if (show_unmasked != showMasked) {
+		// TODO : add installed/not installed filter
+		result += lineCountMasked + lineCountMaskedInstalled;
+	}
+	if (show_masked != showMasked) {
+		if (show_global != showScope) {
+			// TODO : add installed/not installed filter
+			result += lineCountLocal + lineCountLocalInstalled;
+		}
+		if (show_local != showScope) {
+			result += lineCountGlobal;
+		}
+	}
+
+	return result;
+}
+
+
 void initcurses(void) {
 	setlocale(LC_CTYPE, "");
 	initscr();
@@ -87,49 +126,63 @@ static void checktermsize(void) {
 static int (*drawitem)(struct item *, bool);
 
 void drawitems(void) {
+	/* sanitize currentitem first.
+	 * This is needed, because the currently selected
+	 * item may become invalid when a filter is
+	 * toggled.
+	 */
+	if (!isLegalItem(currentitem)) {
+		while ((currentitem != items) && !isLegalItem(currentitem)) {
+			currentitem = currentitem->prev;
+			topline -= getItemHeight(currentitem);
+		}
+		while ((currentitem->next != items) && !isLegalItem(currentitem)) {
+			topline += getItemHeight(currentitem);
+			currentitem = currentitem->next;
+		}
+	} // End of sanitizing currentitem
+
 	struct item *item = currentitem;
-	int y = item->top - topy;
+	int line = item->listline - topline;
 
 	/* move to the top of the displayed list */
-	for ( ; (y > 0) && item; y = item->top - topy)
+	for ( ; (item != items) && ((line > 0) || !isLegalItem(item)); line = item->listline - topline)
 		item = item->prev;
 
-	/* advance in the list if the top item would be a masked
-	 * flag that is to be filtered out.
-	 * This is needed in two situations. First at the very start
-	 * of the program and second whenever the filtering is
-	 * toggled. The latter resets the list position to guarantee
-	 * a valid display.
+	/* If the above move ended up with item == items
+	 * it must be checked whether to move forwards again.
+	 * This can happen if the flag filter is toggled
+	 * and the current item is the first not filtered item.
 	 */
-	if ((show_unmasked == showMasked) && item->isMasked) {
-		while (item && item->isMasked) {
+	if ((item == items) && !isLegalItem(item)) {
+		item = currentitem;
+		while (!isLegalItem(item) && (item != items)) {
 			if (currentitem == item)
 				currentitem = item->next;
-			topy += item->height;
-			item  = item->next;
+			item = item->next;
+			topline += getItemHeight(item);
 		}
 	}
 
-	for(;;) {
-		if(item!=currentitem)
-			y += (*drawitem)(item, FALSE);
-		else
-			y += item->height;
+	for( ; line < wHeight(List); ) {
+		item->currline = line; // drawitem() and maineventloop() need this
+		line += (*drawitem)(item, item == currentitem ? TRUE : FALSE);
 		item = item->next;
-		if(y >= wHeight(List))
-			break;
-		if(item==items) {
+
+		/* Add blank lines if we reached the end of the
+		 * flag list, but not the end of the display.
+		 */
+		if((line < wHeight(List)) && (item == items)) {
 			char buf[wWidth(List)];
 			memset(buf, ' ', wWidth(List));
 			buf[wWidth(List)] = '\0';
-			wmove(win(List), y, 0);
+			wmove(win(List), line, 0);
 			wattrset(win(List), COLOR_PAIR(3));
-			while(y++ < wHeight(List))
+			while(line++ < wHeight(List))
 				waddstr(win(List), buf);
 			break;
 		}
 	}
-	(*drawitem)(currentitem, TRUE);
 	wnoutrefresh(win(List));
 }
 
@@ -142,25 +195,12 @@ static void drawscrollbar(void) {
 	/* The scrollbar location differs related to the
 	 * current filtering of masked flags.
 	 */
-	int bottomY    = items->prev->top + items->prev->height;
-	// Case 1: Masked flags are not displayed (the default)
-	int listHeight = bottomY - firstNormalY;
-	int listTopY   = topy    - firstNormalY;
-	if (show_masked == showMasked) {
-		// Case 2: Only masked flags are displayed
-		listHeight = firstNormalY;
-		listTopY   = topy;
-	}
-	else if (show_both == showMasked) {
-		// case 3: All flags are shown
-		listHeight = bottomY;
-		listTopY   = topy;
-	}
+	int listHeight = getListHeight();
 
 	// Only show a scrollbar if the list is actually longer than can be displayed:
 	if (listHeight > wHeight(List)) {
 		int sbHeight = wHeight(Scrollbar) - 3;
-		int barStart = 1 + (sbHeight * listTopY / listHeight);
+		int barStart = 1 + (sbHeight / listHeight);
 		int barEnd   = barStart + (sbHeight * wHeight(List) / listHeight);
 		for ( ; barStart <= barEnd; ++barStart)
 			mvwaddch(w, barStart, 0, ACS_BLOCK);
@@ -291,10 +331,10 @@ static void draw(void) {
 }
 
 void scrollcurrent(void) {
-	if(currentitem->top < topy)
-		topy = max(currentitem->top, currentitem->top + currentitem->height - wHeight(List));
-	else if( (currentitem->top + currentitem->height) > (topy + wHeight(List)))
-		topy = min(currentitem->top + currentitem->height - wHeight(List), currentitem->top);
+	if(currentitem->listline < topline)
+		topline = max(currentitem->listline, currentitem->listline + currentitem->ndescr - wHeight(List));
+	else if( (currentitem->listline + currentitem->ndescr) > (topline + wHeight(List)))
+		topline = min(currentitem->listline + currentitem->ndescr - wHeight(List), currentitem->listline);
 	else
 		return;
 	drawitems();
@@ -327,7 +367,7 @@ bool yesno(const char *prompt) {
 					window[w].win = newwin(wHeight(w), wWidth(w), wTop(w), wLeft(w));
 				} }
 				/* this won't work for the help viewer, but it doesn't use yesno() */
-				topy = 0;
+				topline = 0;
 				scrollcurrent();
 				draw();
 				wattrset(win(Input), COLOR_PAIR(4) | A_BOLD | A_REVERSE);
@@ -363,7 +403,7 @@ int maineventloop(
 		_keys=temp; }
 
 	currentitem = items;
-	topy = 0;
+	topline = 0;
 
 	draw();
 
@@ -395,14 +435,14 @@ int maineventloop(
 				if(wmouse_trafo(win(List), &event.y, &event.x, FALSE)) {
 					if(event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED)) {
 						struct item *item = currentitem;
-						if(currentitem->top-topy > event.y) {
+						if(currentitem->currline > event.y) {
 							do item = item->prev;
 							while((item==items ? item=NULL, 0 : 1)
-							 && item->top-topy > event.y);
-						} else if(currentitem->top-topy+currentitem->height-1 < event.y) {
+							 && item->currline > event.y);
+						} else if(currentitem->currline + getItemHeight(currentitem) - 1 < event.y) {
 							do item = item->next;
 							while((item->next==items ? item=NULL, 0 : 1)
-							 && item->top-topy+item->height-1 < event.y);
+							 && item->currline + getItemHeight(item) - 1 < event.y);
 						}
 						if(item==NULL)
 							continue;
@@ -417,10 +457,15 @@ int maineventloop(
 						(*drawitem)(currentitem, TRUE);
 					}
 				} else if(wmouse_trafo(win(Scrollbar), &event.y, &event.x, FALSE)) {
-					if( (event.bstate & (BUTTON1_PRESSED | BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED))
+					// Only do mouse events if there actually is a scrollbar
+					int listHeight = getListHeight();
+					if( (listHeight > wHeight(List))
+					 && (event.bstate & (BUTTON1_PRESSED | BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED))
 					 && (event.y < wHeight(Scrollbar)-1) ) {
+						int sbHeight = wHeight(Scrollbar) - 3;
+						int barStart = 1 + (sbHeight / listHeight);
+						int barEnd   = barStart + (sbHeight * wHeight(List) / listHeight);
 						halfdelay(1);
-
 #define SIM(key) \
 	{ \
 		c = KEY_ ## key; \
@@ -428,50 +473,48 @@ int maineventloop(
 			mousekey = c; \
 		goto check_key; \
 	}
-						if(items->prev->top+items->prev->height > wHeight(List))
-							{}
-						else if(event.y == 0)
+						if(event.y == 0)
 							SIM(UP)
 						else if(event.y == wHeight(Scrollbar)-2)
 							SIM(DOWN)
-						else if(event.y-1 < (wHeight(Scrollbar)-3)*topy/(items->prev->top+items->prev->height-(wHeight(List)-1)))
+						else if( (event.y - 1) < barStart)
 							SIM(PPAGE)
-						else if(event.y-1 > (wHeight(Scrollbar)-3)*topy/(items->prev->top+items->prev->height-(wHeight(List)-1)))
+						else if( (event.y - 1) > barEnd)
 							SIM(NPAGE)
 #undef SIM
-						else
-							if(event.bstate & BUTTON1_PRESSED) {
-								for(;;) {
-									c = getch();
-									switch(c) {
-									case ERR:
-										continue;
-									case KEY_MOUSE:
-										if(getmouse(&event)==OK) {
-											event.y -= wTop(Scrollbar)+1;
-											if(event.y>=0 && event.y<wHeight(Scrollbar)-3) {
-												topy = (event.y*(items->prev->top+items->prev->height-(wHeight(List)-1))+(wHeight(Scrollbar)-4))/(wHeight(Scrollbar)-3);
-												while(currentitem!=items
-												 && currentitem->prev->top >= topy)
-													currentitem = currentitem->prev;
-												while(currentitem->next!=items
-												 && currentitem->top < topy)
-													currentitem = currentitem->next;
-												if(currentitem->top+currentitem->height > topy+wHeight(List))
-													topy = currentitem->top+currentitem->height - wHeight(List);
-												drawitems();
-												drawscrollbar();
-												wrefresh(win(List));
-											}
+						else if(event.bstate & BUTTON1_PRESSED) {
+							for(;;) {
+								c = getch();
+								switch(c) {
+								case ERR:
+									continue;
+								case KEY_MOUSE:
+									if(getmouse(&event)==OK) {
+										event.y -= wTop(Scrollbar) + 1;
+										if( (event.y >= 0) && (event.y < sbHeight) ) {
+											topline = (event.y * (listHeight - sbHeight + 2) + sbHeight - 1) / sbHeight;
+											// was: topy = (event.y*(items->prev->top+items->prev->height-(wHeight(List)-1))+(wHeight(Scrollbar)-4))/(wHeight(Scrollbar)-3);
+											while( (currentitem != items)
+												&& (currentitem->prev->listline >= topline) )
+												currentitem = currentitem->prev;
+											while( (currentitem->next != items)
+												&& (currentitem->listline < topline) )
+												currentitem = currentitem->next;
+											if( (currentitem->listline + currentitem->ndescr) > (topline + wHeight(List)) )
+												topline = currentitem->listline + currentitem->ndescr - wHeight(List);
+											drawitems();
+											drawscrollbar();
+											wrefresh(win(List));
 										}
-										break;
-									default:
-										goto check_key;
 									}
 									break;
+								default:
+									goto check_key;
 								}
+								break;
 							}
-					}
+						} // End of alternate scrollbar event
+					} // End of having a scrollbar
 				} else if(wmouse_trafo(win(Bottom), &event.y, &event.x, FALSE)) {
 					if( (event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED))
 					 && (event.y == 1) ) {
@@ -511,19 +554,19 @@ int maineventloop(
 
 			switch(c) {
 				case KEY_UP:
-					if(currentitem->top < topy ) {
+					if(currentitem->listline < topline ) {
 						(*drawitem)(currentitem, FALSE);
-						topy--;
+						topline--;
 						(*drawitem)(currentitem, TRUE);
 					} else
 						setPrevItem(1, true);
 					break;
 	
 				case KEY_DOWN:
-					if( (currentitem->top + currentitem->height) > (topy + wHeight(List)) ) {
+					if( (currentitem->listline + currentitem->ndescr) > (topline + wHeight(List)) ) {
 						// Scroll through descriptions if their list is longer than the window
 						(*drawitem)(currentitem, FALSE);
-						topy++;
+						++topline;
 						(*drawitem)(currentitem, TRUE);
 					} else
 						setNextItem(1, true);
@@ -584,7 +627,7 @@ int maineventloop(
 						window[w].win = newwin(wHeight(w), wWidth(w), wTop(w), wLeft(w));
 					} }
 					if(result==-1) {
-						topy = 0;
+						topline = 0;
 						scrollcurrent();
 					} else
 						items = currentitem;
@@ -603,7 +646,7 @@ exit:
 
 	if(items!=NULL) {
 		currentitem = items;
-		topy = 0;
+		topline = 0;
 		draw();
 	}
 
@@ -619,7 +662,7 @@ void resetDisplay()
 	currentitem = items;
 	while (!isLegalItem(currentitem))
 		currentitem = currentitem->next;
-	topy = currentitem->top;
+	topline = currentitem->listline;
 	draw();
 }
 
@@ -692,7 +735,7 @@ bool isLegalItem(struct item *item)
 	     ( ( item->isMasked && (show_unmasked != showMasked))
 	    || (!item->isMasked && (show_masked   != showMasked)) )
 	     // 2: Global / Local filter
-	  && ( ( item->isGlobal && ( (show_local  != showScope) || (item->height > 1) ) )
+	  && ( ( item->isGlobal && ( (show_local  != showScope) || (item->ndescr > 1) ) )
 	    || (!item->isGlobal && (  show_global != showScope)) ) )
 		return true;
 	return false;

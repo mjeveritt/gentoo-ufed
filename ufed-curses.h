@@ -41,7 +41,9 @@ struct window {
 
 struct item {
 	struct item *prev, *next;
-	int top, height;
+	int currline; //!< the current line on the screen this item starts.
+	int listline; //!< the fixed line within the full list this item starts
+	int ndescr;   //!< number of description lines
 	bool isMasked;
 	bool isGlobal;
 };
@@ -55,6 +57,7 @@ struct key {
 
 /* global prototypes */
 void cursesdone(void);
+int  getItemHeight(struct item *item);
 void initcurses(void);
 bool isLegalItem(struct item *item);
 

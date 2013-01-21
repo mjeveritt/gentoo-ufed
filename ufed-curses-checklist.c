@@ -55,8 +55,13 @@ static void free_flags(void);
 enum mask  showMasked = show_unmasked; //!< Set whether to show masked, unmasked or both flags
 enum order pkgOrder   = pkgs_left;     //!< Set whether to display package lists left or right of the description
 enum scope showScope  = show_all;      //!< Set whether global, local or all flags are shown
-int firstNormalY      = -1;            //!< y of first not masked flag
-extern int topy, minwidth;
+int lineCountGlobal;
+int lineCountLocal;
+int lineCountLocalInstalled;
+int lineCountMasked;
+int lineCountMaskedInstalled;
+int lineCountMasked;
+extern int minwidth;
 
 /* static functions */
 static char *getline(FILE *fp) {
@@ -99,13 +104,21 @@ static char *getline(FILE *fp) {
 }
 
 static void read_flags(void) {
-	FILE *input = fdopen(3, "r");
-	int   y     = 0;
-	char *line  = NULL;
+	FILE *input   = fdopen(3, "r");
+	int   lineNum = 0;
+	char *line    = NULL;
 
 	if(input == NULL)
 		ERROR_EXIT(-1, "fdopen failed with error %d\n", errno);
 	atexit(&free_flags);
+
+	// Initialize line count per type:
+	lineCountGlobal          = 0;
+	lineCountLocal           = 0;
+	lineCountLocalInstalled  = 0;
+	lineCountMasked          = 0;
+	lineCountMaskedInstalled = 0;
+	lineCountMasked          = 0;
 
 	for(;;) {
 		struct {
@@ -144,7 +157,8 @@ static void read_flags(void) {
 			ERROR_EXIT(-1, "Can not allocate %lu bytes for descr array\n", ndescr * sizeof(char*));
 
 		/* note position and name of the flag */
-		flag->item.top = y;
+		flag->item.listline = lineNum;
+		flag->item.currline = 0;
 
 		if(name.end - name.start + 11 > minwidth)
 			minwidth = name.end - name.start + 11;
@@ -167,7 +181,7 @@ static void read_flags(void) {
 		strncpy(flag->state, &line[state.start], 4);
 
 		/* check and set flag item height */
-		flag->item.height = ndescr;
+		flag->item.ndescr = ndescr;
 
 		/* read description(s) and determine flag status */
 		flag->item.isMasked    = false;
@@ -196,16 +210,26 @@ static void read_flags(void) {
 
 			// Set general state of the flag
 			flag->isInstalled[i] = false;
-			if ('g' == descState)
+			if ('g' == descState) {
 				flag->item.isGlobal  = true;
-			else if ('L' == descState)
+				++lineCountGlobal;
+			}
+			else if ('l' == descState) {
+				++lineCountLocal;
+			}
+			else if ('L' == descState) {
 				flag->isInstalled[i] = true;
+				++lineCountLocalInstalled;
+			}
 			else if ('M' == descState) {
 				flag->item.isMasked  = true;
 				flag->isInstalled[i] = true;
+				++lineCountMaskedInstalled;
 			}
-			else if ('m' == descState)
+			else if ('m' == descState) {
 				flag->item.isMasked = true;
+				++lineCountMasked;
+			}
 
 			// Save packages
 			if (pkgs.start > -1) {
@@ -231,13 +255,10 @@ static void read_flags(void) {
 			size_t fullWidth = 1 + strlen(flag->descr[i]) + (flag->pkgs[i] ? strlen(flag->pkgs[i] + 3) : 0);
 			if (fullWidth > maxDescWidth)
 				maxDescWidth = fullWidth;
+
+			// Advance lineNum
+			++lineNum;
 		} // loop through description lines
-
-		/* record first not masked y if not done, yet */
-		if (firstNormalY < 0 && !flag->item.isMasked)
-			firstNormalY = flag->item.top;
-
-		y += ndescr;
 
 		/* Save flag in our linked list */
 		if(flags==NULL) {
@@ -266,7 +287,7 @@ static void free_flags(void) {
 		flag->item.prev->next = NULL;
 		do {
 			void *p = flag;
-			for (int i = 0; i < flag->item.height; ++i) {
+			for (int i = 0; i < flag->item.ndescr; ++i) {
 				if (flag->pkgs[i])  free(flag->pkgs[i]);
 				if (flag->descr[i]) free(flag->descr[i]);
 			}
@@ -290,12 +311,12 @@ static int drawflag(struct item *item, bool highlight) {
 	struct flag *flag = (struct flag *) item;
 	char buf[wWidth(List)+1];
 	char desc[maxDescWidth];
-	int y = flag->item.top - topy;
-	int idx = 0;
+	int idx   = 0;
 	int usedY = 0;
+	int line  = flag->item.currline;
 
 	// Return early if there is nothing to display:
-	if (!isLegalItem(item))
+	if (!isLegalItem(&flag->item))
 		return 0;
 
 	/* Determine with which description to start.
@@ -303,11 +324,16 @@ static int drawflag(struct item *item, bool highlight) {
 	 * and therefore must be scrolled instead of the flags
 	 * themselves.
 	 */
-	if(y < 0 && (-y < flag->item.height)) {
-		idx = -y;
-		y   = 0;
+	if (line < 0) {
+		if (-line < getItemHeight(&flag->item)) {
+			idx  = -line;
+			line = 0;
+		} else
+			// Otherwise this item is out of the display area
+			return 0;
 	}
-	wmove(win(List), y, 0);
+
+	wmove(win(List), line, 0);
 
 	/* print the selection, name and state of the flag */
 	sprintf(buf, " %c%c%c %s%s%s%-*s %-4.4s ",
@@ -328,7 +354,7 @@ static int drawflag(struct item *item, bool highlight) {
 	/* print descriptions according to filters
 	 * TODO: Implement installed/all filters
 	 */
-	if(idx < flag->item.height) {
+	if(idx < flag->item.ndescr) {
 		for(;;) {
 			// Filter global description if it is not wanted:
 			if (!idx && (show_local == showScope) && flag->item.isGlobal) {
@@ -374,10 +400,10 @@ static int drawflag(struct item *item, bool highlight) {
 
 			// Finally put the line on the screen
 			waddstr(win(List), buf);
-			y++;
-			idx++;
-			usedY++;
-			if((idx < flag->item.height) && (y < wHeight(List)) ) {
+			++line;
+			++idx;
+			++usedY;
+			if((idx < flag->item.ndescr) && (line < wHeight(List)) ) {
 				char *p;
 				for(p = buf; p != buf + minwidth; p++)
 					*p = ' ';
@@ -391,7 +417,7 @@ static int drawflag(struct item *item, bool highlight) {
 		waddstr(win(List), buf);
 	}
 	if(highlight)
-		wmove(win(List), max(flag->item.top - topy, 0), 2);
+		wmove(win(List), max(flag->item.currline, 0), 2);
 	wnoutrefresh(win(List));
 	return usedY;
 }
@@ -472,7 +498,7 @@ static int callback(struct item **currentitem, int key) {
 			mvwaddstr(win(Input), 0, 0, fayt);
 			whline(win(Input), ' ', 2);
 			if(n==0) {
-				wmove(win(List), (*currentitem)->top-topy, 2);
+				wmove(win(List), (*currentitem)->currline, 2);
 				wnoutrefresh(win(Input));
 				wrefresh(win(List));
 			} else {
@@ -508,7 +534,7 @@ static int callback(struct item **currentitem, int key) {
 		}
 		if (*currentitem != &flags->item) {
 			drawflag(*currentitem, TRUE);
-			wmove(win(List), (*currentitem)->top-topy, 2);
+			wmove(win(List), (*currentitem)->currline, 2);
 			wrefresh(win(List));
 		} else {
 			drawitems();
@@ -519,13 +545,13 @@ static int callback(struct item **currentitem, int key) {
 		if(descriptionleft>0)
 			descriptionleft--;
 		drawflag(*currentitem, TRUE);
-		wmove(win(List), (*currentitem)->top-topy, 2);
+		wmove(win(List), (*currentitem)->currline, 2);
 		wrefresh(win(List));
 		break;
 	case KEY_RIGHT:
 		descriptionleft++;
 		drawflag(*currentitem, TRUE);
-		wmove(win(List), (*currentitem)->top-topy, 2);
+		wmove(win(List), (*currentitem)->currline, 2);
 		wrefresh(win(List));
 		break;
 #ifdef NCURSES_MOUSE_VERSION
@@ -547,7 +573,7 @@ static int callback(struct item **currentitem, int key) {
 		}
 		if (*currentitem != &flags->item) {
 			drawflag(*currentitem, TRUE);
-			wmove(win(List), (*currentitem)->top-topy, 2);
+			wmove(win(List), (*currentitem)->currline, 2);
 			wrefresh(win(List));
 		} else {
 			drawitems();
@@ -600,3 +626,4 @@ int main(void) {
 
 	return result;
 }
+

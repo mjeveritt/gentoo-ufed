@@ -11,7 +11,7 @@
 #include <strings.h>
 #include <unistd.h>
 
-extern int topy;
+extern int topline;
 
 static struct line {
 	struct item item;
@@ -123,8 +123,8 @@ static void init_lines(void) {
 			lines->item.prev->next = (struct item *) line;
 			lines->item.prev = (struct item *) line;
 		}
-		line->item.top = y++;
-		line->item.height = 1;
+		line->item.listline = y++;
+		line->item.ndescr = 1;
 		n = strlen(word);
 		if(n > helpwidth-1) {
 			for(n = helpwidth-1; word[n]!=' '; n--) {
@@ -180,9 +180,9 @@ static int drawline(struct item *item, bool highlight) {
 		wattrset(win(List), COLOR_PAIR(3));
 	else
 		wattrset(win(List), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
-	mvwaddstr(win(List), line->item.top-topy, 0, buf);
+	mvwaddstr(win(List), line->item.currline, 0, buf);
 	if(highlight)
-		wmove(win(List), line->item.top-topy, 0);
+		wmove(win(List), line->item.currline, 0);
 	wnoutrefresh(win(List));
 	return 1;
 }
