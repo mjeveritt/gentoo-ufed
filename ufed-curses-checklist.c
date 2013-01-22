@@ -326,8 +326,9 @@ static int drawflag(struct item *item, bool highlight) {
 	 */
 	if (line < 0) {
 		if (-line < getItemHeight(&flag->item)) {
-			idx  = -line;
-			line = 0;
+			idx   = -line;
+			line  = 0;
+			usedY = idx;
 		} else
 			// Otherwise this item is out of the display area
 			return 0;
