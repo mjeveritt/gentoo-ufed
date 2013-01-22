@@ -68,7 +68,7 @@ int maineventloop(
 	struct item *items,
 	const struct key *keys);
 void drawitems(void);
-void scrollcurrent(void);
+bool scrollcurrent(void);
 bool yesno(const char *);
 
 

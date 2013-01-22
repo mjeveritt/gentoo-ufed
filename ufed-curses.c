@@ -134,10 +134,10 @@ void drawitems(void) {
 	if (!isLegalItem(currentitem)) {
 		while ((currentitem != items) && !isLegalItem(currentitem)) {
 			currentitem = currentitem->prev;
-			topline -= getItemHeight(currentitem);
+			topline -= currentitem->ndescr;
 		}
 		while ((currentitem->next != items) && !isLegalItem(currentitem)) {
-			topline += getItemHeight(currentitem);
+			topline += currentitem->ndescr;
 			currentitem = currentitem->next;
 		}
 	} // End of sanitizing currentitem
@@ -146,8 +146,10 @@ void drawitems(void) {
 	int line = item->listline - topline;
 
 	/* move to the top of the displayed list */
-	for ( ; (item != items) && ((line > 0) || !isLegalItem(item)); line = item->listline - topline)
+	while ((item != items) && (line > 0)) {
 		item = item->prev;
+		line = item->listline - topline;
+	}
 
 	/* If the above move ended up with item == items
 	 * it must be checked whether to move forwards again.
@@ -159,8 +161,9 @@ void drawitems(void) {
 		while (!isLegalItem(item) && (item != items)) {
 			if (currentitem == item)
 				currentitem = item->next;
+			topline += item->ndescr;
 			item = item->next;
-			topline += getItemHeight(item);
+			line = item->listline - topline;
 		}
 	}
 
@@ -330,15 +333,16 @@ static void draw(void) {
 	wrefresh(win(List));
 }
 
-void scrollcurrent(void) {
+bool scrollcurrent(void) {
 	if(currentitem->listline < topline)
 		topline = max(currentitem->listline, currentitem->listline + currentitem->ndescr - wHeight(List));
 	else if( (currentitem->listline + currentitem->ndescr) > (topline + wHeight(List)))
 		topline = min(currentitem->listline + currentitem->ndescr - wHeight(List), currentitem->listline);
 	else
-		return;
+		return false;
 	drawitems();
 	drawscrollbar();
+	return true;
 }
 
 bool yesno(const char *prompt) {
@@ -554,20 +558,19 @@ int maineventloop(
 
 			switch(c) {
 				case KEY_UP:
-					if(currentitem->listline < topline ) {
-						(*drawitem)(currentitem, FALSE);
-						topline--;
-						(*drawitem)(currentitem, TRUE);
+					if(currentitem->currline < 0 ) {
+						--topline;
+						drawitems();
+						drawscrollbar();
 					} else
 						setPrevItem(1, true);
 					break;
 	
 				case KEY_DOWN:
-					if( (currentitem->listline + currentitem->ndescr) > (topline + wHeight(List)) ) {
-						// Scroll through descriptions if their list is longer than the window
-						(*drawitem)(currentitem, FALSE);
+					if( (currentitem->currline + getItemHeight(currentitem)) > wHeight(List) ) {
 						++topline;
-						(*drawitem)(currentitem, TRUE);
+						drawitems();
+						drawscrollbar();
 					} else
 						setNextItem(1, true);
 					break;
@@ -691,8 +694,8 @@ void setNextItem(int count, bool strict)
 	if ( (result && strict) || (!strict && skipped) ) {
 		(*drawitem)(currentitem, FALSE);
 		currentitem = curr;
-		scrollcurrent();
-		(*drawitem)(currentitem, TRUE);
+		if (!scrollcurrent())
+			(*drawitem)(currentitem, TRUE);
 	}
 }
 
@@ -721,8 +724,8 @@ void setPrevItem(int count, bool strict)
 	if ( (result && strict) || (!strict && skipped) ) {
 		(*drawitem)(currentitem, FALSE);
 		currentitem = curr;
-		scrollcurrent();
-		(*drawitem)(currentitem, TRUE);
+		if (!scrollcurrent())
+			(*drawitem)(currentitem, TRUE);
 	}
 }
 
