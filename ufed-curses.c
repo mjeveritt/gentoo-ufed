@@ -25,7 +25,7 @@ static struct item *items, *currentitem;
 
 
 /* external members */
-int topline, minwidth;
+int topline, bottomline, minwidth;
 extern enum mask showMasked;
 extern enum order pkgOrder;
 extern enum scope showScope;
@@ -38,7 +38,10 @@ extern int lineCountMasked;
 
 
 /* internal prototypes */
-static void checktermsize(void);
+int (*drawitem)(struct item *, bool);
+void checktermsize();
+void draw();
+void drawscrollbar();
 int  getListHeight();
 void resetDisplay();
 void setNextItem(int count, bool strict);
@@ -79,7 +82,7 @@ int getListHeight()
 }
 
 
-void initcurses(void) {
+void initcurses() {
 	setlocale(LC_CTYPE, "");
 	initscr();
 	start_color();
@@ -100,14 +103,14 @@ void initcurses(void) {
 	} }
 }
 
-void cursesdone(void) {
+void cursesdone() {
 	enum win w;
 	for(w = (enum win) 0; w != wCount; w++)
 		delwin(window[w].win);
 	endwin();
 }
 
-static void checktermsize(void) {
+void checktermsize() {
 	while(wHeight(List) < 1
 	   || wWidth(List)  < minwidth) {
 #ifdef KEY_RESIZE
@@ -123,9 +126,7 @@ static void checktermsize(void) {
 	}
 }
 
-static int (*drawitem)(struct item *, bool);
-
-void drawitems(void) {
+void drawitems() {
 	/* sanitize currentitem first.
 	 * This is needed, because the currently selected
 	 * item may become invalid when a filter is
@@ -189,7 +190,7 @@ void drawitems(void) {
 	wnoutrefresh(win(List));
 }
 
-static void drawscrollbar(void) {
+void drawscrollbar() {
 	WINDOW *w = win(Scrollbar);
 	wattrset(w, COLOR_PAIR(3) | A_BOLD);
 	mvwaddch(w, 0, 0, ACS_UARROW);
@@ -203,8 +204,9 @@ static void drawscrollbar(void) {
 	// Only show a scrollbar if the list is actually longer than can be displayed:
 	if (listHeight > wHeight(List)) {
 		int sbHeight = wHeight(Scrollbar) - 3;
-		int barStart = 1 + (sbHeight / listHeight);
+		int barStart = 1 + (currentitem->listline * sbHeight / bottomline);
 		int barEnd   = barStart + (sbHeight * wHeight(List) / listHeight);
+
 		for ( ; barStart <= barEnd; ++barStart)
 			mvwaddch(w, barStart, 0, ACS_BLOCK);
 	}
@@ -214,7 +216,7 @@ static void drawscrollbar(void) {
 	wnoutrefresh(w);
 }
 
-static void draw(void) {
+void draw() {
 	size_t bufsize = COLS+1;
 	char buf[bufsize];
 	WINDOW *w;
@@ -333,7 +335,7 @@ static void draw(void) {
 	wrefresh(win(List));
 }
 
-bool scrollcurrent(void) {
+bool scrollcurrent() {
 	if(currentitem->listline < topline)
 		topline = max(currentitem->listline, currentitem->listline + currentitem->ndescr - wHeight(List));
 	else if( (currentitem->listline + currentitem->ndescr) > (topline + wHeight(List)))

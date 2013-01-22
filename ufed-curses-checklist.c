@@ -61,7 +61,7 @@ int lineCountLocalInstalled;
 int lineCountMasked;
 int lineCountMaskedInstalled;
 int lineCountMasked;
-extern int minwidth;
+extern int bottomline, minwidth;
 
 /* static functions */
 static char *getline(FILE *fp) {
@@ -272,11 +272,16 @@ static void read_flags(void) {
 			flags->item.prev = (struct item *) flag;
 		}
 	} // loop while input given
+
 	fclose(input);
+
 	if(flags==NULL) {
 		fputs("No input!\n", stderr);
 		exit(-1);
 	}
+
+	// Save the last line, it is needed in several places
+	bottomline = lineNum;
 }
 
 static void free_flags(void) {
