@@ -38,6 +38,7 @@ extern int lineCountMasked;
 
 
 /* internal prototypes */
+int (*callback)(struct item **, int);
 int (*drawitem)(struct item *, bool);
 void checktermsize();
 void draw();
@@ -170,7 +171,7 @@ void drawitems() {
 
 	for( ; line < wHeight(List); ) {
 		item->currline = line; // drawitem() and maineventloop() need this
-		line += (*drawitem)(item, item == currentitem ? TRUE : FALSE);
+		line += drawitem(item, item == currentitem ? TRUE : FALSE);
 		item = item->next;
 
 		/* Add blank lines if we reached the end of the
@@ -398,6 +399,9 @@ int maineventloop(
 	{ const char *temp = subtitle;
 		subtitle=_subtitle;
 		_subtitle=temp; }
+	{ int(*temp)(struct item **, int) = callback;
+		callback=_callback;
+		_callback=temp; }
 	{ int(*temp)(struct item *, bool) = drawitem;
 		drawitem=_drawitem;
 		_drawitem=temp; }
@@ -452,15 +456,15 @@ int maineventloop(
 						}
 						if(item==NULL)
 							continue;
-						(*drawitem)(currentitem, FALSE);
+						drawitem(currentitem, FALSE);
 						currentitem = item;
 						if(event.bstate & BUTTON1_DOUBLE_CLICKED) {
-							result=(*_callback)(&currentitem, KEY_MOUSE);
+							result=callback(&currentitem, KEY_MOUSE);
 							if(result>=0)
 								goto exit;
 						}
 						scrollcurrent();
-						(*drawitem)(currentitem, TRUE);
+						drawitem(currentitem, TRUE);
 					}
 				} else if(wmouse_trafo(win(Scrollbar), &event.y, &event.x, FALSE)) {
 					// Only do mouse events if there actually is a scrollbar
@@ -554,7 +558,7 @@ int maineventloop(
 		} else
 #endif
 		{
-			result=(*_callback)(&currentitem, c);
+			result=callback(&currentitem, c);
 			if(result>=0)
 				goto exit;
 
@@ -594,12 +598,12 @@ int maineventloop(
 	
 				case KEY_END:
 					if(currentitem->next!=items) {
-						(*drawitem)(currentitem, FALSE);
+						drawitem(currentitem, FALSE);
 						currentitem = items->prev;
 						while (!isLegalItem(currentitem))
 							currentitem = currentitem->prev;
 						scrollcurrent();
-						(*drawitem)(currentitem, TRUE);
+						drawitem(currentitem, TRUE);
 					}
 					break;
 
@@ -644,10 +648,11 @@ int maineventloop(
 		doupdate();
 	}
 exit:
-	subtitle=_subtitle;
-	drawitem=_drawitem;
-	items=_items;
-	keys=_keys;
+	subtitle = _subtitle;
+	callback = _callback;
+	drawitem = _drawitem;
+	items    = _items;
+	keys     = _keys;
 
 	if(items!=NULL) {
 		currentitem = items;
@@ -663,7 +668,7 @@ exit:
  */
 void resetDisplay()
 {
-	(*drawitem)(currentitem, FALSE);
+	drawitem(currentitem, FALSE);
 	currentitem = items;
 	while (!isLegalItem(currentitem))
 		currentitem = currentitem->next;
@@ -694,10 +699,10 @@ void setNextItem(int count, bool strict)
 	} // End of trying to find a next item
 
 	if ( (result && strict) || (!strict && skipped) ) {
-		(*drawitem)(currentitem, FALSE);
+		drawitem(currentitem, FALSE);
 		currentitem = curr;
 		if (!scrollcurrent())
-			(*drawitem)(currentitem, TRUE);
+			drawitem(currentitem, TRUE);
 	}
 }
 
@@ -724,10 +729,10 @@ void setPrevItem(int count, bool strict)
 	} // End of trying to find next item
 
 	if ( (result && strict) || (!strict && skipped) ) {
-		(*drawitem)(currentitem, FALSE);
+		drawitem(currentitem, FALSE);
 		currentitem = curr;
 		if (!scrollcurrent())
-			(*drawitem)(currentitem, TRUE);
+			drawitem(currentitem, TRUE);
 	}
 }
 
