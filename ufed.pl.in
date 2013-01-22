@@ -18,7 +18,6 @@ my $interface = 'ufed-curses';
 #              . " XX_libexecdir@/ufed-curses 2>/tmp/ufed_memcheck.log";
 
 my %use_descriptions;
-my %masked_descriptions;
 
 sub finalise;
 sub flags_dialog;
@@ -53,15 +52,15 @@ for my $flag (keys %Portage::use_masked_flags) {
 	}
 	if($masked) {
 		if (defined($use_descriptions{$flag})) {
-			@{$masked_descriptions{$flag}} = @{$use_descriptions{$flag}};
-			for (my $i = 0; $i < scalar @{$masked_descriptions{$flag}}; ++$i) {
-				$masked_descriptions{$flag}->[$i] =~ s/ [lg]$/ m/ ;
-				$masked_descriptions{$flag}->[$i] =~ s/ L$/ M/ ;
+			for (my $i = 0; $i < scalar @{$use_descriptions{$flag}}; ++$i) {
+				$use_descriptions{$flag}->[$i] =~ s/ [lg]$/ m/ ;
+				$use_descriptions{$flag}->[$i] =~ s/ L$/ M/ ;
 			}
+		} else {
+			delete $use_descriptions{$flag};
+			delete $Portage::default_flags{$flag};
+			delete $Portage::all_flags{$flag};
 		}
-		delete $use_descriptions{$flag};
-		delete $Portage::default_flags{$flag};
-		delete $Portage::all_flags{$flag};
 	}
 }
 
@@ -111,20 +110,7 @@ sub flags_dialog {
 	POSIX::close $owrite;
 	my $outTxt = "";
 
-	# Write masked flags first so they sort at the beginning of the list
-	for my $flag (sort { uc $a cmp uc $b } keys %masked_descriptions) {
-		$outTxt .= sprintf ("%s %s (%s%s) %d\n", $flag,
-					defined($Portage::make_conf_flags{$flag})
-						? $Portage::make_conf_flags{$flag} ? 'on' : 'off' : 'def',
-					exists($Portage::make_defaults_flags{$flag})
-						? $Portage::make_defaults_flags{$flag} ? '+' : '-' : ' ',
-					exists($Portage::make_conf_flags{$flag})
-						? $Portage::make_conf_flags{$flag}     ? '+' : '-' : ' ',
-					scalar @{$masked_descriptions{$flag}} );
-		$outTxt .= sprintf ("%s\n", $_) for(@{$masked_descriptions{$flag}});
-	}
-
-	# Then write regular flags
+	# Write out flags 
 	for my $flag (sort { uc $a cmp uc $b } keys %use_descriptions) {
 		$outTxt .= sprintf ("%s %s (%s%s) %d\n", $flag,
 					defined($Portage::make_conf_flags{$flag})
