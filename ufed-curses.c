@@ -22,6 +22,8 @@ struct window window[wCount] = {
 static const char *subtitle;
 static const struct key *keys;
 static struct item *items, *currentitem;
+// Needed for the scrollbar and its mouse events
+static int listHeight, barStart, barEnd, dispStart, dispEnd;
 
 
 /* external members */
@@ -158,23 +160,30 @@ void drawitems() {
 		line    = 0;
 	}
 
+	// The display start line might differ from topline:
+	dispStart = item->listline;
+
 	for( ; line < wHeight(List); ) {
 		item->currline = line; // drawitem() and maineventloop() need this
 		line += drawitem(item, item == currentitem ? TRUE : FALSE);
-		item = item->next;
 
-		/* Add blank lines if we reached the end of the
-		 * flag list, but not the end of the display.
-		 */
-		if((line < wHeight(List)) && (item == items)) {
-			char buf[wWidth(List)];
-			memset(buf, ' ', wWidth(List));
-			buf[wWidth(List)] = '\0';
-			wmove(win(List), line, 0);
-			wattrset(win(List), COLOR_PAIR(3));
-			while(line++ < wHeight(List))
-				waddstr(win(List), buf);
-		}
+		if (line < wHeight(List)) {
+			item = item->next;
+
+			/* Add blank lines if we reached the end of the
+			 * flag list, but not the end of the display.
+			 */
+			if(item == items) {
+				char buf[wWidth(List)];
+				memset(buf, ' ', wWidth(List));
+				buf[wWidth(List)] = '\0';
+				wmove(win(List), line, 0);
+				wattrset(win(List), COLOR_PAIR(3));
+				while(line++ < wHeight(List))
+					waddstr(win(List), buf);
+			}
+		} else
+			dispEnd = item->listline + item->ndescr;
 	}
 	wnoutrefresh(win(List));
 }
@@ -188,14 +197,19 @@ void drawscrollbar() {
 	/* The scrollbar location differs related to the
 	 * current filtering of masked flags.
 	 */
-	int listHeight = getListHeight();
+	listHeight = getListHeight();
 
 	// Only show a scrollbar if the list is actually longer than can be displayed:
 	if (listHeight > wHeight(List)) {
 		int sbHeight = wHeight(Scrollbar) - 3;
-		int barStart = 1 + (currentitem->listline * sbHeight / bottomline);
-		int barEnd   = barStart + (sbHeight * wHeight(List) / listHeight);
+		barStart = 1 + (dispStart * sbHeight / bottomline);
+		barEnd   = barStart + ((dispEnd - dispStart) * wHeight(List) / bottomline);
 
+		// Strongly filtered lists scatter much and must be corrected:
+		if (barEnd > sbHeight) {
+			barStart -= barEnd - sbHeight;
+			barEnd   -= barEnd - sbHeight;
+		}
 		for ( ; barStart <= barEnd; ++barStart)
 			mvwaddch(w, barStart, 0, ACS_BLOCK);
 	}
@@ -456,13 +470,9 @@ int maineventloop(
 					}
 				} else if(wmouse_trafo(win(Scrollbar), &event.y, &event.x, FALSE)) {
 					// Only do mouse events if there actually is a scrollbar
-					int listHeight = getListHeight();
 					if( (listHeight > wHeight(List))
 					 && (event.bstate & (BUTTON1_PRESSED | BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED))
 					 && (event.y < wHeight(Scrollbar)-1) ) {
-						int sbHeight = wHeight(Scrollbar) - 3;
-						int barStart = 1 + (sbHeight / listHeight);
-						int barEnd   = barStart + (sbHeight * wHeight(List) / listHeight);
 						halfdelay(1);
 #define SIM(key) \
 	{ \
@@ -489,7 +499,9 @@ int maineventloop(
 								case KEY_MOUSE:
 									if(getmouse(&event)==OK) {
 										event.y -= wTop(Scrollbar) + 1;
+										int sbHeight = wHeight(Scrollbar) - 3;
 										if( (event.y >= 0) && (event.y < sbHeight) ) {
+											/// TODO : This needs to be fixed!
 											topline = (event.y * (listHeight - sbHeight + 2) + sbHeight - 1) / sbHeight;
 											// was: topy = (event.y*(items->prev->top+items->prev->height-(wHeight(List)-1))+(wHeight(Scrollbar)-4))/(wHeight(Scrollbar)-3);
 											while( (currentitem != items)
