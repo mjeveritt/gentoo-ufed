@@ -373,10 +373,12 @@ static int drawflag(struct item *item, bool highlight) {
 				break;
 
 			// Display flag state
-			sprintf(buf + minwidth, "[%c] ",
-				flag->item.isMasked ? flag->isInstalled[idx] ? 'M' : 'm'
-					: flag->item.isGlobal && !flag->pkgs[idx] ? 'g'
-					: flag->isInstalled[idx] ? 'L' : 'l');
+			bool hasScope = flag->item.isGlobal && !flag->pkgs[idx] ? false : true;
+			if (hasScope) {
+				sprintf(buf + minwidth, " %c%c  ",
+					flag->item.isMasked ? 'M' : 'L',
+					flag->isInstalled[idx] ? '*' : ' ');
+			}
 
 			// Assemble description line:
 			memset(desc, 0, maxDescWidth * sizeof(char));
@@ -390,8 +392,9 @@ static int drawflag(struct item *item, bool highlight) {
 				sprintf(desc, "%s", flag->descr[idx]);
 
 			// Now display the description line according to its horizontal position
-			sprintf(buf + minwidth + 4, "%-*.*s",
-				wWidth(List)-minwidth - 4, wWidth(List)-minwidth - 4,
+			sprintf(buf + minwidth + (hasScope ? 5 : 0), "%-*.*s",
+				wWidth(List)-minwidth - (hasScope ? 5 : 0),
+				wWidth(List)-minwidth - (hasScope ? 5 : 0),
 				strlen(desc) > (size_t)descriptionleft
 					? &desc[descriptionleft]
 					: "");
@@ -399,13 +402,16 @@ static int drawflag(struct item *item, bool highlight) {
 			/* Set correct color set according to highlighting and status*/
 			if(highlight)
 				wattrset(win(List), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
-			else if (flag->item.isGlobal && !flag->pkgs[idx])
-				wattrset(win(List), COLOR_PAIR(5));
 			else
 				wattrset(win(List), COLOR_PAIR(3));
 
 			// Finally put the line on the screen
-			waddstr(win(List), buf);
+			mvwaddstr(win(List), line, 0, buf);
+			// waddstr(win(List), buf);
+			if (hasScope) {
+				mvwaddch(win(List), line, minwidth,     ACS_VLINE);
+				mvwaddch(win(List), line, minwidth + 3, ACS_VLINE);
+			}
 			++line;
 			++idx;
 			++usedY;
