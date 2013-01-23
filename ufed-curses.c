@@ -252,6 +252,9 @@ void draw() {
 	waddch(w, ' ');
 	waddch(w, ACS_ULCORNER);
 	whline(w, ACS_HLINE, wWidth(Top)-6);
+	mvwaddch(w, 4, minwidth + 3, ACS_TTEE); // Before state
+	mvwaddch(w, 4, minwidth + 6, ACS_TTEE); // Between state and scope
+	mvwaddch(w, 4, minwidth + 9, ACS_TTEE); // After scope
 	mvwaddch(w, 4, wWidth(Top)-3, ACS_URCORNER);
 	waddch(w, ' ');
 	wattrset(w, COLOR_PAIR(2) | A_BOLD);
@@ -281,6 +284,9 @@ void draw() {
 	waddch(w, ' ');
 	waddch(w, ACS_LLCORNER);
 	whline(w, ACS_HLINE, wWidth(Bottom)-6);
+	mvwaddch(w, 0, minwidth + 3, ACS_BTEE); // Before state
+	mvwaddch(w, 0, minwidth + 6, ACS_BTEE); // Between state and scope
+	mvwaddch(w, 0, minwidth + 9, ACS_BTEE); // After scope
 	mvwaddch(w, 0, wWidth(Bottom)-3, ACS_LRCORNER);
 	waddch(w, ' ');
 	wattrset(w, COLOR_PAIR(2) | A_BOLD);
@@ -330,6 +336,9 @@ void draw() {
 	w = win(Input);
 	wattrset(w, COLOR_PAIR(3));
 	mvwhline(w, 0, 0, ' ', wWidth(Input));
+	mvwaddch(w, 0, minwidth,     ACS_VLINE); // Before state
+	mvwaddch(w, 0, minwidth + 3, ACS_VLINE); // Between state and scope
+	mvwaddch(w, 0, minwidth + 6, ACS_VLINE); // After scope
 	wnoutrefresh(w);
 
 	drawitems();
@@ -353,6 +362,9 @@ bool scrollcurrent() {
 bool yesno(const char *prompt) {
 	wattrset(win(Input), COLOR_PAIR(4) | A_BOLD | A_REVERSE);
 	mvwhline(win(Input), 0, 0, ' ', wWidth(Input));
+	mvwaddch(win(Input), 0, minwidth,     ACS_VLINE); // Before state
+	mvwaddch(win(Input), 0, minwidth + 3, ACS_VLINE); // Between state and scope
+	mvwaddch(win(Input), 0, minwidth + 6, ACS_VLINE); // After scope
 	waddstr(win(Input), prompt);
 	whline(win(Input), 'Y', 1);
 	wrefresh(win(Input));
@@ -364,6 +376,9 @@ bool yesno(const char *prompt) {
 		case 'N': case 'n':
 			wattrset(win(Input), COLOR_PAIR(3));
 			mvwhline(win(Input), 0, 0, ' ', wWidth(Input));
+			mvwaddch(win(Input), 0, minwidth,     ACS_VLINE); // Before state
+			mvwaddch(win(Input), 0, minwidth + 3, ACS_VLINE); // Between state and scope
+			mvwaddch(win(Input), 0, minwidth + 6, ACS_VLINE); // After scope
 			wnoutrefresh(win(Input));
 			wrefresh(win(List));
 			return FALSE;
@@ -381,6 +396,9 @@ bool yesno(const char *prompt) {
 				draw();
 				wattrset(win(Input), COLOR_PAIR(4) | A_BOLD | A_REVERSE);
 				mvwhline(win(Input), 0, 0, ' ', wWidth(Input));
+				mvwaddch(win(Input), 0, minwidth,     ACS_VLINE); // Before state
+				mvwaddch(win(Input), 0, minwidth + 3, ACS_VLINE); // Between state and scope
+				mvwaddch(win(Input), 0, minwidth + 6, ACS_VLINE); // After scope
 				waddstr(win(Input), prompt);
 				whline(win(Input), 'Y', 1);
 				wrefresh(win(Input));

@@ -131,7 +131,7 @@ static void read_flags(void) {
 		line = getline(input);
 		if(NULL == line)
 			break;
-		if(sscanf(line, "%n%*s%n %n%*s%n %n(%*[ +-])%n %d",
+		if(sscanf(line, "%n%*s%n %n%*s%n (%n%*[ +-]%n) %d",
 				&name.start,  &name.end,
 				&on.start,    &on.end,
 				&state.start, &state.end,
@@ -160,8 +160,13 @@ static void read_flags(void) {
 		flag->item.listline = lineNum;
 		flag->item.currline = 0;
 
-		if(name.end - name.start + 11 > minwidth)
-			minwidth = name.end - name.start + 11;
+		/* The minimum width of the left side display is:
+		 * Space + Selection + Space + name + Space + Mask brackets.
+		 * = 1 + 3 + 1 + strlen(name) + 1 + 2
+		 * = strlen(name) + 8
+		 */
+		if(name.end - name.start + 8 > minwidth)
+			minwidth = name.end - name.start + 8;
 		strncpy(flag->name, &line[name.start], name.end - name.start);
 
 		/* check and save current flag setting from configuration */
@@ -176,9 +181,9 @@ static void read_flags(void) {
 			ERROR_EXIT(-1, "flag->on can not be determined with \"%s\"\n", &line[on.start]);
 
 		/* check and set flag state */
-		if(state.end - state.start != 4)
-			ERROR_EXIT(-1, "state length is %d (must be 4)\n", state.end - state.start);
-		strncpy(flag->state, &line[state.start], 4);
+		if(state.end - state.start != 2)
+			ERROR_EXIT(-1, "state length is %d (must be 2)\n", state.end - state.start);
+		strncpy(flag->state, &line[state.start], 2);
 
 		/* check and set flag item height */
 		flag->item.ndescr = ndescr;
@@ -252,7 +257,7 @@ static void read_flags(void) {
 				ERROR_EXIT(-1, "Flag %s has no description at line %d\n", flag->name, i);
 
 			// Note new max length if this line is longest:
-			size_t fullWidth = 1 + strlen(flag->descr[i]) + (flag->pkgs[i] ? strlen(flag->pkgs[i] + 3) : 0);
+			size_t fullWidth = 1 + strlen(flag->descr[i]) + (flag->pkgs[i] ? strlen(flag->pkgs[i]) + 3 : 0);
 			if (fullWidth > maxDescWidth)
 				maxDescWidth = fullWidth;
 
@@ -339,23 +344,22 @@ static int drawflag(struct item *item, bool highlight) {
 			return 0;
 	}
 
-	wmove(win(List), line, 0);
+	memset(buf, 0, sizeof(char) * (wWidth(List)+1));
 
 	/* print the selection, name and state of the flag */
-	sprintf(buf, " %c%c%c %s%s%s%-*s %-4.4s ",
+	sprintf(buf, " %c%c%c %s%s%s%-*s ",
 		/* State of selection */
 		flag->on == ' ' ? '(' : '[',
 		flag->on == ' '
-			? flags->on == ' '
-				? flag->state[1] : ' '
+			? flag->on == ' '
+				? flag->state[0] : ' '
 			: flag->on,
 		flag->on == ' ' ? ')' : ']',
 		/* name */
 		flag->item.isMasked ? "(" : "", flag->name, flag->item.isMasked ? ")" : "",
 		/* distance */
-		(int)(minwidth - (flag->item.isMasked ? 13 : 11) - strlen(flag->name)), "",
-		/* current selection state */
-		flag->state);
+		(int)(minwidth - (flag->item.isMasked ? 4 : 6) - strlen(flag->name)), " ");
+		// At this point buf is filled up to minwidth
 
 	/* print descriptions according to filters
 	 * TODO: Implement installed/all filters
@@ -373,12 +377,11 @@ static int drawflag(struct item *item, bool highlight) {
 				break;
 
 			// Display flag state
-			bool hasScope = flag->item.isGlobal && !flag->pkgs[idx] ? false : true;
-			if (hasScope) {
-				sprintf(buf + minwidth, " %c%c  ",
-					flag->item.isMasked ? 'M' : 'L',
-					flag->isInstalled[idx] ? '*' : ' ');
-			}
+			bool isGlobalDesc = flag->item.isGlobal && !flag->pkgs[idx] ? true : false;
+			sprintf(buf + minwidth, " %s %c%c  ",
+				flag->state,
+				isGlobalDesc ? ' ' : flag->item.isMasked ? 'M' : 'L',
+				flag->isInstalled[idx] ? '*' : ' ');
 
 			// Assemble description line:
 			memset(desc, 0, maxDescWidth * sizeof(char));
@@ -392,9 +395,9 @@ static int drawflag(struct item *item, bool highlight) {
 				sprintf(desc, "%s", flag->descr[idx]);
 
 			// Now display the description line according to its horizontal position
-			sprintf(buf + minwidth + (hasScope ? 5 : 0), "%-*.*s",
-				wWidth(List)-minwidth - (hasScope ? 5 : 0),
-				wWidth(List)-minwidth - (hasScope ? 5 : 0),
+			sprintf(buf + minwidth + 8, "%-*.*s",
+				wWidth(List)-minwidth - 8,
+				wWidth(List)-minwidth - 8,
 				strlen(desc) > (size_t)descriptionleft
 					? &desc[descriptionleft]
 					: "");
@@ -407,11 +410,9 @@ static int drawflag(struct item *item, bool highlight) {
 
 			// Finally put the line on the screen
 			mvwaddstr(win(List), line, 0, buf);
-			// waddstr(win(List), buf);
-			if (hasScope) {
-				mvwaddch(win(List), line, minwidth,     ACS_VLINE);
-				mvwaddch(win(List), line, minwidth + 3, ACS_VLINE);
-			}
+			mvwaddch(win(List), line, minwidth,     ACS_VLINE); // Before state
+			mvwaddch(win(List), line, minwidth + 3, ACS_VLINE); // Between state and scope
+			mvwaddch(win(List), line, minwidth + 6, ACS_VLINE); // After scope
 			++line;
 			++idx;
 			++usedY;
@@ -439,6 +440,9 @@ static int callback(struct item **currentitem, int key) {
 		*fayt = '\0';
 		wattrset(win(Input), COLOR_PAIR(3));
 		mvwhline(win(Input), 0, 0, ' ', wWidth(Input));
+		mvwaddch(win(Input), 0, minwidth,     ACS_VLINE); // Before state
+		mvwaddch(win(Input), 0, minwidth + 3, ACS_VLINE); // Between state and scope
+		mvwaddch(win(Input), 0, minwidth + 6, ACS_VLINE); // After scope
 		wrefresh(win(Input));
 	}
 	if(descriptionleft!=0 && key!=KEY_LEFT && key!=KEY_RIGHT) {
@@ -529,20 +533,22 @@ static int callback(struct item **currentitem, int key) {
 			return 1;
 		break;
 	case ' ': {
-		// do not toggle masked flags using the keyboard
-		if ((*currentitem)->isMasked)
-			break;
-		// Not masked? Then cycle through the states.
-		switch (((struct flag *) *currentitem)->on) {
-		case '+':
-			((struct flag *) *currentitem)->on = '-';
-			break;
-		case '-':
+		// Masked flags can be turned off, nothing else
+		if ( (*currentitem)->isMasked
+		  && (' ' != ((struct flag *) *currentitem)->on) )
 			((struct flag *) *currentitem)->on = ' ';
-			break;
-		default:
-			((struct flag *) *currentitem)->on = '+';
-			break;
+		else {
+			switch (((struct flag *) *currentitem)->on) {
+				case '+':
+					((struct flag *) *currentitem)->on = '-';
+					break;
+				case '-':
+					((struct flag *) *currentitem)->on = ' ';
+					break;
+				default:
+					((struct flag *) *currentitem)->on = '+';
+					break;
+			}
 		}
 		if (*currentitem != &flags->item) {
 			drawflag(*currentitem, TRUE);
@@ -568,20 +574,22 @@ static int callback(struct item **currentitem, int key) {
 		break;
 #ifdef NCURSES_MOUSE_VERSION
 	case KEY_MOUSE:
-		// do not toggle masked flags using the double click
-		if ((*currentitem)->isMasked)
-			break;
-		// Not masked? Then cycle through the states.
-		switch (((struct flag *) *currentitem)->on) {
-		case '+':
-			((struct flag *) *currentitem)->on = '-';
-			break;
-		case '-':
+		// Masked flags can be turned off, nothing else
+		if ( (*currentitem)->isMasked
+		  && (' ' != ((struct flag *) *currentitem)->on) )
 			((struct flag *) *currentitem)->on = ' ';
-			break;
-		default:
-			((struct flag *) *currentitem)->on = '+';
-			break;
+		else {
+			switch (((struct flag *) *currentitem)->on) {
+				case '+':
+					((struct flag *) *currentitem)->on = '-';
+					break;
+				case '-':
+					((struct flag *) *currentitem)->on = ' ';
+					break;
+				default:
+					((struct flag *) *currentitem)->on = '+';
+					break;
+			}
 		}
 		if (*currentitem != &flags->item) {
 			drawflag(*currentitem, TRUE);
