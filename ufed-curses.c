@@ -674,6 +674,7 @@ void setNextItem(int count, bool strict)
 	bool         result  = true;
 	struct item *curr    = currentitem;
 	int          skipped = 0;
+	int          oldTop  = topline;
 
 	while (result && (skipped < count)) {
 		if (curr->next == items)
@@ -699,7 +700,8 @@ void setNextItem(int count, bool strict)
 		currentitem = curr;
 		if (!scrollcurrent())
 			drawitem(currentitem, TRUE);
-	}
+	} else
+		topline = oldTop;
 }
 
 
@@ -712,6 +714,7 @@ void setPrevItem(int count, bool strict)
 	bool         result  = true;
 	struct item *curr    = currentitem;
 	int          skipped = 0;
+	int          oldTop  = topline;
 
 	while (result && (skipped < count)) {
 		if (curr == items)
@@ -729,14 +732,15 @@ void setPrevItem(int count, bool strict)
 	if ( (result && strict) || (!strict && skipped) ) {
 		// Move forth again if curr ended up being filtered
 		while (!isLegalItem(curr)) {
-			curr = curr->prev;
 			topline += curr->ndescr;
+			curr = curr->next;
 		}
 		drawitem(currentitem, FALSE);
 		currentitem = curr;
 		if (!scrollcurrent())
 			drawitem(currentitem, TRUE);
-	}
+	} else
+		topline = oldTop;
 }
 
 
