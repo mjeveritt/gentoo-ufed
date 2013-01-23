@@ -128,21 +128,13 @@ void checktermsize() {
 }
 
 void drawitems() {
-	/* sanitize currentitem first.
-	 * This is needed, because the currently selected
-	 * item may become invalid when a filter is
-	 * toggled.
+	/* this method must not be called if the current
+	 * item is not valid.
 	 */
-	if (!isLegalItem(currentitem)) {
-		while ((currentitem != items) && !isLegalItem(currentitem)) {
-			currentitem = currentitem->prev;
-			topline -= currentitem->ndescr;
-		}
-		while ((currentitem->next != items) && !isLegalItem(currentitem)) {
-			topline += currentitem->ndescr;
-			currentitem = currentitem->next;
-		}
-	} // End of sanitizing currentitem
+	if (!isLegalItem(currentitem))
+		ERROR_EXIT(-1,
+			"drawitems() must not be called with a filtered currentitem! (topline %d listline %d)\n",
+			topline, currentitem->listline)
 
 	struct item *item = currentitem;
 	int line = item->listline - topline;
@@ -150,23 +142,20 @@ void drawitems() {
 	/* move to the top of the displayed list */
 	while ((item != items) && (line > 0)) {
 		item = item->prev;
-		line = item->listline - topline;
+		if (isLegalItem(item))
+			line -= getItemHeight(item);
 	}
 
 	/* If the above move ended up with item == items
-	 * it must be checked whether to move forwards again.
+	 * topline and line must be adapted to the current
+	 * item.
 	 * This can happen if the flag filter is toggled
 	 * and the current item is the first not filtered item.
 	 */
 	if ((item == items) && !isLegalItem(item)) {
-		item = currentitem;
-		while (!isLegalItem(item) && (item != items)) {
-			if (currentitem == item)
-				currentitem = item->next;
-			topline += item->ndescr;
-			item = item->next;
-			line = item->listline - topline;
-		}
+		item    = currentitem;
+		topline = currentitem->listline;
+		line    = 0;
 	}
 
 	for( ; line < wHeight(List); ) {
@@ -185,7 +174,6 @@ void drawitems() {
 			wattrset(win(List), COLOR_PAIR(3));
 			while(line++ < wHeight(List))
 				waddstr(win(List), buf);
-			break;
 		}
 	}
 	wnoutrefresh(win(List));
@@ -695,10 +683,18 @@ void setNextItem(int count, bool strict)
 
 		// curr is only counted if it is not filtered out:
 		if (isLegalItem(curr))
-			++skipped;
+			skipped += getItemHeight(curr);
+		else
+			// Otherwise topline must be adapted or scrollcurrent() wreaks havoc!
+			topline += curr->ndescr;
 	} // End of trying to find a next item
 
 	if ( (result && strict) || (!strict && skipped) ) {
+		// Move back again if curr ended up being filtered
+		while (!isLegalItem(curr)) {
+			topline -= curr->ndescr;
+			curr = curr->prev;
+		}
 		drawitem(currentitem, FALSE);
 		currentitem = curr;
 		if (!scrollcurrent())
@@ -725,10 +721,17 @@ void setPrevItem(int count, bool strict)
 
 		// curr is only counted if it is not filtered out:
 		if (isLegalItem(curr))
-			++skipped;
+			skipped += getItemHeight(curr);
+		else
+			topline -= curr->ndescr;
 	} // End of trying to find next item
 
 	if ( (result && strict) || (!strict && skipped) ) {
+		// Move forth again if curr ended up being filtered
+		while (!isLegalItem(curr)) {
+			curr = curr->prev;
+			topline += curr->ndescr;
+		}
 		drawitem(currentitem, FALSE);
 		currentitem = curr;
 		if (!scrollcurrent())
