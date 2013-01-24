@@ -21,8 +21,6 @@ static struct line {
 static int helpheight, helpwidth;
 
 /* external members */
-extern enum mask showMasked;
-extern enum scope showScope;
 
 /* internal prototypes */
 static void free_lines(void);

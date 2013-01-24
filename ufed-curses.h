@@ -11,7 +11,7 @@
 
 #if defined(DEBUG_EXIT)
 #  define ERROR_EXIT(code, fmt, ...) { \
-	fprintf(stderr, "ERROR in %s:%d (%s): \n -> ", \
+	fprintf(stderr, "\nERROR in %s:%d (%s): \n -> ", \
 		__FILE__, __LINE__, __FUNCTION__); \
 	fprintf(stderr, fmt, __VA_ARGS__); \
 	exit(code); \
