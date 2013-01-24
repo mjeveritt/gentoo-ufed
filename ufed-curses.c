@@ -42,11 +42,11 @@ extern int lineCountMasked;
 /* internal prototypes */
 int (*callback)(struct item **, int);
 int (*drawitem)(struct item *, bool);
-void checktermsize();
-void draw();
-void drawscrollbar();
-int  getListHeight();
-void resetDisplay();
+void checktermsize(void);
+void draw(void);
+void drawscrollbar(void);
+int  getListHeight(void);
+void resetDisplay(void);
 void setNextItem(int count, bool strict);
 void setPrevItem(int count, bool strict);
 
@@ -416,6 +416,12 @@ int maineventloop(
 		const struct key *_keys) {
 	int result;
 
+	// Always reset the Filters on start and revert on exit
+	enum mask oldMask = showMasked;
+	enum scope oldScope = showScope;
+	showMasked = show_unmasked;
+	showScope  = show_all;
+
 	{ const char *temp = subtitle;
 		subtitle=_subtitle;
 		_subtitle=temp; }
@@ -672,11 +678,12 @@ exit:
 	items    = _items;
 	keys     = _keys;
 
-	if(items!=NULL) {
-		currentitem = items;
-		topline = 0;
-		draw();
-	}
+	// revert filters
+	showMasked = oldMask;
+	showScope  = oldScope;
+
+	if(items!=NULL)
+		resetDisplay();
 
 	return result;
 }
@@ -686,7 +693,6 @@ exit:
  */
 void resetDisplay()
 {
-	drawitem(currentitem, FALSE);
 	currentitem = items;
 	while (!isLegalItem(currentitem))
 		currentitem = currentitem->next;
