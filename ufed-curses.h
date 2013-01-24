@@ -11,13 +11,14 @@
 
 #if defined(DEBUG_EXIT)
 #  define ERROR_EXIT(code, fmt, ...) { \
+	cursesdone(); \
 	fprintf(stderr, "\nERROR in %s:%d (%s): \n -> ", \
 		__FILE__, __LINE__, __FUNCTION__); \
 	fprintf(stderr, fmt, __VA_ARGS__); \
 	exit(code); \
 }
 #else
-#  define ERROR_EXIT(code, ...) { exit(code); }
+#  define ERROR_EXIT(code, ...) { cursesdone(); exit(code); }
 #endif // DEBUG_EXIT
 #if defined(DEBUG_TRACE)
 # define TRACE { \
