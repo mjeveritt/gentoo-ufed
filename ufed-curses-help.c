@@ -11,13 +11,23 @@
 #include <strings.h>
 #include <unistd.h>
 
+/* internal types */
 static struct line {
 	struct item item;
 	char *text;
 } *lines;
+
+/* internal members */
 static int helpheight, helpwidth;
 
+/* external members */
+extern enum mask showMasked;
+extern enum scope showScope;
+
+/* internal prototypes */
 static void free_lines(void);
+
+/* function implementations */
 static void init_lines(void) {
 	static const char * const help[] = {
 "ufed is a simple program designed to help you configure the systems USE "
@@ -110,7 +120,7 @@ static void init_lines(void) {
 	for(;;) {
 		line = malloc(sizeof *line);
 		if(line==NULL)
-			exit(-1);
+			ERROR_EXIT(-1, "Can not allocate %lu bytes for help line struct\n", sizeof(*line));
 		if(lines==NULL) {
 			line->item.prev = (struct item *) line;
 			line->item.next = (struct item *) line;
@@ -121,6 +131,10 @@ static void init_lines(void) {
 			lines->item.prev->next = (struct item *) line;
 			lines->item.prev = (struct item *) line;
 		}
+
+		line->item.currline = 0;
+		line->item.isMasked = false;
+		line->item.isGlobal = true;
 		line->item.listline = y++;
 		line->item.ndescr = 1;
 		n = strlen(word);
@@ -132,11 +146,10 @@ static void init_lines(void) {
 				}
 			}
 		}
-		line->text = malloc(n+1);
+		line->text = calloc((n+1), sizeof(char));
 		if(line->text==NULL)
-			exit(-1);
+			ERROR_EXIT(-1, "Can not allocate %lu bytes for help line\n", (n+1) * sizeof(char));
 		memcpy(line->text, word, n);
-		line->text[n] = '\0';
 		while(word[n]==' ')
 			n++;
 		word += n;
