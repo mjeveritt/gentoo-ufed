@@ -1,6 +1,6 @@
 AC_PREREQ(2.68)
 AC_INIT([ufed],[git],[https://bugs.gentoo.org/])
-AM_INIT_AUTOMAKE([foreign -Wall -Werror])
+AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_SRCDIR([ufed-curses.c])
 AC_CONFIG_HEADERS([config.h])
 
@@ -10,14 +10,13 @@ if test "$ac_cv_prog_cc_c99" != no
 then
 	CFLAGS="$CFLAGS -Wall -Wextra -pedantic"
 	CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600"
-	AC_DEFINE([FLEXIBLE_ARRAY_MEMBER], [])
 else
 	AC_PROG_CC_C89
 	AC_C_INLINE
-	AC_C_FLEXIBLE_ARRAY_MEMBER
 	CFLAGS="$CFLAGS -Wall -W"
 	CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=500"
 fi
+CFLAGS="${CFLAGS} -Wmissing-prototypes -Wstrict-prototypes"
 
 AC_ARG_WITH([curses],
 	[AS_HELP_STRING([--with-curses], [override default curses library (ncursesw ncurses curses)])],
