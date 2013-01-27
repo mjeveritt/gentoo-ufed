@@ -17,52 +17,51 @@ my $interface = 'ufed-curses';
 #			  . " --read-var-info=yes"
 #              . " XX_libexecdir@/ufed-curses 2>/tmp/ufed_memcheck.log";
 
-my %use_descriptions;
+# no longer needed
+# my %use_descriptions;
 
 sub finalise;
 sub flags_dialog;
-sub read_use_descs;
 sub save_flags;
 
-delete $Portage::all_flags{'*'};
-
-read_use_descs;
-
-delete @use_descriptions{qw(bootstrap build)};
-
-$Portage::make_conf_flags{'-*'} = 1
-	if defined $Portage::make_conf_flags{'*'}
-		&& !$Portage::make_conf_flags{'*'};
-
-for(keys %Portage::all_flags) {
-	@{$use_descriptions{$_}} = "[(Unknown)] g"
-		if not exists $use_descriptions{$_};
-}
-@{$use_descriptions{'-*'}} = '[Never enable any flags other than those specified in make.conf] g';
-
-for(@Portage::archs) {
-	delete $Portage::default_flags{$_};
-	delete $Portage::all_flags{$_};
-	delete $use_descriptions{$_};
-}
-for my $flag (keys %Portage::use_masked_flags) {
-	my $masked = 1;
-	for my $mask (values %{$Portage::use_masked_flags{$flag}}) {
-		last if not($masked &&= $mask);
-	}
-	if($masked) {
-		if (defined($use_descriptions{$flag})) {
-			for (my $i = 0; $i < scalar @{$use_descriptions{$flag}}; ++$i) {
-				$use_descriptions{$flag}->[$i] =~ s/ [lg]$/ m/ ;
-				$use_descriptions{$flag}->[$i] =~ s/ L$/ M/ ;
-			}
-		} else {
-			delete $use_descriptions{$flag};
-			delete $Portage::default_flags{$flag};
-			delete $Portage::all_flags{$flag};
-		}
-	}
-}
+# deprecated, the functionality is merged into Portage.pm
+# delete $Portage::all_flags{'*'};
+# read_use_descs;
+# @use_descriptions{qw(bootstrap build)};
+#
+#$Portage::make_conf_flags{'-*'} = 1
+#	if defined $Portage::make_conf_flags{'*'}
+#		&& !$Portage::make_conf_flags{'*'};
+#
+#for(keys %Portage::all_flags) {
+#	@{$use_descriptions{$_}} = "[(Unknown)] g"
+#		if not exists $use_descriptions{$_};
+#}
+#@{$use_descriptions{'-*'}} = '[Never enable any flags other than those specified in make.conf] g';
+#
+#for(@Portage::archs) {
+#	delete $Portage::default_flags{$_};
+#	delete $Portage::all_flags{$_};
+#	delete $use_descriptions{$_};
+#}
+#for my $flag (keys %Portage::use_masked_flags) {
+#	my $masked = 1;
+#	for my $mask (values %{$Portage::use_masked_flags{$flag}}) {
+#		last if not($masked &&= $mask);
+#	}
+#	if($masked) {
+#		if (defined($use_descriptions{$flag})) {
+#			for (my $i = 0; $i < scalar @{$use_descriptions{$flag}}; ++$i) {
+#				$use_descriptions{$flag}->[$i] =~ s/ [lg]$/ m/ ;
+#				$use_descriptions{$flag}->[$i] =~ s/ L$/ M/ ;
+#			}
+#		} else {
+#			delete $use_descriptions{$flag};
+#			delete $Portage::default_flags{$flag};
+#			delete $Portage::all_flags{$flag};
+#		}
+#	}
+#}
 
 flags_dialog;
 
@@ -111,16 +110,52 @@ sub flags_dialog {
 	my $outTxt = "";
 
 	# Write out flags 
-	for my $flag (sort { uc $a cmp uc $b } keys %use_descriptions) {
+	for my $flag (sort { uc $a cmp uc $b } keys %$Portage::use_flags) {
+		my $conf = $Portage::use_flags->{$flag}; ## Shortcut
+		my $state = "g";
 		$outTxt .= sprintf ("%s %s (%s%s) %d\n", $flag,
-					defined($Portage::make_conf_flags{$flag})
-						? $Portage::make_conf_flags{$flag} ? 'on' : 'off' : 'def',
-					exists($Portage::make_defaults_flags{$flag})
-						? $Portage::make_defaults_flags{$flag} ? '+' : '-' : ' ',
-					exists($Portage::make_conf_flags{$flag})
-						? $Portage::make_conf_flags{$flag}     ? '+' : '-' : ' ',
-					scalar @{$use_descriptions{$flag}}  );
-		$outTxt .= sprintf ("%s\n", $_) for(@{$use_descriptions{$flag}});
+					defined($conf->{global}{conf}) ?
+						$conf->{global}{conf} > 0 ? 'on' :
+						$conf->{global}{conf} < 0 ? 'off' : 'def' : 'def',
+					defined($conf->{global}{"default"}) ?
+						$conf->{global}{"default"} > 0 ? '+' :
+						$conf->{global}{"default"} < 0 ? '-' : ' ' : ' ',
+					defined($conf->{global}{conf}) ?
+						$conf->{global}{conf} > 0 ? '+' :
+						$conf->{global}{conf} < 0 ? '-' : ' ' : ' ',
+					$conf->{count});
+
+		# Print global description first (if available)
+		if (defined($conf->{global}) && length($conf->{global}{descr})) {
+			if ($conf->{global}{installed}) {
+				$conf->{global}{masked} and $state = "M";
+				$conf->{global}{masked} or  $state = "G";
+			} else {
+				$conf->{global}{masked} and $state = "m";
+			}
+			$outTxt .= "[" . $conf->{global}{descr} . "] $state\n";
+	
+			# Then print the list of affected packages that have no own entry
+			for my $afLst (@{$conf->{global}{affected}}) {
+				(defined($afLst) && length($afLst))
+					and $outTxt .= "($afLst) [Affected by global flag setting] $state\n";
+			}
+		}
+				
+		# Finally print the local description lines
+		for my $pkg (sort keys %{$conf->{"local"}}) {
+			$state = "l";
+			if ($conf->{"local"}{$pkg}{installed}) {
+				$state = "L";
+				if ($conf->{global}{masked}) {
+					$conf->{"local"}{$pkg}{masked} > -1 and $state = "M";
+					$conf->{"local"}{$pkg}{masked} <  0 and $state = "L";
+				}
+			} elsif ($conf->{global}{masked}) {
+					$conf->{"local"}{$pkg}{masked} > -1 and $state = "m";
+			}
+			$outTxt .= sprintf("(%s) [%s] %s\n", $pkg, $conf->{"local"}{$pkg}{descr}, $state);
+		}
 	}
 
 	# Some overlays (like sunrise) use UTF-8 characters in their
@@ -155,52 +190,54 @@ sub flags_dialog {
 	return;
 }
 
-# Build the global %use_descriptions hash.
-# Parsed files are:
-# 1. PORTDIR/profiles/use.desc
-# 2. PORTDIR/profiles/use.local.desc
-# No parameters accepted.
-# @todo : The local descriptions must be written in a different
-#         way (how?) to allow the wanted filtering/distinction
-#         between global/local flags.
-sub read_use_descs {
-	my %_use_descriptions;
-	for my $dir(@Portage::portagedirs) {
-		for(Portage::noncomments "$dir/profiles/use.desc") {
-			my ($flag, $desc) = /^(.*?)\s+-\s+(.*)$/ or next;
-			$_use_descriptions{$flag}{$desc} = 1;
-		}
-	}
-	my %_use_local_descriptions;
-	for my $dir(@Portage::portagedirs) {
-		for(Portage::noncomments "$dir/profiles/use.local.desc") {
-			my ($pkg, $flag, $desc) = /^(.*?):(.*?)\s+-\s+(.*)$/ or next;
-			$_use_local_descriptions{$flag}{$desc}{$pkg} = 1;
-		}
-	}
-	# Record all global flags first, their description is printed first
-	# in the ncurses interface as well.
-	for my $key (sort keys %_use_descriptions) {
-		for my $desc (sort keys %{$_use_descriptions{$key}}) {
-			push @{$use_descriptions{$key}}, "[" . $desc . "] g";
-		}
-	}
-
-	# Add local flags
-	for my $key (sort keys %_use_local_descriptions) {
-		for my $desc (sort keys %{$_use_local_descriptions{$key}}) {
-			my $flagPrefix = "l";
-			my @pkgs = ();
-			for my $pkg (sort keys %{$_use_local_descriptions{$key}{$desc}}) {
-				$flagPrefix = "L" if (Portage::have_package($pkg));
-				push @pkgs, $pkg;
-			}
-			local $"=", ";
-			push @{$use_descriptions{$key}}, sprintf("(%s) [%s] %s", "@pkgs", $desc, $flagPrefix);
-		}
-	}
-	return;
-}
+# Deprecated, the funcionality is merged into Portage.pm.
+#
+## Build the global %use_descriptions hash.
+## Parsed files are:
+## 1. PORTDIR/profiles/use.desc
+## 2. PORTDIR/profiles/use.local.desc
+## No parameters accepted.
+## @todo : The local descriptions must be written in a different
+##         way (how?) to allow the wanted filtering/distinction
+##         between global/local flags.
+#sub read_use_descs {
+#	my %_use_descriptions;
+#	for my $dir(@Portage::portagedirs) {
+#		for(Portage::noncomments "$dir/profiles/use.desc") {
+#			my ($flag, $desc) = /^(.*?)\s+-\s+(.*)$/ or next;
+#			$_use_descriptions{$flag}{$desc} = 1;
+#		}
+#	}
+#	my %_use_local_descriptions;
+#	for my $dir(@Portage::portagedirs) {
+#		for(Portage::noncomments "$dir/profiles/use.local.desc") {
+#			my ($pkg, $flag, $desc) = /^(.*?):(.*?)\s+-\s+(.*)$/ or next;
+#			$_use_local_descriptions{$flag}{$desc}{$pkg} = 1;
+#		}
+#	}
+#	# Record all global flags first, their description is printed first
+#	# in the ncurses interface as well.
+#	for my $key (sort keys %_use_descriptions) {
+#		for my $desc (sort keys %{$_use_descriptions{$key}}) {
+#			push @{$use_descriptions{$key}}, "[" . $desc . "] g";
+#		}
+#	}
+#
+#	# Add local flags
+#	for my $key (sort keys %_use_local_descriptions) {
+#		for my $desc (sort keys %{$_use_local_descriptions{$key}}) {
+#			my $flagPrefix = "l";
+#			my @pkgs = ();
+#			for my $pkg (sort keys %{$_use_local_descriptions{$key}{$desc}}) {
+#				$flagPrefix = "L" if (Portage::have_package($pkg));
+#				push @pkgs, $pkg;
+#			}
+#			local $"=", ";
+#			push @{$use_descriptions{$key}}, sprintf("(%s) [%s] %s", "@pkgs", $desc, $flagPrefix);
+#		}
+#	}
+#	return;
+#}
 
 # Write given list of flags back to make.conf if
 # the file has not been changed since reading it.
