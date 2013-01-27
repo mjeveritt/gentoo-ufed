@@ -56,6 +56,7 @@ enum mask  showMasked = show_unmasked; //!< Set whether to show masked, unmasked
 enum order pkgOrder   = pkgs_left;     //!< Set whether to display package lists left or right of the description
 enum scope showScope  = show_all;      //!< Set whether global, local or all flags are shown
 int lineCountGlobal;
+int lineCountGlobalInstalled;
 int lineCountLocal;
 int lineCountLocalInstalled;
 int lineCountMasked;
@@ -114,6 +115,7 @@ static void read_flags(void) {
 
 	// Initialize line count per type:
 	lineCountGlobal          = 0;
+	lineCountGlobalInstalled = 0;
 	lineCountLocal           = 0;
 	lineCountLocalInstalled  = 0;
 	lineCountMasked          = 0;
@@ -136,7 +138,7 @@ static void read_flags(void) {
 				&on.start,    &on.end,
 				&state.start, &state.end,
 				&ndescr) != 1)
-			ERROR_EXIT(-1, "flag sscanf failed on line\n\"%s\"\n", line);
+			ERROR_EXIT(-1, "flag sscanf failed on line %d:\n\"%s\"\n", lineNum, line);
 
 		/* Allocate memory for the struct and the arrays */
 		// struct
@@ -218,6 +220,11 @@ static void read_flags(void) {
 			if ('g' == descState) {
 				flag->item.isGlobal  = true;
 				++lineCountGlobal;
+			}
+			else if ('G' == descState) {
+				flag->item.isGlobal  = true;
+				flag->isInstalled[i] = true;
+				++lineCountGlobalInstalled;
 			}
 			else if ('l' == descState) {
 				++lineCountLocal;

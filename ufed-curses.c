@@ -32,6 +32,7 @@ extern enum mask showMasked;
 extern enum order pkgOrder;
 extern enum scope showScope;
 extern int lineCountGlobal;
+extern int lineCountGlobalInstalled;
 extern int lineCountLocal;
 extern int lineCountLocalInstalled;
 extern int lineCountMasked;
@@ -77,7 +78,8 @@ int getListHeight()
 			result += lineCountLocal + lineCountLocalInstalled;
 		}
 		if (show_local != showScope) {
-			result += lineCountGlobal;
+			// TODO : add installed/not installed filter
+			result += lineCountGlobal + lineCountGlobalInstalled;
 		}
 	}
 
