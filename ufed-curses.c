@@ -341,6 +341,7 @@ void draw() {
 	mvwaddch(w, 0, minwidth,     ACS_VLINE); // Before state
 	mvwaddch(w, 0, minwidth + 3, ACS_VLINE); // Between state and scope
 	mvwaddch(w, 0, minwidth + 6, ACS_VLINE); // After scope
+	wmove(w, 0, 0);
 	wnoutrefresh(w);
 
 	drawitems();
@@ -367,6 +368,7 @@ bool yesno(const char *prompt) {
 	mvwaddch(win(Input), 0, minwidth,     ACS_VLINE); // Before state
 	mvwaddch(win(Input), 0, minwidth + 3, ACS_VLINE); // Between state and scope
 	mvwaddch(win(Input), 0, minwidth + 6, ACS_VLINE); // After scope
+	wmove(win(Input), 0, 0);
 	waddstr(win(Input), prompt);
 	whline(win(Input), 'Y', 1);
 	wrefresh(win(Input));
@@ -381,6 +383,7 @@ bool yesno(const char *prompt) {
 			mvwaddch(win(Input), 0, minwidth,     ACS_VLINE); // Before state
 			mvwaddch(win(Input), 0, minwidth + 3, ACS_VLINE); // Between state and scope
 			mvwaddch(win(Input), 0, minwidth + 6, ACS_VLINE); // After scope
+			wmove(win(Input), 0, 0);
 			wnoutrefresh(win(Input));
 			wrefresh(win(List));
 			return FALSE;
@@ -401,6 +404,7 @@ bool yesno(const char *prompt) {
 				mvwaddch(win(Input), 0, minwidth,     ACS_VLINE); // Before state
 				mvwaddch(win(Input), 0, minwidth + 3, ACS_VLINE); // Between state and scope
 				mvwaddch(win(Input), 0, minwidth + 6, ACS_VLINE); // After scope
+				wmove(win(Input), 0, 0);
 				waddstr(win(Input), prompt);
 				whline(win(Input), 'Y', 1);
 				wrefresh(win(Input));

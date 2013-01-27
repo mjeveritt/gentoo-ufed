@@ -450,6 +450,7 @@ static int callback(struct item **currentitem, int key) {
 		mvwaddch(win(Input), 0, minwidth,     ACS_VLINE); // Before state
 		mvwaddch(win(Input), 0, minwidth + 3, ACS_VLINE); // Between state and scope
 		mvwaddch(win(Input), 0, minwidth + 6, ACS_VLINE); // After scope
+		wmove(win(Input), 0, 0);
 		wrefresh(win(Input));
 	}
 	if(descriptionleft!=0 && key!=KEY_LEFT && key!=KEY_RIGHT) {
