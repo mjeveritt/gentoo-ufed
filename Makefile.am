@@ -7,8 +7,8 @@ sbin_SCRIPTS = ufed
 libexec_PROGRAMS = ufed-curses
 dist_perl_DATA = Portage.pm
 
-ufed_curses_SOURCES = ufed-curses.c ufed-curses-checklist.c ufed-curses-help.c
-noinst_HEADERS = ufed-curses.h ufed-curses-help.h
+ufed_curses_SOURCES = ufed-types.c ufed-curses.c ufed-curses-checklist.c ufed-curses-help.c
+noinst_HEADERS = ufed-types.h ufed-curses.h ufed-curses-help.h ufed-debug.h
 dist_man_MANS = ufed.8
 EXTRA_DIST = ufed.pl.in
 
