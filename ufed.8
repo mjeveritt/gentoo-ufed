@@ -4,26 +4,39 @@ ufed \- Gentoo Linux USE flags editor
 .SH "SYNOPSIS"
 .B ufed 
 .SH "DESCRIPTION"
-UFED is a simple program designed to help you configure the systems USE flags
-(see below) to your liking.  To select or unselect a flag highlight it and hit
-space.
+UFED is a simple program designed to help you configure the
+systems USE flags (see below) to your liking. To enable or
+disable a flag highlight it and hit space.
 
-UFED attempts to show you where a particular use setting came from. Each USE
-flag has a 3 character descriptor that represents the three ways a use flag can
-be set.
+UFED attempts to show you where a particular use setting
+came from. Each USE flag has a 3 character descriptor that
+represents the three ways a use flag can be set.
+Additionally two more characters show the status of the
+description found in that line.
 
-The 1st char is the setting from the make.defaults file(s). These are the defaults
-for Gentoo as a whole. These should not be changed.
+The 1st char is the setting from the make.defaults file(s).
+These are the defaults for Gentoo as a whole. These should
+not be changed.
 
-The 2nd char is the setting from the package.use file(s). These will change as
-packages are added or removed from the system.
+The 2nd char is the setting from the package.use file(s).
+These will change as packages are added or removed from the
+system.
 
-The 3rd char is the setting from the make.conf file. These are the only ones
-that should be changed by the user and these are the ones that UFED changes.
+The 3rd char is the setting from the make.conf file. These
+are the only ones that should be changed by the user and
+these are the ones that UFED changes.
 
-If the character is a + then that USE flag was set in that file, if it is a
-space then the flag was not mentioned in that file and if it is a - then that
-flag was unset in that file.
+If the character is a + then that USE flag was set in that
+file, if it is a space then the flag was not mentioned in
+that file and if it is a - then that flag was unset in that
+file.
+
+The 4th char is either empty for global flag descriptions
+or an L for local flag descriptions.
+
+The 5th char is either empty if none of the affected
+packages is installed, or an i if at least one affected
+package is installed.
 
 .B What are USE flags?
 
