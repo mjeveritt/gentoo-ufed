@@ -6,61 +6,47 @@
 #include <unistd.h>
 #include <locale.h>
 
-/* internal types */
-struct window window[wCount] = {
-	{ NULL,  0,  0,  5,  0 }, /* Top       */
-	{ NULL,  5,  0, -8,  3 }, /* Left      */
-	{ NULL,  5,  3, -9, -6 }, /* List      */
-	{ NULL, -4,  3,  1, -6 }, /* Input     */
-	{ NULL,  5, -3, -8,  1 }, /* Scrollbar */
-	{ NULL,  5, -2, -8,  2 }, /* Right     */
-	{ NULL, -3,  0,  3,  0 }, /* Bottom    */
-};
-
-
 /* internal members */
-static const char *subtitle;
-static const struct key *keys;
-static struct item *items, *currentitem;
+static const char* subtitle = NULL;
+static const sKey* keys     = NULL;
+static sFlag* currentflag   = NULL;
+static sFlag* flags         = NULL;
+
 // Needed for the scrollbar and its mouse events
 static int listHeight, barStart, barEnd, dispStart, dispEnd;
 
 
 /* external members */
-int topline, bottomline, minwidth;
-extern enum mask showMasked;
-extern enum order pkgOrder;
-extern enum scope showScope;
-extern int lineCountGlobal;
-extern int lineCountGlobalInstalled;
-extern int lineCountLocal;
-extern int lineCountLocalInstalled;
-extern int lineCountMasked;
-extern int lineCountMaskedInstalled;
-extern int lineCountMasked;
+sWindow window[wCount] = {
+	{ NULL,  0,  0,  5,  0 }, /* Top       --- Top ---- */
+	{ NULL,  5,  0, -8,  3 }, /* Left      L+------+S|R */
+	{ NULL,  5,  3, -9, -6 }, /* List      E|      |c|i */
+	{ NULL, -4,  3,  1, -6 }, /* Input     F| List |r|g */
+	{ NULL,  5, -3, -8,  1 }, /* Scrollbar T|______|B|h */
+	{ NULL,  5, -2, -8,  2 }, /* Right     |+Input-+r|t */
+	{ NULL, -3,  0,  3,  0 }, /* Bottom    ---Bottom--- */
+};
+int topline = 0, bottomline = 0, minwidth = 0;
+extern eMask e_mask;
+extern eOrder e_order;
+extern eScope e_scope;
+extern eState e_state;
+extern sListStats listStats;
 
 
 /* internal prototypes */
-int (*callback)(struct item **, int);
-int (*drawitem)(struct item *, bool);
+static int (*callback)(sFlag**, int);
+static int (*drawflag)(sFlag*, bool);
 void checktermsize(void);
-void draw(void);
-void drawscrollbar(void);
+void draw(bool withSep);
+void drawScrollbar(void);
 int  getListHeight(void);
-void resetDisplay(void);
+void resetDisplay(bool withSep);
 void setNextItem(int count, bool strict);
 void setPrevItem(int count, bool strict);
 
 
 /* internal functions */
-/** @brief return the number of lines the full item display needs
-**/
-int getItemHeight(struct item *item)
-{
-	// TODO : Add filtering and possible line break
-	return item->ndescr;
-}
-
 
 /** @brief get the sum of lines the list holds respecting current filtering
 **/
@@ -68,19 +54,28 @@ int getListHeight()
 {
 	int result = 0;
 
-	if (show_unmasked != showMasked) {
-		// TODO : add installed/not installed filter
-		result += lineCountMasked + lineCountMaskedInstalled;
+	// Add masked lines
+	if (eMask_masked != e_mask) {
+		if (eState_installed != e_state)
+			result += listStats.lineCountMasked;
+		if (eState_notinstalled != e_state)
+			result += listStats.lineCountMaskedInstalled;
 	}
-	if (show_masked != showMasked) {
-		if (show_global != showScope) {
-			// TODO : add installed/not installed filter
-			result += lineCountLocal + lineCountLocalInstalled;
-		}
-		if (show_local != showScope) {
-			// TODO : add installed/not installed filter
-			result += lineCountGlobal + lineCountGlobalInstalled;
-		}
+
+	// Add global lines
+	if (eScope_local != e_scope) {
+		if (eState_installed != e_state)
+			result += listStats.lineCountGlobal;
+		if (eState_notinstalled != e_state)
+			result += listStats.lineCountGlobalInstalled;
+	}
+
+	// Add local lines
+	if (eScope_global != e_scope) {
+		if (eState_installed != e_state)
+			result += listStats.lineCountLocal;
+		if (eState_notinstalled != e_state)
+			result += listStats.lineCountLocalInstalled;
 	}
 
 	return result;
@@ -103,14 +98,14 @@ void initcurses() {
 	mousemask(BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED | BUTTON1_PRESSED | BUTTON1_RELEASED, NULL);
 #endif
 	checktermsize();
-	{ enum win w; for(w = (enum win) 0; w != wCount; w++) {
+	{ eWin w; for(w = (eWin) 0; w != wCount; w++) {
 		window[w].win = newwin(wHeight(w), wWidth(w), wTop(w), wLeft(w));
 	} }
 }
 
 void cursesdone() {
-	enum win w;
-	for(w = (enum win) 0; w != wCount; w++)
+	eWin w;
+	for(w = (eWin) 0; w != wCount; w++)
 		delwin(window[w].win);
 	endwin();
 }
@@ -124,77 +119,142 @@ void checktermsize() {
 		mvaddstr(0, 0, "Your screen is too small. Press Ctrl+C to exit.");
 		while(getch()!=KEY_RESIZE) {}
 #else
-		cursesdone();
-		fputs("Your screen is too small.\n", stderr);
-		exit(-1);
+		ERROR_EXIT(-1, "The following error occurred:\n\"%2\n\"",
+			"Your screen is too small.\n")
 #endif
 	}
 }
 
-void drawitems() {
+
+/** @brief redraw Bottom with or without status separators
+ *  The window is not fully refreshed!
+ *  @param withSep Draw status separators and filter status if true.
+ */
+void drawBottom(bool withSep)
+{
+	WINDOW* w = win(Bottom);
+
+	wattrset(w, COLOR_PAIR(2) | A_BOLD);
+	mvwaddch(w, 0, 0, ACS_VLINE);
+	wattrset(w, COLOR_PAIR(3));
+	waddch(w, ' ');
+	waddch(w, ACS_LLCORNER);
+	whline(w, ACS_HLINE, wWidth(Bottom)-6);
+	if (withSep) {
+		mvwaddch(w, 0, minwidth + 3, ACS_BTEE); // Before state
+		mvwaddch(w, 0, minwidth + 7, ACS_BTEE); // Between state and scope
+		mvwaddch(w, 0, minwidth + 10, ACS_BTEE); // After scope
+	}
+	mvwaddch(w, 0, wWidth(Bottom)-3, ACS_LRCORNER);
+	waddch(w, ' ');
+	wattrset(w, COLOR_PAIR(2) | A_BOLD);
+	waddch(w, ACS_VLINE);
+
+	waddch(w, ACS_VLINE);
+	wattrset(w, COLOR_PAIR(3));
+	if (keys) {
+		char buf[COLS + 1];
+		char *p = buf;
+		const sKey* key;
+		const size_t maxAdr = (const size_t)(buf+wWidth(Bottom)-3);
+		*p++ = ' ';
+		for(key=keys; key->key!='\0'; key++) {
+			size_t n = maxAdr - (size_t)p;
+			if(n > key->length)
+				n = key->length;
+			memcpy(p, key->descr, n);
+			p += n;
+			if ((size_t)p == maxAdr)
+				break;
+			*p++ = ' ';
+		}
+		memset(p, ' ', maxAdr + 1 - (size_t)p);
+		buf[wWidth(Bottom)-2] = '\0';
+		waddstr(w, buf);
+	} else
+		whline(w, ' ', wWidth(Bottom) - 3);
+
+	wattrset(w, COLOR_PAIR(2) | A_BOLD);
+	waddch(w, ACS_VLINE);
+
+	waddch(w, ACS_LLCORNER);
+	whline(w, ACS_HLINE, wWidth(Bottom)-2);
+	mvwhline(w, 2, wWidth(Bottom)-1, ACS_LRCORNER, 1);
+
+	wnoutrefresh(w);
+}
+
+
+void drawFlags() {
+	int lHeight = wHeight(List);
+
 	/* this method must not be called if the current
 	 * item is not valid.
 	 */
-	if (!isLegalItem(currentitem))
+	if (!isFlagLegal(currentflag))
 		ERROR_EXIT(-1,
-			"drawitems() must not be called with a filtered currentitem! (topline %d listline %d)\n",
-			topline, currentitem->listline)
+			"drawflags() must not be called with a filtered currentflag! (topline %d listline %d)\n",
+			topline, currentflag->listline)
 
-	struct item *item = currentitem;
-	int line = item->listline - topline;
+	sFlag* flag = currentflag;
+
+	int line = flag->listline - topline;
 
 	/* move to the top of the displayed list */
-	while ((item != items) && (line > 0)) {
-		item = item->prev;
-		if (isLegalItem(item))
-			line -= getItemHeight(item);
+	while ((flag != flags) && (line > 0)) {
+		flag = flag->prev;
+		if (isFlagLegal(flag))
+			line -= getFlagHeight(flag);
 	}
 
-	/* If the above move ended up with item == items
+	/* If the above move ended up with flag == flags
 	 * topline and line must be adapted to the current
-	 * item.
+	 * flag.
 	 * This can happen if the flag filter is toggled
-	 * and the current item is the first not filtered item.
+	 * and the current flag is the first not filtered.
 	 */
-	if ((item == items) && !isLegalItem(item)) {
-		item    = currentitem;
-		topline = currentitem->listline;
+	if ((flag == flags) && !isFlagLegal(flag)) {
+		flag    = currentflag;
+		topline = currentflag->listline;
 		line    = 0;
 	}
 
 	// The display start line might differ from topline:
-	dispStart = item->listline;
+	dispStart = flag->listline;
 
-	for( ; line < wHeight(List); ) {
-		item->currline = line; // drawitem() and maineventloop() need this
-		line += drawitem(item, item == currentitem ? TRUE : FALSE);
+	for( ; line < lHeight; ) {
+		flag->currline = line; // drawflag() and maineventloop() need this
+		line += drawflag(flag, flag == currentflag ? TRUE : FALSE);
 
-		if (line < wHeight(List)) {
-			item = item->next;
+		if (line < lHeight) {
+			flag = flag->next;
 
 			/* Add blank lines if we reached the end of the
 			 * flag list, but not the end of the display.
 			 */
-			if(item == items) {
-				char buf[wWidth(List)];
-				memset(buf, ' ', wWidth(List));
-				buf[wWidth(List)] = '\0';
+			if(flag == flags) {
+				int lWidth = wWidth(List);
+				char buf[lWidth];
+				memset(buf, ' ', lWidth);
+				buf[lWidth] = '\0';
 				wmove(win(List), line, 0);
 				wattrset(win(List), COLOR_PAIR(3));
-				while(line++ < wHeight(List))
+				while(line++ < lHeight)
 					waddstr(win(List), buf);
 			}
 		} else
-			dispEnd = item->listline + item->ndescr;
+			dispEnd = flag->listline + flag->ndesc;
 	}
 	wnoutrefresh(win(List));
 }
 
-void drawscrollbar() {
+void drawScrollbar() {
+	int sHeight = wHeight(Scrollbar);
+	int lHeight = wHeight(List);
 	WINDOW *w = win(Scrollbar);
 	wattrset(w, COLOR_PAIR(3) | A_BOLD);
 	mvwaddch(w, 0, 0, ACS_UARROW);
-	wvline(w, ACS_CKBOARD, wHeight(Scrollbar)-3);
+	wvline(w, ACS_CKBOARD, sHeight - 3);
 
 	/* The scrollbar location differs related to the
 	 * current filtering of masked flags.
@@ -202,10 +262,10 @@ void drawscrollbar() {
 	listHeight = getListHeight();
 
 	// Only show a scrollbar if the list is actually longer than can be displayed:
-	if (listHeight > wHeight(List)) {
-		int sbHeight = wHeight(Scrollbar) - 3;
+	if (listHeight > lHeight) {
+		int sbHeight = sHeight - 3;
 		barStart = 1 + (dispStart * sbHeight / bottomline);
-		barEnd   = barStart + ((dispEnd - dispStart) * wHeight(List) / bottomline);
+		barEnd   = barStart + ((dispEnd - dispStart) * lHeight / bottomline);
 
 		// Strongly filtered lists scatter much and must be corrected:
 		if (barEnd > sbHeight) {
@@ -216,19 +276,62 @@ void drawscrollbar() {
 			mvwaddch(w, barStart, 0, ACS_BLOCK);
 	}
 
-	mvwaddch(w, wHeight(Scrollbar)-2, 0, ACS_DARROW);
-	mvwaddch(w, wHeight(Scrollbar)-1, 0, ACS_VLINE);
+	mvwaddch(w, sHeight - 2, 0, ACS_DARROW);
+	mvwaddch(w, sHeight - 1, 0, ACS_VLINE);
 	wnoutrefresh(w);
 }
 
-void draw() {
-	size_t bufsize = COLS+1;
-	char buf[bufsize];
-	WINDOW *w;
 
-	wnoutrefresh(stdscr);
+/** @brief redraw Input with blank input and current status if @a withSep is true
+ *  This function resets the cursor to 0,0.
+ *  The window is not fully refreshed!
+ *  @param withSep Draw status separators and filter status if true.
+ */
+void drawStatus(bool withSep)
+{
+	WINDOW* w = win(Input);
+	int     iWidth = wWidth(Input);
 
-	w = win(Top);
+	wattrset(w, COLOR_PAIR(3));
+
+	// Blank the input area
+	mvwhline(w, 0, 0, ' ', withSep ? minwidth : iWidth);
+
+	if (withSep) {
+		char buf[COLS+1];
+
+		// Add Status separators and explenation characters
+		mvwaddstr(w, 0, minwidth, " DPC Si");
+		mvwaddch(w, 0, minwidth,     ACS_VLINE); // Before state
+		mvwaddch(w, 0, minwidth + 4, ACS_VLINE); // Between state and scope
+		mvwaddch(w, 0, minwidth + 7, ACS_VLINE); // After scope
+
+		// Use the unused right side to show the filter status
+		sprintf(buf, "%-*s%-6s / %-6s / %-12s] ",
+			max(2, iWidth - 40 - minwidth), " [",
+			eMask_masked        == e_mask ? "masked" :
+			eMask_unmasked      == e_mask ? "normal" : "all",
+			eScope_global       == e_scope ? "global" :
+			eScope_local        == e_scope ? "local" : "all",
+			eState_installed    == e_state ? "installed" :
+			eState_notinstalled == e_state ? "not installed" : "all");
+		waddstr(w, buf);
+	}
+
+	// Reset cursor to 0,0 and apply changes
+	wmove(w, 0, 0);
+	wnoutrefresh(w);
+}
+
+
+/** @brief redraw Top with or without status separators
+ *  The window is not fully refreshed!
+ *  @param withSep Draw status separators and filter status if true.
+ */
+void drawTop(bool withSep)
+{
+	WINDOW* w = win(Top);
+	char buf[COLS + 1];
 
 	wattrset(w, COLOR_PAIR(1) | A_BOLD);
 	sprintf(buf, "%-*.*s", wWidth(Top), wWidth(Top), "Gentoo USE flags editor " PACKAGE_VERSION);
@@ -248,23 +351,37 @@ void draw() {
 	wattrset(w, COLOR_PAIR(2) | A_BOLD);
 	waddch(w, ACS_VLINE);
 
-	/* maybe this should be based on List? */
+	/* maybe this should be based on List?
+	 * A: Absolutely not, or every line drawing algorithm
+	 *    had to be rewritten to cover the offsets. - Sven
+	 */
 	waddch(w, ACS_VLINE);
 	wattrset(w, COLOR_PAIR(3));
 	waddch(w, ' ');
 	waddch(w, ACS_ULCORNER);
 	whline(w, ACS_HLINE, wWidth(Top)-6);
-	mvwaddch(w, 4, minwidth + 3, ACS_TTEE); // Before state
-	mvwaddch(w, 4, minwidth + 6, ACS_TTEE); // Between state and scope
-	mvwaddch(w, 4, minwidth + 9, ACS_TTEE); // After scope
+	if (withSep) {
+		mvwaddch(w, 4, minwidth + 3, ACS_TTEE); // Before state
+		mvwaddch(w, 4, minwidth + 7, ACS_TTEE); // Between state and scope
+		mvwaddch(w, 4, minwidth + 10, ACS_TTEE); // After scope
+	}
 	mvwaddch(w, 4, wWidth(Top)-3, ACS_URCORNER);
 	waddch(w, ' ');
 	wattrset(w, COLOR_PAIR(2) | A_BOLD);
 	waddch(w, ACS_VLINE);
 
 	wnoutrefresh(w);
+}
 
-	w = win(Left);
+
+/** @brief redraw the whole screen
+ *  @param withSep draw status separators if set to true
+ */
+void draw(bool withSep) {
+	WINDOW *w = win(Left);
+
+	wnoutrefresh(stdscr);
+
 	wattrset(w, COLOR_PAIR(2) | A_BOLD);
 	mvwvline(w, 0, 0, ACS_VLINE, wHeight(Left));
 	wattrset(w, COLOR_PAIR(3));
@@ -278,176 +395,116 @@ void draw() {
 	mvwvline(w, 0, 1, ACS_VLINE, wHeight(Right));
 	wnoutrefresh(w);
 
-	w = win(Bottom);
+	drawTop(withSep);
+	drawBottom(withSep);
+	drawStatus(withSep);
 
-	wattrset(w, COLOR_PAIR(2) | A_BOLD);
-	mvwaddch(w, 0, 0, ACS_VLINE);
-	wattrset(w, COLOR_PAIR(3));
-	waddch(w, ' ');
-	waddch(w, ACS_LLCORNER);
-	whline(w, ACS_HLINE, wWidth(Bottom)-6);
-	mvwaddch(w, 0, minwidth + 3, ACS_BTEE); // Before state
-	mvwaddch(w, 0, minwidth + 6, ACS_BTEE); // Between state and scope
-	mvwaddch(w, 0, minwidth + 9, ACS_BTEE); // After scope
-	mvwaddch(w, 0, wWidth(Bottom)-3, ACS_LRCORNER);
-	waddch(w, ' ');
-	wattrset(w, COLOR_PAIR(2) | A_BOLD);
-	waddch(w, ACS_VLINE);
-
-	waddch(w, ACS_VLINE);
-	wattrset(w, COLOR_PAIR(3));
-	{
-		char *p = buf;
-		const struct key *key;
-		const size_t maxAdr = (const size_t)(buf+wWidth(Bottom)-3);
-		*p++ = ' ';
-		for(key=keys; key->key!='\0'; key++) {
-			size_t n = maxAdr - (size_t)p;
-			if(n > key->length)
-				n = key->length;
-			memcpy(p, key->descr, n);
-			p += n;
-			if ((size_t)p == maxAdr)
-				break;
-			*p++ = ' ';
-		}
-		/* If there is enough space, show which kind of flags
-		 * are displayed: normal, masked or all
-		 */
-		if ((size_t)p < (maxAdr - 9)) {
-			memset(p, ' ', maxAdr - 9 - (size_t)p);
-			p += maxAdr - 9 - (size_t)p;
-			if (show_unmasked == showMasked) strcpy(p, "[normal]");
-			if (show_masked   == showMasked) strcpy(p, "[masked]");
-			if (show_both     == showMasked) strcpy(p, "[ all  ]");
-			p += 8;
-		}
-		memset(p, ' ', maxAdr + 1 - (size_t)p);
-		buf[wWidth(Bottom)-2] = '\0';
+	if (flags) {
+		drawFlags();
+		drawScrollbar();
 	}
-	waddstr(w, buf);
-	wattrset(w, COLOR_PAIR(2) | A_BOLD);
-	waddch(w, ACS_VLINE);
-
-	waddch(w, ACS_LLCORNER);
-	whline(w, ACS_HLINE, wWidth(Bottom)-2);
-	mvwhline(w, 2, wWidth(Bottom)-1, ACS_LRCORNER, 1);
-
-	wnoutrefresh(w);
-
-	w = win(Input);
-	wattrset(w, COLOR_PAIR(3));
-	mvwhline(w, 0, 0, ' ', wWidth(Input));
-	mvwaddch(w, 0, minwidth,     ACS_VLINE); // Before state
-	mvwaddch(w, 0, minwidth + 3, ACS_VLINE); // Between state and scope
-	mvwaddch(w, 0, minwidth + 6, ACS_VLINE); // After scope
-	wmove(w, 0, 0);
-	wnoutrefresh(w);
-
-	drawitems();
-	drawscrollbar();
 
 	wrefresh(win(List));
 }
 
 bool scrollcurrent() {
-	if(currentitem->listline < topline)
-		topline = max(currentitem->listline, currentitem->listline + currentitem->ndescr - wHeight(List));
-	else if( (currentitem->listline + currentitem->ndescr) > (topline + wHeight(List)))
-		topline = min(currentitem->listline + currentitem->ndescr - wHeight(List), currentitem->listline);
+	if(currentflag->listline < topline)
+		topline = max(currentflag->listline, currentflag->listline + currentflag->ndesc - wHeight(List));
+	else if( (currentflag->listline + currentflag->ndesc) > (topline + wHeight(List)))
+		topline = min(currentflag->listline + currentflag->ndesc - wHeight(List), currentflag->listline);
 	else
 		return false;
-	drawitems();
-	drawscrollbar();
+	drawFlags();
+	drawScrollbar();
 	return true;
 }
 
 bool yesno(const char *prompt) {
-	wattrset(win(Input), COLOR_PAIR(4) | A_BOLD | A_REVERSE);
-	mvwhline(win(Input), 0, 0, ' ', wWidth(Input));
-	mvwaddch(win(Input), 0, minwidth,     ACS_VLINE); // Before state
-	mvwaddch(win(Input), 0, minwidth + 3, ACS_VLINE); // Between state and scope
-	mvwaddch(win(Input), 0, minwidth + 6, ACS_VLINE); // After scope
-	wmove(win(Input), 0, 0);
-	waddstr(win(Input), prompt);
-	whline(win(Input), 'Y', 1);
-	wrefresh(win(Input));
-	for(;;) switch(getch()) {
-		case '\n': case KEY_ENTER:
-		case 'Y': case 'y':
-			return TRUE;
-		case '\033':
-		case 'N': case 'n':
-			wattrset(win(Input), COLOR_PAIR(3));
-			mvwhline(win(Input), 0, 0, ' ', wWidth(Input));
-			mvwaddch(win(Input), 0, minwidth,     ACS_VLINE); // Before state
-			mvwaddch(win(Input), 0, minwidth + 3, ACS_VLINE); // Between state and scope
-			mvwaddch(win(Input), 0, minwidth + 6, ACS_VLINE); // After scope
-			wmove(win(Input), 0, 0);
-			wnoutrefresh(win(Input));
-			wrefresh(win(List));
-			return FALSE;
+	WINDOW* wInp   = win(Input);
+	bool    doWait = true;
+	bool    result = true;
+
+	drawStatus(true);
+	wattrset(wInp, COLOR_PAIR(4) | A_BOLD);
+	waddstr(wInp, prompt);
+	waddch(wInp, 'Y');
+	wrefresh(wInp);
+
+	while(doWait) {
+		switch(getch()) {
+			case '\n': case KEY_ENTER:
+			case 'Y': case 'y':
+				doWait = false;
+				break;
+			case '\033':
+			case 'N': case 'n':
+				drawStatus(true);
+				wrefresh(wInp);
+				result = false;
+				doWait = false;
+				break;
 #ifdef KEY_RESIZE
 		case KEY_RESIZE:
 				resizeterm(LINES, COLS);
 				checktermsize();
-				{ enum win w; for(w = (enum win) 0; w != wCount; w++) {
+				{ eWin w; for(w = (eWin) 0; w != wCount; w++) {
 					delwin(window[w].win);
 					window[w].win = newwin(wHeight(w), wWidth(w), wTop(w), wLeft(w));
 				} }
+
 				/* this won't work for the help viewer, but it doesn't use yesno() */
 				topline = 0;
 				scrollcurrent();
-				draw();
-				wattrset(win(Input), COLOR_PAIR(4) | A_BOLD | A_REVERSE);
-				mvwhline(win(Input), 0, 0, ' ', wWidth(Input));
-				mvwaddch(win(Input), 0, minwidth,     ACS_VLINE); // Before state
-				mvwaddch(win(Input), 0, minwidth + 3, ACS_VLINE); // Between state and scope
-				mvwaddch(win(Input), 0, minwidth + 6, ACS_VLINE); // After scope
-				wmove(win(Input), 0, 0);
-				waddstr(win(Input), prompt);
-				whline(win(Input), 'Y', 1);
-				wrefresh(win(Input));
+				draw(true); // Only used outside help view.
+				wattrset(wInp, COLOR_PAIR(4) | A_BOLD);
+				waddstr(wInp, prompt);
+				waddch (wInp, 'Y');
+				wrefresh(wInp);
 				break;
 #endif
+		}
 	}
-	return FALSE;
+
+	return result;
 }
 
 int maineventloop(
 		const char *_subtitle,
-		int(*_callback)(struct item **, int),
-		int(*_drawitem)(struct item *, bool),
-		struct item *_items,
-		const struct key *_keys) {
+		int(*_callback)(sFlag**, int),
+		int(*_drawflag)(sFlag*, bool),
+		sFlag* _flags,
+		const sKey *_keys,
+		bool withSep) {
 	int result;
 
 	// Always reset the Filters on start and revert on exit
-	enum mask oldMask = showMasked;
-	enum scope oldScope = showScope;
-	showMasked = show_unmasked;
-	showScope  = show_all;
+	eMask  oldMask  = e_mask;
+	eScope oldScope = e_scope;
+	eState oldState = e_state;
+	e_mask  = eMask_unmasked;
+	e_scope = eScope_all;
+	e_state = eState_all;
 
 	{ const char *temp = subtitle;
-		subtitle=_subtitle;
-		_subtitle=temp; }
-	{ int(*temp)(struct item **, int) = callback;
-		callback=_callback;
-		_callback=temp; }
-	{ int(*temp)(struct item *, bool) = drawitem;
-		drawitem=_drawitem;
-		_drawitem=temp; }
-	{ struct item *temp=items;
-		items=_items;
-		_items=temp; }
-	{ const struct key *temp=keys;
-		keys=_keys;
-		_keys=temp; }
+		subtitle  = _subtitle;
+		_subtitle = temp; }
+	{ int(*temp)(sFlag**, int) = callback;
+		callback  = _callback;
+		_callback = temp; }
+	{ int(*temp)(sFlag*, bool) = drawflag;
+		drawflag  = _drawflag;
+		_drawflag = temp; }
+	{ sFlag* temp = flags;
+		flags  = _flags;
+		_flags = temp; }
+	{ const sKey *temp = keys;
+		keys  = _keys;
+		_keys = temp; }
 
-	currentitem = items;
+	currentflag = flags;
 	topline = 0;
 
-	draw();
+	draw(withSep);
 
 	for(;;) {
 		int c = getch();
@@ -476,27 +533,27 @@ int maineventloop(
 				}
 				if(wmouse_trafo(win(List), &event.y, &event.x, FALSE)) {
 					if(event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED)) {
-						struct item *item = currentitem;
-						if(currentitem->currline > event.y) {
-							do item = item->prev;
-							while((item==items ? item=NULL, 0 : 1)
-							 && item->currline > event.y);
-						} else if(currentitem->currline + getItemHeight(currentitem) - 1 < event.y) {
-							do item = item->next;
-							while((item->next==items ? item=NULL, 0 : 1)
-							 && item->currline + getItemHeight(item) - 1 < event.y);
+						sFlag* flag = currentflag;
+						if(currentflag->currline > event.y) {
+							do flag = flag->prev;
+							while((flag == flags ? flag = NULL, 0 : 1)
+							 && flag->currline > event.y);
+						} else if(currentflag->currline + getFlagHeight(currentflag) - 1 < event.y) {
+							do flag = flag->next;
+							while((flag->next == flags ? flag = NULL, 0 : 1)
+							 && flag->currline + getFlagHeight(flag) - 1 < event.y);
 						}
-						if(item==NULL)
+						if(flag == NULL)
 							continue;
-						drawitem(currentitem, FALSE);
-						currentitem = item;
+						drawflag(currentflag, FALSE);
+						currentflag = flag;
 						if(event.bstate & BUTTON1_DOUBLE_CLICKED) {
-							result=callback(&currentitem, KEY_MOUSE);
+							result=callback(&currentflag, KEY_MOUSE);
 							if(result>=0)
 								goto exit;
 						}
 						scrollcurrent();
-						drawitem(currentitem, TRUE);
+						drawflag(currentflag, TRUE);
 					}
 				} else if(wmouse_trafo(win(Scrollbar), &event.y, &event.x, FALSE)) {
 					// Only do mouse events if there actually is a scrollbar
@@ -531,19 +588,17 @@ int maineventloop(
 										event.y -= wTop(Scrollbar) + 1;
 										int sbHeight = wHeight(Scrollbar) - 3;
 										if( (event.y >= 0) && (event.y < sbHeight) ) {
-											/// TODO : This needs to be fixed!
 											topline = (event.y * (listHeight - sbHeight + 2) + sbHeight - 1) / sbHeight;
-											// was: topy = (event.y*(items->prev->top+items->prev->height-(wHeight(List)-1))+(wHeight(Scrollbar)-4))/(wHeight(Scrollbar)-3);
-											while( (currentitem != items)
-												&& (currentitem->prev->listline >= topline) )
-												currentitem = currentitem->prev;
-											while( (currentitem->next != items)
-												&& (currentitem->listline < topline) )
-												currentitem = currentitem->next;
-											if( (currentitem->listline + currentitem->ndescr) > (topline + wHeight(List)) )
-												topline = currentitem->listline + currentitem->ndescr - wHeight(List);
-											drawitems();
-											drawscrollbar();
+											while( (currentflag != flags)
+												&& (currentflag->prev->listline >= topline) )
+												currentflag = currentflag->prev;
+											while( (currentflag->next != flags)
+												&& (currentflag->listline < topline) )
+												currentflag = currentflag->next;
+											if( (currentflag->listline + currentflag->ndesc) > (topline + wHeight(List)) )
+												topline = currentflag->listline + currentflag->ndesc - wHeight(List);
+											drawFlags();
+											drawScrollbar();
 											wrefresh(win(List));
 										}
 									}
@@ -558,7 +613,7 @@ int maineventloop(
 				} else if(wmouse_trafo(win(Bottom), &event.y, &event.x, FALSE)) {
 					if( (event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED))
 					 && (event.y == 1) ) {
-						const struct key *key;
+						const sKey* key;
 						int x = event.x;
 						if(x < 2)
 							continue;
@@ -588,72 +643,79 @@ int maineventloop(
 		} else
 #endif
 		{
-			result=callback(&currentitem, c);
-			if(result>=0)
+			result = callback(&currentflag, c);
+			if(result >= 0)
 				goto exit;
 
 			switch(c) {
 				case KEY_UP:
-					if(currentitem->currline < 0 ) {
+					if(currentflag->currline < 0 ) {
 						--topline;
-						drawitems();
-						drawscrollbar();
+						drawFlags();
+						drawScrollbar();
 					} else
 						setPrevItem(1, true);
 					break;
 	
 				case KEY_DOWN:
-					if( (currentitem->currline + getItemHeight(currentitem)) > wHeight(List) ) {
+					if( (currentflag->currline + getFlagHeight(currentflag)) > wHeight(List) ) {
 						++topline;
-						drawitems();
-						drawscrollbar();
+						drawFlags();
+						drawScrollbar();
 					} else
 						setNextItem(1, true);
 					break;
 	
 				case KEY_PPAGE:
-					if(currentitem!=items)
+					if(currentflag != flags)
 						setPrevItem(wHeight(List), false);
 					break;
 	
 				case KEY_NPAGE:
-					if(currentitem->next!=items)
+					if(currentflag->next != flags)
 						setNextItem(wHeight(List), false);
 					break;
 	
 				case KEY_HOME:
-					if(currentitem!=items)
-						resetDisplay();
+					if(currentflag != flags)
+						resetDisplay(withSep);
 					break;
 	
 				case KEY_END:
-					if(currentitem->next!=items) {
-						drawitem(currentitem, FALSE);
-						currentitem = items->prev;
-						while (!isLegalItem(currentitem))
-							currentitem = currentitem->prev;
+					if(currentflag->next != flags) {
+						drawflag(currentflag, FALSE);
+						currentflag = flags->prev;
+						while (!isFlagLegal(currentflag))
+							currentflag = currentflag->prev;
 						scrollcurrent();
-						drawitem(currentitem, TRUE);
+						drawflag(currentflag, TRUE);
 					}
 					break;
 
 				case KEY_F(5):
-					if      (show_masked   == showMasked) showMasked = show_unmasked;
-					else if (show_both     == showMasked) showMasked = show_masked;
-					else if (show_unmasked == showMasked) showMasked = show_both;
-					resetDisplay();
+					if      (eMask_masked   == e_mask) e_mask = eMask_unmasked;
+					else if (eMask_unmasked == e_mask) e_mask = eMask_both;
+					else                               e_mask = eMask_masked;
+					resetDisplay(withSep);
 					break;
 
 				case KEY_F(6):
-					if (pkgs_left == pkgOrder) pkgOrder = pkgs_right;
-					else                       pkgOrder = pkgs_left;
-					drawitems();
+					if (eOrder_left == e_order) e_order = eOrder_right;
+					else                        e_order = eOrder_left;
+					drawFlags();
 					break;
 
 //				case KEY_F(7):
-//					if      (show_local  == showScope) showScope = show_all;
-//					else if (show_global == showScope) showScope = show_local;
-//					else if (show_all    == showScope) showScope = show_global;
+//					if      (eScope_local  == e_scope) e_scope = eScope_all;
+//					else if (eScope_global == e_scope) e_scope = eScope_local;
+//					else if (eScope_all    == e_scope) e_scope = eScope_global;
+//					resetDisplay();
+//					break;
+//
+//				case KEY_F(8):
+//					if      (eState_installed    == e_state) e_state = eState_notinstalled;
+//					else if (eState_notinstalled == e_state) e_state = eState_all;
+//					else if (eState_all          == e_state) e_state = eState_installed;
 //					resetDisplay();
 //					break;
 
@@ -661,16 +723,19 @@ int maineventloop(
 				case KEY_RESIZE:
 					resizeterm(LINES, COLS);
 					checktermsize();
-					{ enum win w; for(w = (enum win) 0; w != wCount; w++) {
+					{ eWin w; for(w = (eWin) 0; w != wCount; w++) {
 						delwin(window[w].win);
 						window[w].win = newwin(wHeight(w), wWidth(w), wTop(w), wLeft(w));
 					} }
-					if(result==-1) {
+					if(result == -1) {
 						topline = 0;
 						scrollcurrent();
 					} else
-						items = currentitem;
-					draw();
+						// This is the result of a resize in
+						// the help screen, it will re-init
+						// the help text lines.
+						flags = currentflag;
+					draw(withSep);
 					break;
 #endif
 			}
@@ -680,124 +745,109 @@ int maineventloop(
 exit:
 	subtitle = _subtitle;
 	callback = _callback;
-	drawitem = _drawitem;
-	items    = _items;
+	drawflag = _drawflag;
+	flags    = _flags;
 	keys     = _keys;
 
 	// revert filters
-	showMasked = oldMask;
-	showScope  = oldScope;
+	e_mask  = oldMask;
+	e_scope = oldScope;
+	e_state = oldState;
 
-	if(items!=NULL)
-		resetDisplay();
+	if(flags != NULL)
+		resetDisplay(withSep);
 
 	return result;
 }
 
 
-/* @brief Set display to first legal item and redraw
+/** @brief Set display to first legal item and redraw
+ *  @param withSep draw status separators if set to true
  */
-void resetDisplay()
+void resetDisplay(bool withSep)
 {
-	currentitem = items;
-	while (!isLegalItem(currentitem))
-		currentitem = currentitem->next;
-	topline = currentitem->listline;
-	draw();
+	currentflag = flags;
+	while (!isFlagLegal(currentflag) && (currentflag->next != flags))
+		currentflag = currentflag->next;
+	topline = currentflag->listline;
+	draw(withSep);
 }
 
 
-/* @brief set currentitem to the next item @a count lines away
+/** @brief set currentflag to the next flag @a count lines away
  * @param count set how many lines should be skipped
  * @param strict if set to false, at least one item has to be skipped.
  */
 void setNextItem(int count, bool strict)
 {
-	bool         result  = true;
-	struct item *curr    = currentitem;
-	int          skipped = 0;
-	int          oldTop  = topline;
+	bool   result  = true;
+	sFlag* curr    = currentflag;
+	int    skipped = 0;
+	int    oldTop  = topline;
 
 	while (result && (skipped < count)) {
-		if (curr->next == items)
+		if (curr->next == flags)
 			result = false; // The list is finished, no next item to display
 		else
 			curr = curr->next;
 
 		// curr is only counted if it is not filtered out:
-		if (isLegalItem(curr))
-			skipped += getItemHeight(curr);
+		if (isFlagLegal(curr))
+			skipped += getFlagHeight(curr);
 		else
 			// Otherwise topline must be adapted or scrollcurrent() wreaks havoc!
-			topline += curr->ndescr;
+			topline += curr->ndesc;
 	} // End of trying to find a next item
 
 	if ( (result && strict) || (!strict && skipped) ) {
 		// Move back again if curr ended up being filtered
-		while (!isLegalItem(curr)) {
-			topline -= curr->ndescr;
+		while (!isFlagLegal(curr)) {
+			topline -= curr->ndesc;
 			curr = curr->prev;
 		}
-		drawitem(currentitem, FALSE);
-		currentitem = curr;
+		drawflag(currentflag, FALSE);
+		currentflag = curr;
 		if (!scrollcurrent())
-			drawitem(currentitem, TRUE);
+			drawflag(currentflag, TRUE);
 	} else
 		topline = oldTop;
 }
 
 
-/* @brief set currentitem to the previous item @a count lines away
+/* @brief set currentflag to the previous item @a count lines away
  * @param count set how many lines should be skipped
  * @param strict if set to false, at least one item has to be skipped.
  */
 void setPrevItem(int count, bool strict)
 {
-	bool         result  = true;
-	struct item *curr    = currentitem;
-	int          skipped = 0;
-	int          oldTop  = topline;
+	bool   result  = true;
+	sFlag* curr    = currentflag;
+	int    skipped = 0;
+	int    oldTop  = topline;
 
 	while (result && (skipped < count)) {
-		if (curr == items)
+		if (curr == flags)
 			result = false; // The list is finished, no previous item to display
 		else
 			curr = curr->prev;
 
 		// curr is only counted if it is not filtered out:
-		if (isLegalItem(curr))
-			skipped += getItemHeight(curr);
+		if (isFlagLegal(curr))
+			skipped += getFlagHeight(curr);
 		else
-			topline -= curr->ndescr;
+			topline -= curr->ndesc;
 	} // End of trying to find next item
 
 	if ( (result && strict) || (!strict && skipped) ) {
 		// Move forth again if curr ended up being filtered
-		while (!isLegalItem(curr)) {
-			topline += curr->ndescr;
+		while (!isFlagLegal(curr)) {
+			topline += curr->ndesc;
 			curr = curr->next;
 		}
-		drawitem(currentitem, FALSE);
-		currentitem = curr;
+		drawflag(currentflag, FALSE);
+		currentflag = curr;
 		if (!scrollcurrent())
-			drawitem(currentitem, TRUE);
+			drawflag(currentflag, TRUE);
 	} else
 		topline = oldTop;
 }
-
-
-/* @brief return true if the given @a item is not filtered out
- */
-bool isLegalItem(struct item *item)
-{
-	if ( // 1: Mask filter
-	     ( ( item->isMasked && (show_unmasked != showMasked))
-	    || (!item->isMasked && (show_masked   != showMasked)) )
-	     // 2: Global / Local filter
-	  && ( ( item->isGlobal && ( (show_local  != showScope) || (item->ndescr > 1) ) )
-	    || (!item->isGlobal && (  show_global != showScope)) ) )
-		return true;
-	return false;
-}
-
-
