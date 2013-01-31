@@ -18,6 +18,9 @@ else
 fi
 CFLAGS="${CFLAGS} -Wmissing-prototypes -Wstrict-prototypes"
 
+AC_TYPE_SIZE_T
+AC_CHECK_HEADER_STDBOOL
+
 AC_ARG_WITH([curses],
 	[AS_HELP_STRING([--with-curses], [override default curses library (ncursesw ncurses curses)])],
 	[curses=$withval],
