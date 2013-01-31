@@ -4,7 +4,7 @@
  *  Created on: 28.01.2013
  *      Author: Sven Eden
  */
-#include "ufed-types.h"
+#include "ufed-curses-types.h"
 #include "ufed-curses.h"
 #include <stdlib.h>
 #include <string.h>
@@ -61,9 +61,9 @@ sFlag* addFlag (sFlag** root, const char* name, int line, int ndesc, const char 
 				ERROR_EXIT(-1, "Unable to allocate %lu bytes for %d sDesc_ structs\n",
 					sizeof(sDesc) * ndesc, ndesc)
 
-			newFlag->forced       = false;
+			newFlag->globalForced = false;
+			newFlag->globalMasked = false;
 			newFlag->listline     = line;
-			newFlag->masked       = false;
 			newFlag->name         = strdup(name);
 			newFlag->ndesc        = ndesc;
 			newFlag->next         = NULL;
@@ -128,9 +128,9 @@ size_t addFlagDesc (sFlag* flag, const char* pkg, const char* desc, const char s
 
 			// Set flag mask and force status if this is a global and masked/forced description
 			if (flag->desc[idx].isGlobal && ('+' == flag->desc[idx].stateMasked))
-				flag->masked = true;
+				flag->globalMasked = true;
 			if (flag->desc[idx].isGlobal && ('+' == flag->desc[idx].stateForced))
-				flag->forced = true;
+				flag->globalForced = true;
 
 			// Determine width:
 			result += (flag->desc[idx].pkg ? strlen(flag->desc[idx].pkg) : 0)
@@ -155,15 +155,7 @@ void addLineStats (const sFlag* flag, sListStats* stats)
 {
 	if (flag && stats) {
 		for (int i = 0; i < flag->ndesc; ++i) {
-			// Masked is true if the flag is globally masked/forced
-			// and the description is not explicitly unmasked/unforced,
-			// or if the description is explicitly masked/forced.
-			if ( ('+' == flag->desc[i].stateMasked)
-			  || ('+' == flag->desc[i].stateForced)
-			  || ( (' ' == flag->desc[i].stateMasked)
-				&& flag->masked )
-			  || ( (' ' == flag->desc[i].stateForced)
-				&& flag->forced ) ) {
+			if ( isDescMasked(flag, i) ) {
 				if (flag->desc[i].isInstalled)
 					++stats->lineCountMaskedInstalled;
 				else
@@ -252,6 +244,27 @@ int getFlagHeight (const sFlag* flag)
 }
 
 
+/** @brief return true if a specific description line is force enabled
+ *  If @a flag is NULL, the result will be false.
+ *  @param[in] flag pointer to the flag to check.
+ *  @param[in] idx index of the description line to check.
+ *  @return true if the specific flag (global or local) is forced
+ */
+bool isDescForced(const sFlag* flag, int idx)
+{
+	bool result = false;
+
+	if (flag && (idx < flag->ndesc)) {
+		if ( ('+' == flag->desc[idx].stateForced)
+		  || ( (' ' == flag->desc[idx].stateForced)
+			&& flag->globalForced ) )
+		result = true;
+	}
+
+	return result;
+}
+
+
 /** @brief return true if the flag description @a idx is ok to display.
  *  If @a flag is NULL, the result will be false.
  *  @param[in] flag pointer to the flag to check.
@@ -277,6 +290,34 @@ bool isDescLegal (const sFlag* flag, int idx)
 
 	return result;
 }
+
+
+/** @brief return true if a specific description line is masked
+ *  If @a flag is NULL, the result will be false.
+ *  @param[in] flag pointer to the flag to check.
+ *  @param[in] idx index of the description line to check.
+ *  @return true if the specific flag (global or local) is masked
+ */
+bool isDescMasked(const sFlag* flag, int idx)
+{
+	bool result = false;
+
+	// Note: Masked is true if the flag is globally masked/forced
+	// and the description is not explicitly unmasked/unforced,
+	// or if the description is explicitly masked/forced.
+	if (flag && (idx < flag->ndesc)) {
+		if ( ('+' == flag->desc[idx].stateMasked)
+		  || ('+' == flag->desc[idx].stateForced)
+		  || ( (' ' == flag->desc[idx].stateMasked)
+			&& flag->globalMasked )
+		  || ( (' ' == flag->desc[idx].stateForced)
+			&& flag->globalForced ) )
+		result = true;
+	}
+
+	return result;
+}
+
 
 /** @brief return true if this flag has at least one line to display.
  *  This method checks the flag and its description line(s)

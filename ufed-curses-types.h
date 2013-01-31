@@ -9,11 +9,29 @@
 #define UFED_TYPES_H_INCLUDED 1
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include <curses.h>
-#include "ufed-debug.h"
+#include "ufed-curses-debug.h"
+
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+// TODO : else branch
+#endif
+
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+
+#ifndef bool
+# ifdef HAVE__BOOL
+#  define bool _Bool
+# else
+#  define bool int
+# endif
+#endif
+
 
 /* =============
  * === enums ===
@@ -94,9 +112,9 @@ typedef struct sDesc_ {
 typedef struct sFlag_ {
 	int     currline;     //!< The current line on the screen this flag starts
 	sDesc*  desc;         //!< variable array of sDesc structs
-	bool    forced;       //!< true if the first global description is force enabled.
+	bool    globalForced; //!< true if the first global description is force enabled.
+	bool    globalMasked; //!< true if the first global description is mask enabled.
 	int     listline;     //!< The fixed line within the full list this flag starts
-	bool    masked;       //!< true if the first global description is mask enabled.
 	char*   name;         //!< Name of the flag or NULL for help lines
 	int     ndesc;        //!< number of description lines
 	struct
@@ -149,7 +167,9 @@ size_t addFlagDesc  (sFlag* flag, const char* pkg, const char* desc, const char 
 void   addLineStats (const sFlag* flag, sListStats* stats);
 void   destroyFlag  (sFlag** root, sFlag** flag);
 int    getFlagHeight(const sFlag* flag);
+bool   isDescForced (const sFlag* flag, int idx);
 bool   isDescLegal  (const sFlag* flag, int idx);
+bool   isDescMasked (const sFlag* flag, int idx);
 bool   isFlagLegal  (const sFlag* flag);
 
 #endif /* UFED_TYPES_H_INCLUDED */
