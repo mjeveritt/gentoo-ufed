@@ -1,5 +1,4 @@
 #include "ufed-curses-help.h"
-
 #include "ufed-curses.h"
 
 #include <ctype.h>
@@ -12,13 +11,15 @@
 #include <unistd.h>
 
 /* internal types */
-static struct line {
-	struct item item;
-	char *text;
-} *lines;
+// Do not use an own struct, just use sFlag
+//static struct line {
+//	struct item item;
+//	char *text;
+//} *lines;
+static sFlag* lines = NULL;
 
 /* internal members */
-static int helpheight, helpwidth;
+static size_t helpheight, helpwidth;
 
 /* external members */
 
@@ -107,117 +108,116 @@ static void init_lines(void) {
 "Copyright 1999-2005 Gentoo Foundation",
 "Distributed under the terms of the GNU General Public License v2"
 	};
-	struct line *line;
-	const char * const *paragraph = &help[0], *word = &help[0][0];
-	int n, y=0;
+	sFlag* line = NULL;
+	size_t lineCount = sizeof(help) / sizeof(*help);
+	size_t currLine  = 0;
+	size_t n = 0;
+	int    y = 0;
+	const char* word = help[currLine];
 
 	helpheight = wHeight(List);
-	helpwidth = wWidth(List);
+	helpwidth  = wWidth(List);
+	char buf[helpwidth + 1];
+	memset(buf, 0, (helpwidth + 1) * sizeof(char));
 
 	atexit(&free_lines);
-	for(;;) {
-		line = malloc(sizeof *line);
-		if(line==NULL)
-			ERROR_EXIT(-1, "Can not allocate %lu bytes for help line struct\n", sizeof(*line));
-		if(lines==NULL) {
-			line->item.prev = (struct item *) line;
-			line->item.next = (struct item *) line;
-			lines = line;
-		} else {
-			line->item.next = (struct item *) lines;
-			line->item.prev = lines->item.prev;
-			lines->item.prev->next = (struct item *) line;
-			lines->item.prev = (struct item *) line;
+	while( currLine < lineCount ) {
+		line = addFlag(&lines, "help", y++, 1, "  ");
+
+		// Find the last space character in the string
+		// if it is too long to display.
+		n = strlen(word);
+		if(n > helpwidth - 1) {
+			for(n = helpwidth-1; (n > 0) && (word[n] != ' '); --n) ;
+			if(n==0)
+				n = helpwidth;
 		}
 
-		line->item.currline = 0;
-		line->item.isMasked = false;
-		line->item.isGlobal = true;
-		line->item.listline = y++;
-		line->item.ndescr = 1;
-		n = strlen(word);
-		if(n > helpwidth-1) {
-			for(n = helpwidth-1; word[n]!=' '; n--) {
-				if(n==0) {
-					n = helpwidth;
-					break;
-				}
-			}
-		}
-		line->text = calloc((n+1), sizeof(char));
-		if(line->text==NULL)
-			ERROR_EXIT(-1, "Can not allocate %lu bytes for help line\n", (n+1) * sizeof(char));
-		memcpy(line->text, word, n);
-		while(word[n]==' ')
+		// copy the text if there is any
+		if (n) {
+			memcpy(buf, word, n);
+			buf[n++] = '\0';
+			addFlagDesc(line, NULL, buf, "+    ");
+		} else
+			addFlagDesc(line, NULL, " ", "+    ");
+
+		// Advance behind current spaces
+		while (word[n] == ' ')
 			n++;
-		word += n;
-		if(word[0]=='\0') {
-			paragraph++;
-			if(paragraph == &help[sizeof help / sizeof *help])
-				break;
-			word = &(*paragraph)[0];
-		}
+
+		// See whether there is text left...
+		if (strlen(word) > n)
+			word += n;
+		else if (++currLine < lineCount)
+			// ...or advance one line
+			word = help[currLine];
 	}
 }
 
 static void free_lines(void) {
-	struct line *line = lines;
-	if(line!=NULL) {
-		line->item.prev->next = NULL;
-		do {
-			void *p = line;
-			free(line->text);
-			line = (struct line *) line->item.next;
-			free(p);
-		} while(line!=NULL);
-		lines = NULL;
+	sFlag* line = lines->prev;
+
+	// Clear all lines
+	while (lines) {
+		if (line)
+			destroyFlag(&lines, &line);
+		else
+			destroyFlag(&lines, &lines);
+		line = lines ? lines->prev ? lines->prev : lines : NULL;
 	}
 }
 
-static const struct key keys[] = {
+static const sKey keys[] = {
 #define key(x) x, sizeof(x)-1
 	{ '\033', key("Back (Esc)") },
 	{ '\0',   key("")         }
 #undef key
 };
 
-static int drawline(struct item *item, bool highlight) {
-	struct line *line = (struct line *) item;
+static int drawline(sFlag* line, bool highlight) {
 	char buf[wWidth(List)+1];
-	sprintf(buf, "%-*.*s", wWidth(List), wWidth(List), line->text);
+
+	sprintf(buf, "%-*.*s", wWidth(List), wWidth(List), line->desc[0].desc);
 	if(!highlight)
 		wattrset(win(List), COLOR_PAIR(3));
 	else
 		wattrset(win(List), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
-	mvwaddstr(win(List), line->item.currline, 0, buf);
+	mvwaddstr(win(List), line->currline, 0, buf);
 	if(highlight)
-		wmove(win(List), line->item.currline, 0);
+		wmove(win(List), line->currline, 0);
 	wnoutrefresh(win(List));
 	return 1;
 }
 
-static int callback(struct item **currentitem, int key) {
+static int callback(sFlag** curr, int key) {
 	switch(key) {
-	case 'Q': case 'q':
-	case '\033':
-		return 0;
+		case 'Q': case 'q':
+		case '\033':
+			return 0;
 #ifdef KEY_RESIZE
-	case KEY_RESIZE:
-		free_lines();
-		init_lines();
-		*currentitem = (struct item *) lines;
-		return -2;
+		case KEY_RESIZE:
+			free_lines();
+			init_lines();
+			*curr = lines;
+			return -2;
 #endif
-	default:
-		return -1;
+		default:
+			return -1;
 	}
 }
 
 void help(void) {
-	if(helpheight!=wHeight(List) || helpwidth!=wWidth(List)) {
+	if ( ((int)helpheight != wHeight(List))
+	  || ((int)helpwidth  != wWidth(List)) ) {
 		if(lines!=NULL)
 			free_lines();
 		init_lines();
 	}
-	maineventloop("", &callback, &drawline, (struct item *) lines, keys);
+
+	maineventloop("", &callback, &drawline, lines, keys, false);
+
+	// Re-draw separators:
+	drawTop(true);
+	drawBottom(true);
+	drawStatus(true);
 }
