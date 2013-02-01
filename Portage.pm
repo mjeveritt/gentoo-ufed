@@ -44,10 +44,10 @@ our $use_flags;
 
 # $used_make_conf - path of the used make.conf
 our $used_make_conf = "";
+our $EPREFIX        = "";
 
 # --- private members ---
 my %_environment  = ();
-my $_EPREFIX      = "";
 my @_profiles     = ();
 # $_use_temp - hashref that represents the current state of
 # all known flags. This is for data gathering, the public
@@ -208,13 +208,13 @@ sub _add_temp
 
 
 # Determine the value for EPREFIX and save it
-# in $_EPREFIX. This is done using 'portageq'.
+# in $EPREFIX. This is done using 'portageq'.
 # Other output from portageq is printed on
 # STDERR.
 # No parameters accepted.
 sub _determine_eprefix {
 	my $tmp = "/tmp/ufed_$$.tmp";
-	$_EPREFIX = qx{portageq envvar EPREFIX 2>$tmp};
+	$EPREFIX = qx{portageq envvar EPREFIX 2>$tmp};
 	die "Couldn't determine EPREFIX from Portage" if $? != 0;
 
 	if ( -s $tmp ) {
@@ -225,7 +225,7 @@ sub _determine_eprefix {
 	}
 	-e $tmp and unlink $tmp;
 
-	chomp($_EPREFIX);
+	chomp($EPREFIX);
 	return;
 }
 
@@ -234,9 +234,9 @@ sub _determine_eprefix {
 # and save the result in $used_make_conf
 sub _determine_make_conf
 {
-	$used_make_conf = "${_EPREFIX}/etc/portage/make.conf";
+	$used_make_conf = "${EPREFIX}/etc/portage/make.conf";
 	(! -r $used_make_conf)
-		and $used_make_conf = "${_EPREFIX}/etc/make.conf";
+		and $used_make_conf = "${EPREFIX}/etc/make.conf";
 	return; 
 }
 
@@ -247,13 +247,13 @@ sub _determine_make_conf
 # No parameters accepted.
 sub _determine_profiles
 {
-	my $mp = readlink "${_EPREFIX}/etc/portage/make.profile";
+	my $mp = readlink "${EPREFIX}/etc/portage/make.profile";
 	defined($mp)
-		or $mp = readlink "${_EPREFIX}/etc/make.profile";
+		or $mp = readlink "${EPREFIX}/etc/make.profile";
 
 	# make.profile is mandatory and must be a link
 	defined($mp)
-		or die "${_EPREFIX}/etc\{,/portage\}/make.profile is not a symlink\n";
+		or die "${EPREFIX}/etc\{,/portage\}/make.profile is not a symlink\n";
 
 	# Start with the linked path, it is the deepest profile child.
 	@_profiles = _norm_path('/etc', $mp);
@@ -306,7 +306,7 @@ sub _gen_use_flags
 		my %descCons = ();
 		my $flagRef  = $_use_temp->{$flag}; ## Shortcut
 		my $hasGlobal= defined($flagRef->{global}) ? 1 : 0;
-		my $lCount   = ($hasGlobal && length($flagRef->{global}{desc})) ? 1 : 0;
+		my $lCount   = ($hasGlobal && length($flagRef->{global}{descr})) ? 1 : 0;
 		my $gDesc    = "";
 		my $gKey     = "";
 		my $gRef     = $flagRef->{global};
@@ -518,8 +518,8 @@ sub _read_descriptions
 # overrides.
 # No parameters accepted.
 sub _read_make_conf {
-	my %oldEnv = _read_sh("${_EPREFIX}/etc/make.conf");
-	my %newEnv = _read_sh("${_EPREFIX}/etc/portage/make.conf");
+	my %oldEnv = _read_sh("${EPREFIX}/etc/make.conf");
+	my %newEnv = _read_sh("${EPREFIX}/etc/portage/make.conf");
 	_merge (\%oldEnv, \%newEnv);
 
 	# Note the conf state of the read flags:
@@ -539,8 +539,8 @@ sub _read_make_conf {
 		and push @_profiles,
 				map { my $x=$_; $x =~ s/^\s*(\S+)\s*$/$1\/profiles/mg ; $x }
 				split('\n', $_environment{PORTDIR_OVERLAY});
-	-e "${_EPREFIX}/etc/portage/profile"
-		and push @_profiles, "${_EPREFIX}/etc/portage/profile";
+	-e "${EPREFIX}/etc/portage/profile"
+		and push @_profiles, "${EPREFIX}/etc/portage/profile";
 	return;
 }
 
@@ -575,7 +575,7 @@ sub _read_make_defaults {
 # get the final "PORTDIR" and "USE_ORDER"
 # No parameters accepted
 sub _read_make_globals {
-	for my $dir(@_profiles, "${_EPREFIX}/usr/share/portage/config") {
+	for my $dir(@_profiles, "${EPREFIX}/usr/share/portage/config") {
 		_read_sh("$dir/make.globals");
 	}
 	return;
@@ -588,14 +588,14 @@ sub _read_make_globals {
 # No parameters accepted.
 sub _read_packages {
 	my $pkgdir = undef;
-	opendir($pkgdir, "${_EPREFIX}/var/db/pkg")
-		or die "Couldn't read ${_EPREFIX}/var/db/pkg\n";
+	opendir($pkgdir, "${EPREFIX}/var/db/pkg")
+		or die "Couldn't read ${EPREFIX}/var/db/pkg\n";
 		
 	# loop through all categories in pkgdir
 	while(my $cat = readdir $pkgdir) {
 		next if $cat eq '.' or $cat eq '..';
 		my $catdir = undef;
-		opendir($catdir, "${_EPREFIX}/var/db/pkg/$cat")
+		opendir($catdir, "${EPREFIX}/var/db/pkg/$cat")
 			or next;
 
 		# loop through all openable directories in cat
@@ -621,7 +621,7 @@ sub _read_packages {
 			#}
 			
 			# Load IUSE to learn which use flags the package in this version knows
-			my $fiuse = "${_EPREFIX}/var/db/pkg/$cat/$pkg/IUSE";
+			my $fiuse = "${EPREFIX}/var/db/pkg/$cat/$pkg/IUSE";
 			if(open my $use, '<', $fiuse) {
 				local $/;
 				@iuse = split ' ', <$use>;
@@ -629,7 +629,7 @@ sub _read_packages {
 			}
 
 			# Load PKGUSE to learn which use flags have been set when this package was emerged
-			my $fpuse = "${_EPREFIX}/var/db/pkg/$cat/$pkg/PKGUSE";
+			my $fpuse = "${EPREFIX}/var/db/pkg/$cat/$pkg/PKGUSE";
 			if(open my $use, '<', $fpuse) {
 				local $/;
 				@puse = split ' ', <$use>;
