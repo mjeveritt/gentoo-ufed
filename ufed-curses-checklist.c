@@ -26,9 +26,9 @@ static const sKey keys[] = {
 	{ '\033',   mkKey("Cancel (Esc)")        },
 	{ -1,       mkKey("Display (")           },
 	{ KEY_F(5), mkKey("Mask (F5)")           },
-	{ KEY_F(6), mkKey("Order (F6)")          },
-//	{ KEY_F(7), mkKey("Local/Global (F7)")   },
-//	{ KEY_F(8), mkKey("Installed (F8)")      },
+	{ KEY_F(6), mkKey("Local/Global (F7)")   },
+	{ KEY_F(7), mkKey("Installed (F8)")      },
+	{ KEY_F(8), mkKey("Order (F6)")          },
 	{ -1,       mkKey(")")                   },
 	{ '\0',     mkKey("")                    }
 };

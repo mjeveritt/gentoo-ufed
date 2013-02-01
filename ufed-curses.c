@@ -703,28 +703,48 @@ int maineventloop(
 					if      (eMask_masked   == e_mask) e_mask = eMask_unmasked;
 					else if (eMask_unmasked == e_mask) e_mask = eMask_both;
 					else                               e_mask = eMask_masked;
-					resetDisplay(withSep);
+
+					if ( !isFlagLegal(currentflag)
+					  && !setNextItem(1, true)
+					  && !setPrevItem(1, true) )
+						resetDisplay(withSep);
+					else
+						draw(withSep);
+
 					break;
 
 				case KEY_F(6):
+					if      (eScope_local  == e_scope) e_scope = eScope_all;
+					else if (eScope_global == e_scope) e_scope = eScope_local;
+					else                               e_scope = eScope_global;
+
+					if ( !isFlagLegal(currentflag)
+					  && !setNextItem(1, true)
+					  && !setPrevItem(1, true) )
+						resetDisplay(withSep);
+					else
+						draw(withSep);
+					break;
+
+				case KEY_F(7):
+					if      (eState_installed    == e_state) e_state = eState_notinstalled;
+					else if (eState_notinstalled == e_state) e_state = eState_all;
+					else                                     e_state = eState_installed;
+
+					if ( !isFlagLegal(currentflag)
+					  && !setNextItem(1, true)
+					  && !setPrevItem(1, true) )
+						resetDisplay(withSep);
+					else
+						draw(withSep);
+					break;
+
+				case KEY_F(8):
 					if (eOrder_left == e_order) e_order = eOrder_right;
 					else                        e_order = eOrder_left;
 					drawFlags();
 					break;
 
-//				case KEY_F(7):
-//					if      (eScope_local  == e_scope) e_scope = eScope_all;
-//					else if (eScope_global == e_scope) e_scope = eScope_local;
-//					else if (eScope_all    == e_scope) e_scope = eScope_global;
-//					resetDisplay();
-//					break;
-//
-//				case KEY_F(8):
-//					if      (eState_installed    == e_state) e_state = eState_notinstalled;
-//					else if (eState_notinstalled == e_state) e_state = eState_all;
-//					else if (eState_all          == e_state) e_state = eState_installed;
-//					resetDisplay();
-//					break;
 
 #ifdef KEY_RESIZE
 				case KEY_RESIZE:
