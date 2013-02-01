@@ -13,7 +13,7 @@ my $version = 'XX_PACKAGE_VERSION@';
 
 my $interface = 'ufed-curses';
 #my $memcheck  = "/usr/bin/valgrind -v --trace-children=yes --tool=memcheck"
-#			  . " --track-origins=yes --leak-check=full --show-reachable=yes"
+#			  . " --track-origins=yes --leak-check=full --show-reachable=no"
 #			  . " --read-var-info=yes"
 #              . " XX_libexecdir@/ufed-curses 2>/tmp/ufed_memcheck.log";
 
@@ -72,20 +72,6 @@ sub flags_dialog {
 	# Write out flags 
 	for my $flag (sort { uc $a cmp uc $b } keys %$Portage::use_flags) {
 		my $conf = $Portage::use_flags->{$flag}; ## Shortcut
-# deprecated: The output is updated to match the new data structure.
-#		my $state = "g";
-#
-#		$outTxt .= sprintf ("%s %s (%s%s) %d\n", $flag,
-#					defined($conf->{global}{conf}) ?
-#						$conf->{global}{conf} > 0 ? 'on' :
-#						$conf->{global}{conf} < 0 ? 'off' : 'def' : 'def',
-#					defined($conf->{global}{"default"}) ?
-#						$conf->{global}{"default"} > 0 ? '+' :
-#						$conf->{global}{"default"} < 0 ? '-' : ' ' : ' ',
-#					defined($conf->{global}{conf}) ?
-#						$conf->{global}{conf} > 0 ? '+' :
-#						$conf->{global}{conf} < 0 ? '-' : ' ' : ' ',
-#					$conf->{count});
 
 		$outTxt .= sprintf ("%s [%s%s] %d\n", $flag,
 					defined($conf->{global}{conf}) ?
@@ -96,29 +82,14 @@ sub flags_dialog {
 						$conf->{global}{"default"} < 0 ? '-' : ' ' : ' ',
 					$conf->{count});
 
-#		# Print global description first (if available)
+		# Print global description first (if available)
 		if (defined($conf->{global}) && length($conf->{global}{descr})) {
-# deprecated: The output is updated to match the new data structure.
-#			if ($conf->{global}{installed}) {
-#				$conf->{global}{masked} and $state = "M";
-#				$conf->{global}{masked} or  $state = "G";
-#			} else {
-#				$conf->{global}{masked} and $state = "m";
-#			}
-#			$outTxt .= "[" . $conf->{global}{descr} . "] $state\n";
-# *  @param[in] state '+','-',' ' for global, installed, forced, masked, package - in that order.
 			$outTxt .= sprintf("\t%s\t ( ) [+%s%s%s ]\n",
 						$conf->{global}{descr},
 						$conf->{global}{installed} ? '+' : ' ',
 						$conf->{global}{forced} ? '+' : ' ',
 						$conf->{global}{masked} ? '+' : ' ');
-							
-# deprecated: The output is updated to match the new data structure.
-#			# Then print the list of affected packages that have no own entry
-#			for my $afLst (@{$conf->{global}{affected}}) {
-#				(defined($afLst) && length($afLst))
-#					and $outTxt .= "($afLst) [Affected by global flag setting] $state\n";
-#			}
+
 			for my $afLst (@{$conf->{global}{affected}}) {
 				(defined($afLst) && length($afLst))
 					and $outTxt .= sprintf("\t%s\t (%s) [+    ]\n",
@@ -129,18 +100,6 @@ sub flags_dialog {
 
 		# Finally print the local description lines
 		for my $pkg (sort keys %{$conf->{"local"}}) {
-# deprecated: The output is updated to match the new data structure.
-#			$state = "l";
-#			if ($conf->{"local"}{$pkg}{installed}) {
-#				$state = "L";
-#				if ($conf->{global}{masked}) {
-#					$conf->{"local"}{$pkg}{masked} > -1 and $state = "M";
-#					$conf->{"local"}{$pkg}{masked} <  0 and $state = "L";
-#				}
-#			} elsif ($conf->{global}{masked}) {
-#					$conf->{"local"}{$pkg}{masked} > -1 and $state = "m";
-#			}
-#			$outTxt .= sprintf("(%s) [%s] %s\n", $pkg, $conf->{"local"}{$pkg}{descr}, $state);
 			$outTxt .= sprintf("\t%s\t (%s) [ %s%s%s%s]\n",
 						$conf->{"local"}{$pkg}{descr},
 						$pkg,
