@@ -233,13 +233,31 @@ static int drawflag(sFlag* flag, bool highlight)
 
 	// print descriptions according to filters
 	if(idx < flag->ndesc) {
-		int lHeight = wHeight(List);
+		int  lHeight = wHeight(List);
+		int  descLen = wWidth(List) - (minwidth + 9);
+		bool hasHead = false;
+		char special = ' ';
+		char *p;
 		for( ; (idx < flag->ndesc) && (line < lHeight); ++idx) {
 			// Continue if any of the filters apply:
 			if (!isDescLegal(flag, idx))
 				continue;
 
-			if (!buf[0]) {
+			// Set special character if needed:
+			if ( (flag->globalForced && ('-' != flag->desc[idx].stateForced))
+			  || isDescForced(flag, idx))
+				special = 'F';
+			else if ( (flag->globalMasked && ('-' != flag->desc[idx].stateMasked))
+				   || isDescMasked(flag, idx))
+				special = 'M';
+			else
+				special = ' ';
+
+			if (hasHead) {
+				// Add spaces under the flag display
+				for(p = buf; p != buf + minwidth; ++p)
+					*p = ' ';
+			} else {
 				/* print the selection, name and state of the flag */
 				char prefix[2]  = { 0, 0 };
 				char postfix[2] = { 0, 0 };
@@ -263,17 +281,20 @@ static int drawflag(sFlag* flag, bool highlight)
 					/* distance */
 					(int)(minwidth - postlen - strlen(flag->name)), " ");
 					// At this point buf is filled up to minwidth
+				hasHead = true;
 			} // End of generating left side mask display
 
 			/* Display flag state
 			 * The order in which the states are to be displayed is:
-			 * 1. make.defaults
-			 * 2. package.use
-			 * 3. make.conf
-			 * 4. global/local
-			 * 5. installed/not installed
+			 * 1. Masked/Forced special hint
+			 * 2. make.defaults
+			 * 3. package.use
+			 * 4. make.conf
+			 * 5. global/local
+			 * 6. installed/not installed
 			 */
-			sprintf(buf + minwidth, " %c%c%c %c%c ",
+			sprintf(buf + minwidth, "%c %c%c%c %c%c ",
+				special,
 				flag->stateDefault,
 				flag->desc[idx].statePackage,
 				flag->stateConf,
@@ -292,9 +313,7 @@ static int drawflag(sFlag* flag, bool highlight)
 				sprintf(desc, "%s", flag->desc[idx].desc);
 
 			// Now display the description line according to its horizontal position
-			sprintf(buf + minwidth + 8, "%-*.*s",
-				wWidth(List)-minwidth - 8,
-				wWidth(List)-minwidth - 8,
+			sprintf(buf + minwidth + 9, "%-*.*s", descLen, descLen,
 				strlen(desc) > (size_t)descriptionleft
 					? &desc[descriptionleft]
 					: "");
@@ -307,16 +326,11 @@ static int drawflag(sFlag* flag, bool highlight)
 
 			// Finally put the line on the screen
 			mvwaddstr(win(List), line, 0, buf);
-			mvwaddch(win(List), line, minwidth,     ACS_VLINE); // Before state
-			mvwaddch(win(List), line, minwidth + 4, ACS_VLINE); // Between state and scope
-			mvwaddch(win(List), line, minwidth + 7, ACS_VLINE); // After scope
+			mvwaddch(win(List), line, minwidth + 1, ACS_VLINE); // Before state
+			mvwaddch(win(List), line, minwidth + 5, ACS_VLINE); // Between state and scope
+			mvwaddch(win(List), line, minwidth + 8, ACS_VLINE); // After scope
 			++line;
 			++usedY;
-			if(((idx + 1) < flag->ndesc) && (line < lHeight) ) {
-				char *p;
-				for(p = buf; p != buf + minwidth; p++)
-					*p = ' ';
-			}
 		}
 	} else {
 		memset(buf+minwidth, ' ', wWidth(List)-minwidth);
