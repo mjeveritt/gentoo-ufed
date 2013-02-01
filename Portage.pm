@@ -172,7 +172,7 @@ sub _add_flag
 		} else {
 			%{$use_flags->{$flag}{"local"}{$pkg}} = %data;
 		}
-		++$use_flags->{$flag}{count};
+		++$use_flags->{$flag}{count} if (length($descr));
 
 
 	} else {
@@ -198,6 +198,7 @@ sub _add_temp
 		defined ($_use_temp->{$flag}{global})
 			or %{$_use_temp->{$flag}{global}} = %$_use_template;
 	} else {
+		_add_temp($flag, "global"); ## This must exist!
 		defined ($_use_temp->{$flag}{"local"}{$pkg})
 			or %{$_use_temp->{$flag}{"local"}{$pkg}} = %$_use_template;
 	}
@@ -304,8 +305,8 @@ sub _gen_use_flags
 	for my $flag (keys %$_use_temp) {
 		my %descCons = ();
 		my $flagRef  = $_use_temp->{$flag}; ## Shortcut
-		my $hasGlobal= (defined($flagRef->{global}) && length($flagRef->{global}{descr})) ? 1 : 0;
-		my $lCount   = $hasGlobal;
+		my $hasGlobal= defined($flagRef->{global}) ? 1 : 0;
+		my $lCount   = ($hasGlobal && length($flagRef->{global}{desc})) ? 1 : 0;
 		my $gDesc    = "";
 		my $gKey     = "";
 		my $gRef     = $flagRef->{global};
@@ -523,7 +524,6 @@ sub _read_make_conf {
 
 	# Note the conf state of the read flags:
 	for my $flag ( keys %{$oldEnv{USE}}) {
-
 		_add_temp($flag, "global");
 
 		$oldEnv{USE}{$flag}
