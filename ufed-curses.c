@@ -42,8 +42,8 @@ void draw(bool withSep);
 void drawScrollbar(void);
 int  getListHeight(void);
 void resetDisplay(bool withSep);
-void setNextItem(int count, bool strict);
-void setPrevItem(int count, bool strict);
+bool setNextItem(int count, bool strict);
+bool setPrevItem(int count, bool strict);
 
 
 /* internal functions */
@@ -197,25 +197,28 @@ void drawFlags() {
 			topline, currentflag->listline)
 
 	sFlag* flag = currentflag;
+	sFlag* last = currentflag;
 
 	int line = flag->listline - topline;
 
 	/* move to the top of the displayed list */
 	while ((flag != flags) && (line > 0)) {
 		flag = flag->prev;
-		if (isFlagLegal(flag))
+		if (isFlagLegal(flag)) {
 			line -= getFlagHeight(flag);
+			last = flag;
+		}
 	}
 
 	/* If the above move ended up with flag == flags
-	 * topline and line must be adapted to the current
-	 * flag.
+	 * topline and line must be adapted to the last
+	 * found not filtered flag.
 	 * This can happen if the flag filter is toggled
 	 * and the current flag is the first not filtered.
 	 */
 	if ((flag == flags) && !isFlagLegal(flag)) {
-		flag    = currentflag;
-		topline = currentflag->listline;
+		flag    = last;
+		topline = last->listline;
 		line    = 0;
 	}
 
@@ -408,10 +411,14 @@ void draw(bool withSep) {
 }
 
 bool scrollcurrent() {
-	if(currentflag->listline < topline)
-		topline = max(currentflag->listline, currentflag->listline + currentflag->ndesc - wHeight(List));
-	else if( (currentflag->listline + currentflag->ndesc) > (topline + wHeight(List)))
-		topline = min(currentflag->listline + currentflag->ndesc - wHeight(List), currentflag->listline);
+	int lsLine = currentflag->listline;
+	int flHeight = getFlagHeight(currentflag);
+	int btLine   = lsLine + flHeight;
+	int wdHeight = wHeight(List);
+	if(lsLine < topline)
+		topline = max(lsLine, btLine - wdHeight);
+	else if( btLine > (topline + wdHeight))
+		topline = min(btLine - wdHeight, lsLine);
 	else
 		return false;
 	drawFlags();
@@ -777,77 +784,140 @@ void resetDisplay(bool withSep)
 /** @brief set currentflag to the next flag @a count lines away
  * @param count set how many lines should be skipped
  * @param strict if set to false, at least one item has to be skipped.
+ * @return true if currentflag was changed, flase otherwise
  */
-void setNextItem(int count, bool strict)
+bool setNextItem(int count, bool strict)
 {
-	bool   result  = true;
-	sFlag* curr    = currentflag;
-	int    skipped = 0;
-	int    oldTop  = topline;
+	bool   result   = true;
+	sFlag* curr     = currentflag;
+	sFlag* lastFlag = NULL;
+	int    lastTop  = 0;
+	int    skipped  = 0;
+	int    oldTop   = topline;
+	int    fHeight  = 0;
+
+	// It is crucial to start with a not filtered flag:
+	while (!isFlagLegal(curr) && (curr->next != flags)) {
+		topline += curr->ndesc;
+		curr     = curr->next;
+	}
+
+	// Break this if the current item is still filtered
+	if (!isFlagLegal(curr)) {
+		topline = oldTop;
+		return false;
+	}
 
 	while (result && (skipped < count)) {
-		if (curr->next == flags)
-			result = false; // The list is finished, no next item to display
-		else
-			curr = curr->next;
+		lastFlag = curr;
+		lastTop  = topline;
+		fHeight  = getFlagHeight(curr);
+		skipped += fHeight;
+		topline += curr->ndesc - fHeight;
+		curr     = curr->next;
 
-		// curr is only counted if it is not filtered out:
-		if (isFlagLegal(curr))
-			skipped += getFlagHeight(curr);
-		else
-			// Otherwise topline must be adapted or scrollcurrent() wreaks havoc!
+		// Ensure a not filtered flag to continue
+		while (!isFlagLegal(curr) && (curr->next != flags)) {
 			topline += curr->ndesc;
+			curr     = curr->next;
+		}
+
+		// It is possible to end up with the last flag
+		// which might be filtered:
+		if (curr->next == flags) {
+			if (!isFlagLegal(curr)) {
+				// Revert to last known legal state:
+				curr     = lastFlag;
+				topline  = lastTop;
+				skipped -= getFlagHeight(curr);
+			}
+			// Did we fail ?
+			if (skipped < count)
+				result = false;
+		}
 	} // End of trying to find a next item
 
 	if ( (result && strict) || (!strict && skipped) ) {
-		// Move back again if curr ended up being filtered
-		while (!isFlagLegal(curr)) {
-			topline -= curr->ndesc;
-			curr = curr->prev;
-		}
 		drawflag(currentflag, FALSE);
 		currentflag = curr;
 		if (!scrollcurrent())
 			drawflag(currentflag, TRUE);
-	} else
+		result = true;
+	} else {
 		topline = oldTop;
+		result  = false;
+	}
+
+	return result;
 }
 
 
 /* @brief set currentflag to the previous item @a count lines away
  * @param count set how many lines should be skipped
  * @param strict if set to false, at least one item has to be skipped.
+ * @return true if currentflag was changed, flase otherwise
  */
-void setPrevItem(int count, bool strict)
+bool setPrevItem(int count, bool strict)
 {
-	bool   result  = true;
-	sFlag* curr    = currentflag;
-	int    skipped = 0;
-	int    oldTop  = topline;
+	bool   result   = true;
+	sFlag* curr     = currentflag;
+	sFlag* lastFlag = NULL;
+	int    lastTop  = 0;
+	int    skipped  = 0;
+	int    oldTop   = topline;
+	int    fHeight  = 0;
+
+	// It is crucial to start with a not filtered flag:
+	while (!isFlagLegal(curr) && (curr != flags)) {
+		topline -= curr->ndesc;
+		curr     = curr->prev;
+	}
+	// Break this if the current item is still filtered
+	if (!isFlagLegal(curr)) {
+		topline = oldTop;
+		return false;
+	}
 
 	while (result && (skipped < count)) {
-		if (curr == flags)
-			result = false; // The list is finished, no previous item to display
-		else
-			curr = curr->prev;
+		lastFlag = curr;
+		lastTop  = topline;
+		curr     = curr->prev;
 
-		// curr is only counted if it is not filtered out:
-		if (isFlagLegal(curr))
-			skipped += getFlagHeight(curr);
-		else
+		// Ensure a not filtered flag to continue
+		while (!isFlagLegal(curr) && (curr != flags)) {
 			topline -= curr->ndesc;
-	} // End of trying to find next item
+			curr     = curr->prev;
+		}
+
+		fHeight  = getFlagHeight(curr);
+		skipped += fHeight;
+		topline -= curr->ndesc - fHeight;
+
+		// It is possible to end up with the first flag
+		// which might be filtered:
+		if (curr == flags) {
+			if (!isFlagLegal(curr)) {
+				// Revert to last known legal state:
+				skipped -= getFlagHeight(curr);
+				curr     = lastFlag;
+				topline  = lastTop;
+			}
+			// Did we fail ?
+			if (skipped < count)
+				result = false;
+		}
+	} // End of trying to find a next item
 
 	if ( (result && strict) || (!strict && skipped) ) {
-		// Move forth again if curr ended up being filtered
-		while (!isFlagLegal(curr)) {
-			topline += curr->ndesc;
-			curr = curr->next;
-		}
 		drawflag(currentflag, FALSE);
 		currentflag = curr;
 		if (!scrollcurrent())
 			drawflag(currentflag, TRUE);
-	} else
+		result = true;
+	} else {
 		topline = oldTop;
+		result  = false;
+	}
+
+	return result;
 }
