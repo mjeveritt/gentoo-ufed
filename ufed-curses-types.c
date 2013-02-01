@@ -321,14 +321,22 @@ bool isDescLegal (const sFlag* flag, int idx)
 
 	if (flag && (idx < flag->ndesc)) {
 		if ( // 1.: Check isGlobal versus e_scope
-			 ( ( flag->desc[idx].isGlobal && e_scope != eScope_local)
-			|| (!flag->desc[idx].isGlobal && e_scope != eScope_global) )
+			 ( ( flag->desc[idx].isGlobal && (e_scope != eScope_local))
+			|| (!flag->desc[idx].isGlobal && (e_scope != eScope_global)) )
 			 // 2.: Check isInstalled versus e_state
-		  && ( ( flag->desc[idx].isInstalled && e_state != eState_notinstalled)
-			|| (!flag->desc[idx].isInstalled && e_state != eState_installed) )
-			 // 3.: Check stateMasked versus e_mask
-		  && ( (('+' == flag->desc[idx].stateMasked) && e_mask != eMask_unmasked)
-			|| (('+' != flag->desc[idx].stateMasked) && e_mask != eMask_masked) ) )
+		  && ( ( flag->desc[idx].isInstalled && (e_state != eState_notinstalled))
+			|| (!flag->desc[idx].isInstalled && (e_state != eState_installed)) )
+			 // 3.: Check stateForced/stateMasked versus e_mask
+		  && ( ( (e_mask != eMask_unmasked)
+			  && ( (flag->globalMasked && ('-' != flag->desc[idx].stateMasked))
+				|| ('+' == flag->desc[idx].stateMasked)
+			    || (flag->globalForced && ('-' != flag->desc[idx].stateForced))
+				|| ('+' == flag->desc[idx].stateForced) ) )
+		    || ( (e_mask != eMask_masked)
+			  && ( (!flag->globalMasked && ('+' != flag->desc[idx].stateMasked))
+				|| ('-' == flag->desc[idx].stateMasked) )
+			  && ( (!flag->globalForced && ('+' != flag->desc[idx].stateForced))
+				|| ('-' == flag->desc[idx].stateForced) ) ) ) )
 			result = true;
 	}
 
