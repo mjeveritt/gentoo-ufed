@@ -284,11 +284,13 @@ sub _final_cleaning
 			and $_use_temp->{'-*'}{global}{conf} = 1;
 	}
 	
-	# The following use flags are dangerous and must no be
-	# available using ufed:
-	for my $flag ("*", "boostrap", "build") {
-		defined($_use_temp->{"$flag"}) and delete($_use_temp->{"$flag"});
-	}
+	# The following use flags are dangerous or internal only
+	# and must no be available using ufed:
+	defined($_use_temp->{"*"})         and delete($_use_temp->{"*"});
+	defined($_use_temp->{"bootstrap"}) and delete($_use_temp->{"bootstrap"});
+	defined($_use_temp->{"build"})     and delete($_use_temp->{"build"});
+	defined($_use_temp->{"livecd"})    and delete($_use_temp->{"livecd"});
+	defined($_use_temp->{"selinux"})   and delete($_use_temp->{"selinux"});
 
 	return;
 }
