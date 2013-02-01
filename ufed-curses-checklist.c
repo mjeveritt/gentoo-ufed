@@ -236,19 +236,17 @@ static int drawflag(sFlag* flag, bool highlight)
 		int  lHeight = wHeight(List);
 		int  descLen = wWidth(List) - (minwidth + 9);
 		bool hasHead = false;
-		char special = ' ';
-		char *p;
+		char *p, special;
+
 		for( ; (idx < flag->ndesc) && (line < lHeight); ++idx) {
 			// Continue if any of the filters apply:
 			if (!isDescLegal(flag, idx))
 				continue;
 
 			// Set special character if needed:
-			if ( (flag->globalForced && ('-' != flag->desc[idx].stateForced))
-			  || isDescForced(flag, idx))
+			if (isDescForced(flag, idx))
 				special = 'F';
-			else if ( (flag->globalMasked && ('-' != flag->desc[idx].stateMasked))
-				   || isDescMasked(flag, idx))
+			else if (isDescMasked(flag, idx))
 				special = 'M';
 			else
 				special = ' ';
@@ -259,27 +257,19 @@ static int drawflag(sFlag* flag, bool highlight)
 					*p = ' ';
 			} else {
 				/* print the selection, name and state of the flag */
-				char prefix[2]  = { 0, 0 };
-				char postfix[2] = { 0, 0 };
-				int  postlen    = 5;
-				if (isDescForced(flag, idx)) {
-					prefix[0]  = '+';
-					postfix[0] = '+';
-					postlen    = 3;
-				} else if (isDescMasked(flag, idx)) {
-					prefix[0]  = '(';
-					postfix[0] = ')';
-					postlen    = 3;
-				}
 				sprintf(buf, " %c%c%c %s%s%s%-*s ",
 					/* State of selection */
 					flag->stateConf == ' ' ? '(' : '[',
 					flag->stateConf,
 					flag->stateConf == ' ' ? ')' : ']',
 					/* name */
-					prefix, flag->name, postfix,
+					flag->globalForced ? "(+" : flag->globalMasked ? "(" : "",
+					flag->name,
+					(flag->globalForced || flag->globalMasked) ? ")" : "",
 					/* distance */
-					(int)(minwidth - postlen - strlen(flag->name)), " ");
+					(int)(minwidth
+						- (flag->globalForced ? 2 : flag->globalMasked ? 3 : 5)
+						- strlen(flag->name)), " ");
 					// At this point buf is filled up to minwidth
 				hasHead = true;
 			} // End of generating left side mask display
