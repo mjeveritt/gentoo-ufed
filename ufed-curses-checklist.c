@@ -169,7 +169,8 @@ static void read_flags(void)
 			++lineNum;
 		} // loop through description lines
 
-		// Add line data to the list stats
+		// Update flag states and add data to the list stats
+		genFlagStats(newFlag);
 		addLineStats(newFlag, &listStats);
 	} // loop while input given
 

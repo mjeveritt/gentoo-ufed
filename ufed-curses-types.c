@@ -224,6 +224,50 @@ void destroyFlag (sFlag** root, sFlag** flag)
 }
 
 
+/** @brief generate globalMasked and globalForced
+ * This function checks whether either the first global description,
+ * or all local descriptions with no available global description of
+ * a flag is/are masked and/or forced and sets the global states
+ * accordingly.
+ * @param[in,out] flag pointer to the flag to check
+ */
+void genFlagStats (sFlag* flag)
+{
+	if (flag) {
+		bool hasLocal       = false;
+		bool hasGlobal      = false;
+		bool allLocalMasked = true;
+		bool allLocalForced = true;
+		for (int i = 0;
+			(!hasGlobal || allLocalMasked || allLocalForced)
+				&& (i < flag->ndesc)
+			; ++i) {
+			if (flag->desc[i].isGlobal) {
+				hasGlobal = true;
+				if ('+' == flag->desc[i].stateForced)
+					flag->globalForced = true;
+				if ('+' == flag->desc[i].stateMasked)
+					flag->globalMasked = true;
+			} else {
+				hasLocal = true;
+				if ('+' != flag->desc[i].stateForced)
+					allLocalForced = false;
+				if ('+' != flag->desc[i].stateMasked)
+					allLocalMasked = false;
+			}
+		}
+
+		// Now if there is no global description,
+		// the "global" settings are taken from the
+		// local ones.
+		if (!hasGlobal && hasLocal) {
+			flag->globalForced = allLocalForced;
+			flag->globalMasked = allLocalMasked;
+		}
+	}
+}
+
+
 /** @brief determine the number of lines used by @a flag
  *  This method checks the flag and its description line(s)
  *  settings against the globally active filters.

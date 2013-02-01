@@ -166,6 +166,7 @@ sFlag* addFlag      (sFlag** root, const char* name, int line, int ndesc, const 
 size_t addFlagDesc  (sFlag* flag, const char* pkg, const char* desc, const char state[5]);
 void   addLineStats (const sFlag* flag, sListStats* stats);
 void   destroyFlag  (sFlag** root, sFlag** flag);
+void   genFlagStats (sFlag* flag);
 int    getFlagHeight(const sFlag* flag);
 bool   isDescForced (const sFlag* flag, int idx);
 bool   isDescLegal  (const sFlag* flag, int idx);
