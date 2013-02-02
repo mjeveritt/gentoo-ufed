@@ -108,8 +108,6 @@ INIT {
 	_determine_make_conf;
 	_determine_profiles;
 	_read_make_globals;  
-	_read_make_defaults; 
-	_read_make_conf;
 
 	# Now with the defaults loaded, a check is in order
 	# whether the set USE_ORDER is supported:
