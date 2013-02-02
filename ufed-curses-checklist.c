@@ -221,9 +221,12 @@ static int drawflag(sFlag* flag, bool highlight)
 	 */
 	if (line < 0) {
 		if (-line < getFlagHeight(flag)) {
-			idx   = -line;
-			line  = 0;
-			usedY = idx;
+			while (line < 0) {
+				if (isDescLegal(flag, idx++)) {
+					++line;
+					++usedY;
+				}
+			}
 		} else
 			// Otherwise this item is out of the display area
 			return 0;
@@ -487,17 +490,15 @@ static int callback(sFlag** curr, int key)
 						wattrset(wInp, COLOR_PAIR(4) | A_BOLD | A_REVERSE);
 						mvwaddstr(wInp, 0, 0, fayt);
 						wmove(wInp, 0, fLen - 1);
-						wnoutrefresh(wLst);
 						wrefresh(wInp);
 					} else {
-						drawflag(*curr, FALSE);
-						*curr = flag;
-						scrollcurrent();
-						drawflag(*curr, TRUE);
 						wattrset(wInp, COLOR_PAIR(5) | A_BOLD);
 						mvwaddstr(wInp, 0, 0, fayt);
-						wnoutrefresh(wLst);
-						wrefresh(wInp);
+						wnoutrefresh(wInp);
+						drawflag(*curr, FALSE);
+						*curr = flag;
+						if (!scrollcurrent())
+							drawflag(*curr, TRUE);
 					}
 				}
 			}

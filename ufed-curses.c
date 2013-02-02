@@ -417,12 +417,14 @@ bool scrollcurrent() {
 	int flHeight = getFlagHeight(currentflag);
 	int btLine   = lsLine + flHeight;
 	int wdHeight = wHeight(List);
+
 	if(lsLine < topline)
 		topline = max(lsLine, btLine - wdHeight);
 	else if( btLine > (topline + wdHeight))
 		topline = min(btLine - wdHeight, lsLine);
 	else
 		return false;
+
 	drawFlags();
 	drawScrollbar();
 	return true;
