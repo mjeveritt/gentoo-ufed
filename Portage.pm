@@ -630,7 +630,7 @@ sub _read_packages {
 		# loop through all openable directories in cat
 		while(my $pkg = readdir $catdir) {
 			next if $pkg eq '.' or $pkg eq '..';
-			my @puse = ();
+#			my @puse = ();
 			my @iuse = ();
 			
 			# Load IUSE to learn which use flags the package in this version knows
@@ -642,12 +642,12 @@ sub _read_packages {
 			}
 
 			# Load PKGUSE to learn which use flags have been set when this package was emerged
-			my $fpuse = "${_EPREFIX}/var/db/pkg/$cat/$pkg/PKGUSE";
-			if(open my $use, '<', $fpuse) {
-				local $/;
-				@puse = split ' ', <$use>;
-				close $use;
-			}
+#			my $fpuse = "${_EPREFIX}/var/db/pkg/$cat/$pkg/PKGUSE";
+#			if(open my $use, '<', $fpuse) {
+#				local $/;
+#				@puse = split ' ', <$use>;
+#				close $use;
+#			}
 
 			# could be shortened, but make sure not to strip off part of the name
 			$pkg =~ s/-\d+(?:\.\d+)*\w?(?:_(?:alpha|beta|pre|rc|p)\d*)?(?:-r\d+)?$//;
@@ -665,14 +665,14 @@ sub _read_packages {
 				$_use_temp->{$flag}{"local"}{$pkg}{installed}   = 1;
 				$_use_temp->{$flag}{global}{installed} = 1;
 			} ## End of looping IUSE
-			for my $flag (@puse) {
-				my $state = $flag =~ s/^-// || 0; 
-
-				if ( defined($_use_temp->{$flag}{global})
-				  && defined($_use_temp->{$flag}{"local"}{$pkg})) {
-				  	$_use_temp->{$flag}{"local"}{$pkg}{"package"} = $state ? -1 : 0;
-				}
-			} ## End of looping PKGUSE
+#			for my $flag (@puse) {
+#				my $state = $flag =~ s/^-// || 0; 
+#
+#				if ( defined($_use_temp->{$flag}{global})
+#				  && defined($_use_temp->{$flag}{"local"}{$pkg})) {
+#				  	$_use_temp->{$flag}{"local"}{$pkg}{"package"} = $state ? -1 : 0;
+#				}
+#			} ## End of looping PKGUSE
 			
 		}
 		closedir $catdir;
