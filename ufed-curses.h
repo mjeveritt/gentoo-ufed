@@ -1,12 +1,14 @@
-#include "ufed-curses-types.h"
-
-/* global members */
-extern sWindow window[wCount];
+#include "ufed-curses-globals.h"
 
 /* global prototypes */
 void cursesdone(void);
 void initcurses(void);
 
+void draw(bool withSep);
+void drawBottom(bool withSep);
+void drawFlags(void);
+void drawStatus(bool withSep);
+void drawTop(bool withSep);
 int maineventloop(
 	const char *subtitle,
 	int (*callback)(sFlag** curr, int key),
@@ -14,11 +16,10 @@ int maineventloop(
 	sFlag* flags,
 	const sKey* keys,
 	bool withSep);
-void drawBottom(bool withSep);
-void drawFlags(void);
-void drawStatus(bool withSep);
-void drawTop(bool withSep);
+void resetDisplay(bool withSep);
 bool scrollcurrent(void);
+bool setNextItem(int count, bool strict);
+bool setPrevItem(int count, bool strict);
 bool yesno(const char *);
 
 
