@@ -10,104 +10,122 @@
 #include <strings.h>
 #include <unistd.h>
 
-/* internal types */
-// Do not use an own struct, just use sFlag
-//static struct line {
-//	struct item item;
-//	char *text;
-//} *lines;
-static sFlag* lines = NULL;
 
 /* internal members */
+static sFlag* lines = NULL;
 static size_t helpheight, helpwidth;
 
-/* external members */
-
 /* internal prototypes */
+static int callback(sFlag** curr, int key);
+static int drawline(sFlag* line, bool highlight);
 static void free_lines(void);
+void help(void);
+static void init_lines(void);
 
 /* function implementations */
-static void init_lines(void) {
+static void init_lines(void)
+{
 	static const char * const help[] = {
-"ufed is a simple program designed to help you configure the systems USE "
-"flags (see below) to your liking. Use the Up and Down arrow keys, the "
-"Page Up and Page Down keys, the Home and End keys, or start typing the "
-"name of a flag to select it. Then, use the space bar to toggle the "
-"setting. After changing flags, press the Return or Enter key to make "
-"this permanent, or press Escape to revert your changes.",
+"--- What is ufed ? ---",
 "",
-"Note: Depending on your system, you may need to wait a second before "
-"ufed detects this key; in some cases, you can use the ncurses "
-"environment variable ESCDELAY to change this. See the ncurses(3x) "
+"ufed is a simple program designed to help you configure the systems USE "
+"flags (see below) to your liking.",
+"",
+"--- Navigation and control ---",
+"",
+"Use the Up and Down arrow keys, the Page Up and Page Down keys, the Home and "
+"End keys, or start typing the name of a flag to select it.",
+"Use the space bar to toggle the setting.",
+"",
+"If ncurses is installed with the \"gpm\" use flag enabled, you can use your "
+"mouse to navigate and to toggle the settings, too.",
+"",
+"After changing flags, press the Return or Enter key to make this permanent, "
+"or press Escape to revert your changes.",
+"",
+"Note: Depending on your system, you may need to wait a second before ufed "
+"detects the Escape key or mouse clicks; in some cases, you can use the "
+"ncurses environment variable ESCDELAY to change this. See the ncurses(3x) "
 "manpage for more info.",
 "",
-"ufed will present you with a list of descriptions for each USE flag. If "
-"a description is too long to fit on your screen, you can use the Left "
-"and Right arrow keys to scroll the descriptions.",
+"--- Display layout ---",
 "",
-"ufed attempts to show you where a particular use setting came from. "
-"Each USE flag has a 2 character descriptor that represents the two "
-"ways a use flag can be set.",
+"ufed will present you with a list of descriptions for each USE flag. If a "
+"description is too long to fit on your screen, you can use the Left and Right "
+"arrow keys to scroll the descriptions.",
 "",
-"The 1st char is the setting from the make.defaults file. These are "
-"the defaults for Gentoo as a whole. These should not be changed.",
+"ufed attempts to show you where a particular use setting came from, and what "
+"its scope and state is.",
 "",
-"The 2nd char is the settings from the make.conf file. these are "
-"the only ones that should be changed by the user and these are the ones "
-"that ufed changes.",
+"The display consists of the following information:",
+" (s) flag  M|DPC|Si| (packages) description",
 "",
-"If the character is a + then that USE flag was set in that file, if it "
-"is a space then the flag was not mentioned in that file and if it is a "
-"- then that flag was unset in that file.",
+"(s)  : Your selection, either '+' to enable, '-' to disable, or empty to keep "
+"the default value.",
+"flag : The name of the flag",
+"M    : Either 'M' for Masked (always disabled), 'F' for Forced (always "
+"enabled) or empty for regular flags.",
+"D    : Default settings from make.defaults.",
+"P    : Package settings from package.use.",
+"C    : Configration setting from make.conf.",
+"S    : Scope of the description, package specific descriptions have an 'L' "
+"for \"local\".",
+"i    : 'i' if any affected package is installed.",
+"(packages): List of affected packages",
+"description : The description of the flag from use.desc or use.local.desc.",
 "",
-"-- What Are USE Flags? --",
+"If the character in any of the D, P or C column is a + then that USE flag was "
+"set in that file, if it is a space then the flag was not mentioned in that "
+"file and if it is a - then that flag was unset in that file.",
+"",
+"--- What Are USE Flags? ---",
 "",
 "The USE settings system is a flexible way to enable or disable various "
-"features at package build-time on a global level and for individual "
-"packages. This allows an administrator control over how packages are "
-"built in regards to the optional features which can be compiled into "
-"those packages.",
+"features at package build-time on a global level and for individual packages. "
+"This allows an administrator control over how packages are built in regards "
+"to the optional features which can be compiled into those packages.",
 "",
-"For instance, packages with optional GNOME support can have this "
-"support disabled at compile time by disabling the \"gnome\" USE setting. "
-"Enabling the \"gnome\" USE setting would enable GNOME support in these "
-"same packages.",
+"For instance, packages with optional GNOME support can have this support "
+"disabled at compile time by disabling the \"gnome\" USE setting. Enabling the "
+"\"gnome\" USE setting would enable GNOME support in these packages.",
 "",
 "The effect of USE settings on packages is dependent on whether both the "
 "software itself and the package ebuild supports the USE setting as an "
 "optional feature. If the software does not have support for an optional "
-"feature then the corresponding USE setting will obviously have no "
-"effect.",
+"feature then the corresponding USE setting will obviously have no effect.",
 "",
-"Also many package dependencies are not considered optional by the "
-"software and thus USE settings will have no effect on those mandatory "
-"dependencies.",
+"Also many package dependencies are not considered optional by the software "
+"and thus USE settings will have no effect on those mandatory dependencies.",
 "",
-"A list of USE keywords used by a particular package can be found by "
-"checking the IUSE line in any ebuild file.",
+"A list of USE keywords used by a particular package can be found by checking "
+"the IUSE line in any ebuild file.",
 "",
 "See",
 " http://www.gentoo.org/doc/en/handbook/handbook-x86.xml?part=2&chap=1",
 "for more information on USE flags.",
 "",
-"Please also note that if ufed describes a flag as (Unknown) it "
-"generally means that it is either a spelling error in one of the two "
-"configuration files or it is not an offically sanctioned USE flag. "
+"Please also note that if ufed describes a flag as (Unknown) it generally "
+"means that it is either a spelling error in one of the three configuration "
+"files or it is not an officially sanctioned USE flag.",
 "Sanctioned USE flags can be found in",
 " /usr/portage/profiles/use.desc",
 "and in",
 " /usr/portage/profiles/use.local.desc",
 "",
-"***",
+"--- Credits ---",
 "",
 "ufed was originally written by Maik Schreiber <blizzy@blizzy.de>.",
-"ufed was previously maintained by Robin Johnson <robbat2@gentoo.org>, "
-"Fred Van Andel <fava@gentoo.org>, and Arun Bhanu <codebear@gentoo.org>.",
-"ufed is currently maintained by Harald van Dijk <truedfx@gentoo.org>.",
+"ufed was previously maintained by",
+" Robin Johnson <robbat2@gentoo.org>,",
+" Fred Van Andel <fava@gentoo.org>,",
+" Arun Bhanu <codebear@gentoo.org> and",
+" Harald van Dijk <truedfx@gentoo.org>.",
+"ufed is currently maintained by",
+" Sven Eden <yamakuzure@gmx.net>.",
 "",
-"Copyright 1999-2005 Gentoo Foundation",
+"Copyright 1999-2013 Gentoo Foundation",
 "Distributed under the terms of the GNU General Public License v2"
-	};
+};
 	sFlag* line = NULL;
 	size_t lineCount = sizeof(help) / sizeof(*help);
 	size_t currLine  = 0;
@@ -154,7 +172,8 @@ static void init_lines(void) {
 	}
 }
 
-static void free_lines(void) {
+static void free_lines(void)
+{
 	sFlag* line = lines->prev;
 
 	// Clear all lines
@@ -174,14 +193,24 @@ static const sKey keys[] = {
 #undef key
 };
 
-static int drawline(sFlag* line, bool highlight) {
+static int drawline(sFlag* line, bool highlight)
+{
 	char buf[wWidth(List)+1];
 
 	sprintf(buf, "%-*.*s", wWidth(List), wWidth(List), line->desc[0].desc);
-	if(!highlight)
-		wattrset(win(List), COLOR_PAIR(3));
-	else
-		wattrset(win(List), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
+
+	if ('-' == buf[0]) {
+		if (highlight)
+			wattrset(win(List), COLOR_PAIR(5) | A_REVERSE);
+		else
+			wattrset(win(List), COLOR_PAIR(5) | A_BOLD);
+	} else {
+		if (highlight)
+			wattrset(win(List), COLOR_PAIR(2) | A_BOLD | A_REVERSE);
+		else
+			wattrset(win(List), COLOR_PAIR(3));
+	}
+
 	mvwaddstr(win(List), line->currline, 0, buf);
 	if(highlight)
 		wmove(win(List), line->currline, 0);
@@ -189,7 +218,8 @@ static int drawline(sFlag* line, bool highlight) {
 	return 1;
 }
 
-static int callback(sFlag** curr, int key) {
+static int callback(sFlag** curr, int key)
+{
 	switch(key) {
 		case 'Q': case 'q':
 		case '\033':
@@ -206,7 +236,8 @@ static int callback(sFlag** curr, int key) {
 	}
 }
 
-void help(void) {
+void help(void)
+{
 	if ( ((int)helpheight != wHeight(List))
 	  || ((int)helpwidth  != wWidth(List)) ) {
 		if(lines!=NULL)
@@ -215,9 +246,4 @@ void help(void) {
 	}
 
 	maineventloop("", &callback, &drawline, lines, keys, false);
-
-	// Re-draw separators:
-	drawTop(true);
-	drawBottom(true);
-	drawStatus(true);
 }
