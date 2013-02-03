@@ -11,46 +11,25 @@ static const char* subtitle = NULL;
 static const sKey* keys     = NULL;
 static sFlag* currentflag   = NULL;
 static sFlag* flags         = NULL;
+static bool   withSep       = false;
 
 // Needed for the scrollbar and its mouse events
 static int listHeight, barStart, barEnd, dispStart, dispEnd;
 
 
-/* external members */
-sWindow window[wCount] = {
-	{ NULL,  0,  0,  5,  0 }, /* Top       --- Top ---- */
-	{ NULL,  5,  0, -8,  3 }, /* Left      L+------+S|R */
-	{ NULL,  5,  3, -9, -6 }, /* List      E|      |c|i */
-	{ NULL, -4,  3,  1, -6 }, /* Input     F| List |r|g */
-	{ NULL,  5, -3, -8,  1 }, /* Scrollbar T|______|B|h */
-	{ NULL,  5, -2, -8,  2 }, /* Right     |+Input-+r|t */
-	{ NULL, -3,  0,  3,  0 }, /* Bottom    ---Bottom--- */
-};
-int topline = 0, bottomline = 0, minwidth = 0;
-extern eMask e_mask;
-extern eOrder e_order;
-extern eScope e_scope;
-extern eState e_state;
-extern sListStats listStats;
-
-
 /* internal prototypes */
 static int (*callback)(sFlag**, int);
 static int (*drawflag)(sFlag*, bool);
-void checktermsize(void);
-void draw(bool withSep);
-void drawScrollbar(void);
-int  getListHeight(void);
-void resetDisplay(bool withSep);
-bool setNextItem(int count, bool strict);
-bool setPrevItem(int count, bool strict);
+static void checktermsize(void);
+static void drawScrollbar(void);
+static int  getListHeight(void);
 
 
 /* internal functions */
 
 /** @brief get the sum of lines the list holds respecting current filtering
 **/
-int getListHeight()
+static int getListHeight()
 {
 	int result = 0;
 
@@ -110,9 +89,9 @@ void cursesdone() {
 	endwin();
 }
 
-void checktermsize() {
+static void checktermsize() {
 	while(wHeight(List) < 1
-	   || wWidth(List)  < minwidth) {
+	   || wWidth(List)  < (minwidth + 10)) {
 #ifdef KEY_RESIZE
 		clear();
 		attrset(0);
@@ -251,7 +230,7 @@ void drawFlags() {
 	wnoutrefresh(win(List));
 }
 
-void drawScrollbar() {
+static void drawScrollbar() {
 	int sHeight = wHeight(Scrollbar);
 	int lHeight = wHeight(List);
 	WINDOW *w = win(Scrollbar);
@@ -485,16 +464,8 @@ int maineventloop(
 		int(*_drawflag)(sFlag*, bool),
 		sFlag* _flags,
 		const sKey *_keys,
-		bool withSep) {
+		bool _withSep) {
 	int result;
-
-	// Always reset the Filters on start and revert on exit
-	eMask  oldMask  = e_mask;
-	eScope oldScope = e_scope;
-	eState oldState = e_state;
-	e_mask  = eMask_unmasked;
-	e_scope = eScope_all;
-	e_state = eState_all;
 
 	{ const char *temp = subtitle;
 		subtitle  = _subtitle;
@@ -512,9 +483,23 @@ int maineventloop(
 		keys  = _keys;
 		_keys = temp; }
 
-	currentflag = flags;
-	topline = 0;
+	// Save old display position
+	sFlag* oldCurr = currentflag;
+	bool   oldSep  = withSep;
+	int    oldTop  = topline;
+	currentflag    = flags;
+	topline        = 0;
+	withSep        = _withSep;
 
+	// Save filter settings and start with neutral ones
+	eMask  oldMask  = e_mask;
+	eScope oldScope = e_scope;
+	eState oldState = e_state;
+	e_mask  = eMask_unmasked;
+	e_scope = eScope_all;
+	e_state = eState_all;
+
+	// Draw initial display
 	draw(withSep);
 
 	for(;;) {
@@ -703,53 +688,6 @@ int maineventloop(
 					}
 					break;
 
-				case KEY_F(5):
-					if      (eMask_masked   == e_mask) e_mask = eMask_unmasked;
-					else if (eMask_unmasked == e_mask) e_mask = eMask_both;
-					else                               e_mask = eMask_masked;
-
-					if ( !isFlagLegal(currentflag)
-					  && !setNextItem(1, true)
-					  && !setPrevItem(1, true) )
-						resetDisplay(withSep);
-					else
-						draw(withSep);
-
-					break;
-
-				case KEY_F(6):
-					if      (eScope_local  == e_scope) e_scope = eScope_all;
-					else if (eScope_global == e_scope) e_scope = eScope_local;
-					else                               e_scope = eScope_global;
-
-					if ( !isFlagLegal(currentflag)
-					  && !setNextItem(1, true)
-					  && !setPrevItem(1, true) )
-						resetDisplay(withSep);
-					else
-						draw(withSep);
-					break;
-
-				case KEY_F(7):
-					if      (eState_installed    == e_state) e_state = eState_notinstalled;
-					else if (eState_notinstalled == e_state) e_state = eState_all;
-					else                                     e_state = eState_installed;
-
-					if ( !isFlagLegal(currentflag)
-					  && !setNextItem(1, true)
-					  && !setPrevItem(1, true) )
-						resetDisplay(withSep);
-					else
-						draw(withSep);
-					break;
-
-				case KEY_F(8):
-					if (eOrder_left == e_order) e_order = eOrder_right;
-					else                        e_order = eOrder_left;
-					drawFlags();
-					break;
-
-
 #ifdef KEY_RESIZE
 				case KEY_RESIZE:
 					resizeterm(LINES, COLS);
@@ -780,13 +718,18 @@ exit:
 	flags    = _flags;
 	keys     = _keys;
 
-	// revert filters
+	// Reset display:
+	currentflag = oldCurr;
+	topline     = oldTop;
+	withSep     = oldSep;
+
+	// Revert filters
 	e_mask  = oldMask;
 	e_scope = oldScope;
 	e_state = oldState;
 
 	if(flags != NULL)
-		resetDisplay(withSep);
+		draw(withSep);
 
 	return result;
 }
