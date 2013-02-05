@@ -2,6 +2,7 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PERL = @PERL@
 libexecdir = @libdir@/@PACKAGE@
 perldir = @datadir@/@PACKAGE@
+E_PREFIX := $(shell portageq envvar EPREFIX 2>/dev/null)
 
 sbin_SCRIPTS = ufed
 libexec_PROGRAMS = ufed-curses
@@ -22,7 +23,7 @@ noinst_HEADERS = \
 	ufed-curses-types.h
 	
 dist_man_MANS = ufed.8
-EXTRA_DIST = ufed.pl.in
+EXTRA_DIST = ufed.pl.in ufed.8.in
 
 ufed: ufed.pl.in
 	rm -f $@.tmp
@@ -31,6 +32,14 @@ ufed: ufed.pl.in
 		-e 's|XX_PERL[@]|$(PERL)|g' \
 		-e 's|XX_libexecdir[@]|$(libexecdir)|g' \
 		-e 's|XX_perldir[@]|$(perldir)|g' \
+		$< >$@.tmp
+	chmod +x $@.tmp
+	mv $@.tmp $@
+
+ufed.8: ufed.8.in
+	rm -f $@.tmp
+	sed \
+		-e 's|@GENTOO_PORTAGE_EPREFIX@|$(E_PREFIX)|g' \
 		$< >$@.tmp
 	chmod +x $@.tmp
 	mv $@.tmp $@
