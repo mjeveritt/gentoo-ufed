@@ -45,7 +45,7 @@ static void init_lines(void)
 "",
 "Note: Depending on your system, you may need to wait a second before ufed "
 "detects the Escape key or mouse clicks; in some cases, you can use the "
-"ncurses environment variable ESCDELAY to change this. See the ncurses(3x) "
+"ncurses environment variable ESCDELAY to change this. See the ncurses(3X) "
 "manpage for more info.",
 "",
 "--- Display layout ---",

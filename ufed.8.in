@@ -1,0 +1,150 @@
+.TH "UFED" "8" "05 Feb 2013" "UFED 0.42" "UFED"
+.SH "NAME"
+ufed \- Gentoo Linux USE flags editor
+.SH "SYNOPSIS"
+.B ufed 
+.SH "DESCRIPTION"
+UFED is a simple program designed to help you configure the
+systems USE flags (see below) to your liking. To enable or
+disable a flag highlight it and hit space.
+
+.B Navigation and control
+
+Use the Up and Down arrow keys, the Page Up and Page Down keys, the Home and
+End keys, or start typing the name of a flag to select it.
+Use the space bar to toggle the setting.
+
+If ncurses is installed with the "gpm" use flag enabled, you can use your
+mouse to navigate and to toggle the settings, too.
+
+After changing flags, press the Return or Enter key to make this permanent,
+or press Escape to revert your changes.
+
+Note: Depending on your system, you may need to wait a second before ufed
+detects the Escape key or mouse clicks; in some cases, you can use the
+ncurses environment variable ESCDELAY to change this. See the ncurses(3X)
+manpage for more info.
+
+.B Display layout
+
+ufed will present you with a list of descriptions for each USE flag. If a
+description is too long to fit on your screen, you can use the Left and Right
+arrow keys to scroll the descriptions.
+
+ufed attempts to show you where a particular use setting came from, and what
+its scope and state is.
+
+The display consists of the following information:
+ (s) flag  M|DPC|Si| (packages) description
+
+(s)  : Your selection, either '+' to enable, '-' to disable, or empty to keep
+the default value.
+.br
+flag : The name of the flag
+.br
+M    : Either 'M' for Masked (always disabled), 'F' for Forced (always
+enabled) or empty for regular flags.
+.br
+D    : Default settings from make.defaults.
+.br
+P    : Package settings from package.use.
+.br
+C    : Configration setting from make.conf.
+.br
+S    : Scope of the description, package specific descriptions have an 'L'
+for "local".
+.br
+i    : 'i' if any affected package is installed.
+.br
+(packages): List of affected packages
+.br
+description : The description of the flag from use.desc or use.local.desc.
+
+If the character in any of the D, P or C column is a + then that USE flag was
+set in that file, if it is a space then the flag was not mentioned in that
+file and if it is a - then that flag was unset in that file.
+
+.B What are USE flags?
+
+The USE settings system is a flexible way to enable or disable various features
+at package build-time on a global level and for individual packages. This
+allows an administrator to control how packages are built in regards to the
+optional features which can be compiled into those packages.
+
+For instance, packages with optional GNOME support can have this support
+disabled at compile time by disabling the "gnome" USE flag. Enabling the
+"gnome" USE flag would enable GNOME support in these packages.
+
+The effect of USE flags on packages is dependent on whether both the
+software itself and the package ebuild supports the USE flag as an optional
+feature. If the software does not have support for an optional feature then the
+corresponding USE flag will obviously have no effect.
+
+Also many package dependencies are not considered optional by the software and
+thus USE flags will have no effect on those mandatory dependencies.
+
+A list of USE keywords used by a particular package can be found by checking
+the IUSE line in any ebuild file or by using "equery" from gentoolkit.
+
+See http://www.gentoo.org/doc/en/handbook/handbook-x86.xml?part=2&chap=2
+for more information on USE flags.
+
+Please also note that if UFED describes a flag (Unknown) it generally means
+that it is either a spelling error in one of the 3 configuration files or
+it is not an officially sanctioned USE flag. Sanctioned USE flags can be found 
+in /usr/portage/profiles/use.desc and in /usr/portage/profiles/use.local.desc.
+
+.SH "REPORTING BUGS"
+Please report bugs via http://bugs.gentoo.org/
+.SH "SEE ALSO"
+.BR emerge (1),
+.BR ebuild (5),
+.BR make.conf (5)
+.SH "FILES"
+.TP
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.conf, @GENTOO_PORTAGE_EPREFIX@/etc/portage/make.conf\fR 
+.br
+Contains user specified USE flags
+.TP
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.conf.old, @GENTOO_PORTAGE_EPREFIX@/etc/portage/make.conf.old\fR
+.br
+This is where ufed places a backup of your make.conf file.
+.TP
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.profile/make.defaults\fR
+Contains system default USE flags
+.TP
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.profile/package.use\fR
+Contains per package default USE flags
+.TP
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/portage/package.use\fR
+Contains user specified USE flags per package
+.TP
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.profile/use.mask\fR
+Restricted USE flags
+.TP
+\fB@GENTOO_PORTAGE_EPREFIX@/etc/make.profile/use.force\fR
+Enforced USE flags
+.TP
+\fB@GENTOO_PORTAGE_EPREFIX@/usr/portage/profiles/use.desc\fR
+Description strings for global USE flags
+.TP
+\fB@GENTOO_PORTAGE_EPREFIX@/usr/portage/profiles/use.local.desc\fR
+Description strings for local USE flags
+.SH "AUTHORS"
+ufed was originally written by Maik Schreiber <blizzy@blizzy.de>.
+.br
+ufed was previously maintained by
+.br
+ Robin Johnson <robbat2@gentoo.org>,
+.br
+ Fred Van Andel <fava@gentoo.org>,
+.br
+ Arun Bhanu <codebear@gentoo.org> and
+.br
+ Harald van Dijk <truedfx@gentoo.org>.
+.br
+ufed is currently maintained by
+.br
+ Sven Eden <yamakuzure@gmx.net>.
+.SH "CVS HEADER"
+$Header: /var/cvsroot/gentoo-src/ufed/docs/ufed.8,v 1.4 2004/06/03 05:00:04 fava Exp $"
