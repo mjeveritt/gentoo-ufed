@@ -107,7 +107,8 @@ INIT {
 	_determine_eprefix;
 	_determine_make_conf;
 	_determine_profiles;
-	_read_make_globals;  
+	_read_make_globals;
+	_read_make_conf; ## Needed first to know about overlays
 
 	# Now with the defaults loaded, a check is in order
 	# whether the set USE_ORDER is supported:
@@ -116,20 +117,15 @@ INIT {
 	my $lastorder = "";
 	my @use_order = reverse split /:/, $_environment{USE_ORDER};
 	for my $order(@use_order) {
-		if($order eq 'defaults') {
-			_read_make_defaults
-		} elsif($order eq 'conf') {
-			_read_make_conf
-		} else {
-			next;
-		}
-		$lastorder = $order;
+		$lastorder = $order
+			if( ($order eq 'defaults') || ($order eq 'conf') );
 	}
 	$lastorder eq 'conf'
 		or die("Sorry, USE_ORDER without make.conf overriding global"
 			. " USE flags are not currently supported by ufed.\n");
 
 	_read_packages;
+	_read_make_defaults;
 	_read_use_force; ## Must be before _read_use_mask to not
 	_read_use_mask;  ## unintentionally unmask explicitly masked flags.
 	_read_archs;
@@ -330,6 +326,7 @@ sub _gen_use_flags
 				$descCons{$pKey}{$pkg} = 1;
 				++$lCount;
 			}
+
 			## TODO : Add affected packages that have no own description
 			# once the interface can handle them. These can be used for
 			# the package filtering per command line arguments later.
