@@ -228,6 +228,7 @@ static int drawflag(sFlag* flag, bool highlight)
 
 	// print descriptions according to filters
 	if(idx < flag->ndesc) {
+		WINDOW* wLst = win(List);
 		int  lHeight = wHeight(List);
 		int  descLen = wWidth(List) - (minwidth + 9);
 		bool hasHead = false;
@@ -255,7 +256,7 @@ static int drawflag(sFlag* flag, bool highlight)
 				sprintf(buf, " %c%c%c %s%s%s%-*s ",
 					/* State of selection */
 					flag->stateConf == ' ' ? '(' : '[',
-					flag->stateConf,
+					' ', // Filled in later
 					flag->stateConf == ' ' ? ')' : ']',
 					/* name */
 					flag->globalForced ? "(+" : flag->globalMasked ? "(" : "",
@@ -266,7 +267,6 @@ static int drawflag(sFlag* flag, bool highlight)
 						- (flag->globalForced ? 2 : flag->globalMasked ? 3 : 5)
 						- strlen(flag->name)), " ");
 					// At this point buf is filled up to minwidth
-				hasHead = true;
 			} // End of generating left side mask display
 
 			/* Display flag state
@@ -305,15 +305,25 @@ static int drawflag(sFlag* flag, bool highlight)
 
 			/* Set correct color set according to highlighting and status*/
 			if(highlight)
-				wattrset(win(List), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
+				wattrset(wLst, COLOR_PAIR(3) | A_BOLD | A_REVERSE);
 			else
-				wattrset(win(List), COLOR_PAIR(3));
+				wattrset(wLst, COLOR_PAIR(3));
 
 			// Finally put the line on the screen
-			mvwaddstr(win(List), line, 0, buf);
-			mvwaddch(win(List), line, minwidth + 1, ACS_VLINE); // Before state
-			mvwaddch(win(List), line, minwidth + 5, ACS_VLINE); // Between state and scope
-			mvwaddch(win(List), line, minwidth + 8, ACS_VLINE); // After scope
+			mvwaddstr(wLst, line, 0, buf);
+			mvwaddch(wLst, line, minwidth + 1, ACS_VLINE); // Before state
+			mvwaddch(wLst, line, minwidth + 5, ACS_VLINE); // Between state and scope
+			mvwaddch(wLst, line, minwidth + 8, ACS_VLINE); // After scope
+
+			if (!hasHead) {
+				hasHead = true;
+				if (' ' == flag->stateConf) {
+					wattrset(wLst, COLOR_PAIR(3) | A_BOLD);
+					mvwaddch(wLst, line, 2, flag->stateDefault);
+				} else
+					mvwaddch(wLst, line, 2, flag->stateConf);
+			}
+
 			++line;
 			++usedY;
 		}
