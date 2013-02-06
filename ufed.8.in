@@ -47,7 +47,7 @@ enabled) or empty for regular flags.
 .br
 D    : Default settings from make.defaults.
 .br
-P    : Package settings from package.use.
+P    : Package settings from package.use and IUSE for installed packages.
 .br
 C    : Configration setting from make.conf.
 .br

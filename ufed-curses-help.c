@@ -66,7 +66,7 @@ static void init_lines(void)
 "M    : Either 'M' for Masked (always disabled), 'F' for Forced (always "
 "enabled) or empty for regular flags.",
 "D    : Default settings from make.defaults.",
-"P    : Package settings from package.use.",
+"P    : Package settings from package.use and IUSE for installed packages.",
 "C    : Configration setting from make.conf.",
 "S    : Scope of the description, package specific descriptions have an 'L' "
 "for \"local\".",
