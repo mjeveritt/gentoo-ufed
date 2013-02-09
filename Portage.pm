@@ -304,7 +304,7 @@ sub _gen_use_flags
 		my $flagRef  = $_use_temp->{$flag}; ## Shortcut
 		my $hasGlobal= defined($flagRef->{global}) ? 1 : 0;
 		my $lCount   = ($hasGlobal && length($flagRef->{global}{descr})) ? 1 : 0;
-		my $gDesc    = "";
+		my $gDesc    = "(Unknown)";
 		my $gKey     = "";
 		my $gRef     = $flagRef->{global};
 		my $pDesc    = "";
@@ -314,25 +314,28 @@ sub _gen_use_flags
 		# Build the description consolidation hash
 		if ($hasGlobal) {
 			$gDesc = $gRef->{descr};
-			$gKey  = sprintf("[%s]%d:%d:%d:%d:%d:%d", $gDesc, $gRef->{conf}, $gRef->{"default"},
-							$gRef->{forced}, $gRef->{installed}, $gRef->{masked}, $gRef->{"package"});
+			$gKey  = sprintf("[%s]%d:%d:%d:%d:%d:%d:%d", $gDesc, $gRef->{conf}, $gRef->{"default"},
+							$gRef->{forced}, $gRef->{installed}, $gRef->{masked},
+							$gRef->{"package"}, $gRef->{pkguse});
 			$descCons{$gKey}{global} = 1;
 		}
 		for my $pkg (sort keys %{$flagRef->{"local"}}) {
 			$pRef  = $flagRef->{"local"}{$pkg};
+			$pDesc = "$pRef->{descr}";
+			
+			# If the flag has no local description, it is "affected"
+			length($pDesc) or $pDesc = $gDesc;
 
-			if (length($pRef->{descr})) {
-				## This package has an individual description:
-				$pDesc = "$pRef->{descr}";
-				$pKey  = sprintf("[%s]%d:%d:%d:%d:%d:%d", $pDesc, $pRef->{conf}, $pRef->{"default"},
-								$pRef->{forced}, $pRef->{installed}, $pRef->{masked}, $pRef->{"package"});
+			# Now the Key can be assembled...
+			$pKey  = sprintf("[%s]%d:%d:%d:%d:%d:%d:%d", $pDesc, $pRef->{conf}, $pRef->{"default"},
+							$pRef->{forced}, $pRef->{installed}, $pRef->{masked},
+							$pRef->{"package"}, $pRef->{pkguse});
+							
+			# ...and safed, unless it equals the global key
+			if ($pKey ne $gKey) {
 				$descCons{$pKey}{$pkg} = 1;
 				++$lCount;
 			}
-
-			## TODO : Add affected packages that have no own description
-			# once the interface can handle them. These can be used for
-			# the package filtering per command line arguments later.
 		} ## End of walking through a flags package list
 		
 		# Skip if there was nothing consolidated
@@ -342,16 +345,10 @@ sub _gen_use_flags
 		$use_flags->{$flag}{count} = 0;
 		
 		# The global data has to be added first:
-		if (length($gKey)) {
-			_add_flag($flag, "global", $gKey);
-			
-			# TODO : Add affected packages once they can be hanlded. See above TODO.
-		}
+		length($gKey) and _add_flag($flag, "global", $gKey);
 		
 		# Then the "local" flag descriptions
-		# TODO : Add affected packages that have diffeent settings once they can be handled.
 		for my $key (sort keys %descCons) {
-			next if ($key eq $gKey);
 
 			# Generate the package list with same description and flags,
 			# but not for more than 5 packages
