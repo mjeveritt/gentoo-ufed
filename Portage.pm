@@ -76,7 +76,8 @@ my $_use_template = {
 	forced    => 0,
 	installed => 0,
 	masked    => 0,
-	"package" => 0
+	"package" => 0,
+	pkguse    => 0,
 };
 
 # --- public methods ---
@@ -126,8 +127,8 @@ INIT {
 		or die("Sorry, USE_ORDER without make.conf overriding global"
 			. " USE flags are not currently supported by ufed.\n");
 
-	_read_packages;
 	_read_make_defaults;
+	_read_packages;
 	_read_use_force; ## Must be before _read_use_mask to not
 	_read_use_mask;  ## unintentionally unmask explicitly masked flags.
 	_read_archs;
@@ -568,6 +569,7 @@ sub _read_make_defaults {
 
 	# package.use files are parsed next, finished by /etc/portage/package.use
 	for my $dir(@_profiles, "${_EPREFIX}/etc/portage") {
+		my $tgt = $dir eq "${_EPREFIX}/etc/portage" ? "pkguse" : "package";
 		for(_noncomments("$dir/package.use") ) {
 			my($pkg, @flags) = split;
 			
@@ -586,9 +588,9 @@ sub _read_make_defaults {
 				_add_temp($flag, $pkg);
 
 				if ($state) {
-					$_use_temp->{$flag}{"local"}{$pkg}{"package"} = -1; ## explicitly disabled
+					$_use_temp->{$flag}{"local"}{$pkg}{$tgt} = -1; ## explicitly disabled
 				} else {
-					$_use_temp->{$flag}{"local"}{$pkg}{"package"} =  1; ## explicitly enabled
+					$_use_temp->{$flag}{"local"}{$pkg}{$tgt} =  1; ## explicitly enabled
 				}
 			}
 		}
@@ -651,8 +653,8 @@ sub _read_packages {
 				_add_temp($flag, "global");
 				_add_temp($flag, $pkg);
 
-				$_use_temp->{$flag}{"local"}{$pkg}{"default"}   = $eState ? 1 : $dState ? -1 : 0;
-				$_use_temp->{$flag}{"local"}{$pkg}{installed}   = 1;
+				$_use_temp->{$flag}{"local"}{$pkg}{"default"} = $eState ? 1 : $dState ? -1 : 0;
+				$_use_temp->{$flag}{"local"}{$pkg}{installed} = 1;
 				$_use_temp->{$flag}{global}{installed} = 1;
 			} ## End of looping IUSE
 			
