@@ -37,8 +37,9 @@ BEGIN {
 #     Note: Packages without description are only listed here if their settings differ from the global
 #   ->{forced}    = The flag is explicitly unforced (-1), default (0) or explicitly force enabled (1) for this package
 #   ->{installed} = This package is installed
-#   ->{masked}    = The flag is explicitly unmasked (-1), default (0) or explicitly masked (1) for this package
-#   ->{package}   = The flag is explicitly disabled (-1), default (0) or explicitly enabled (1) for this package.
+#   ->{masked}    = The flag is explicitly unmasked (-1), default (0) or masked (1) for this package
+#   ->{package}   = The flag is explicitly disabled (-1), default (0) or enabled (1) for this package by (profiles)/package.use
+#   ->{pkguse}    = The flag is explicitly disabled (-1), default (0) or enabled(1) for this package by /etc/portage/package.use
 #     Note: This is a combination of the ebuilds IUSE and the installation PKGUSE and only set for installed packages.
 our $use_flags;
 
@@ -57,14 +58,15 @@ my @_profiles     = ();
 # {"local"}-> {package} = conf hash for per package settings
 # global and per package settings:
 # ->{conf}      Is either disabled, left alone or enabled by make.conf (-1, 0, 1)
-# ->{default}   Is either disabled, left alone or enabled by make.defaults (-1, 0, 1)
+# ->{default}   Is either disabled, left alone or enabled by make.defaults (-1, 0, 1) (global) or installed packages IUSE (local)
 # ->{descr}     Description from use.desc ({global}) or use.local.desc {cat/pkg} (string)
 # ->{forced}    Is force enabled (implies {masked}=1) in any *use.force
 #               For packages this is only set to -1 (explicitly unforced) or +1 (explicitly forced). 0 means "left alone".
 # ->{installed} Has one installed package ({global}) or is installed {cat/pkg} (0,1)
 # ->{masked}    Is masked by any *use.mask (0,1)
 #               For packages this is only set to -1 (explicitly unmasked) or +1 (explicitly masked). 0 means "left alone".
-# ->{package}   Is either disabled, left alone or enabled by its ebuild (IUSE) or by user package.use (PKGUSE) (-1, 0, 1)
+# ->{package}   Is either disabled, left alone or enabled by the profiles package.use files
+# ->{pkguse}    Is either disabled, left alone or enabled by the users package.use file
 
 my $_use_temp = undef;
 my $_use_template = {
@@ -609,9 +611,9 @@ sub _read_make_globals {
 
 
 # Analyze EPREFIX/var/db/pkg and analyze all installed
-# packages. We need to know what they use (IUSE) and what
-# has been set when they where emerged (PKGUSE).
-# No parameters accepted.
+# packages. The contents of the file IUSE are used to
+# enrich the information of the {default} part and to
+# determine which packages are installed.
 sub _read_packages {
 	my $pkgdir = undef;
 	opendir($pkgdir, "${_EPREFIX}/var/db/pkg")
@@ -627,7 +629,6 @@ sub _read_packages {
 		# loop through all openable directories in cat
 		while(my $pkg = readdir $catdir) {
 			next if $pkg eq '.' or $pkg eq '..';
-#			my @puse = ();
 			my @iuse = ();
 			
 			# Load IUSE to learn which use flags the package in this version knows
@@ -637,14 +638,6 @@ sub _read_packages {
 				@iuse = split ' ', <$use>;
 				close $use;
 			}
-
-			# Load PKGUSE to learn which use flags have been set when this package was emerged
-#			my $fpuse = "${_EPREFIX}/var/db/pkg/$cat/$pkg/PKGUSE";
-#			if(open my $use, '<', $fpuse) {
-#				local $/;
-#				@puse = split ' ', <$use>;
-#				close $use;
-#			}
 
 			# could be shortened, but make sure not to strip off part of the name
 			$pkg =~ s/-\d+(?:\.\d+)*\w?(?:_(?:alpha|beta|pre|rc|p)\d*)?(?:-r\d+)?$//;
@@ -658,18 +651,10 @@ sub _read_packages {
 				_add_temp($flag, "global");
 				_add_temp($flag, $pkg);
 
-				$_use_temp->{$flag}{"local"}{$pkg}{"package"}   = $eState ? 1 : $dState ? -1 : 0;
+				$_use_temp->{$flag}{"local"}{$pkg}{"default"}   = $eState ? 1 : $dState ? -1 : 0;
 				$_use_temp->{$flag}{"local"}{$pkg}{installed}   = 1;
 				$_use_temp->{$flag}{global}{installed} = 1;
 			} ## End of looping IUSE
-#			for my $flag (@puse) {
-#				my $state = $flag =~ s/^-// || 0; 
-#
-#				if ( defined($_use_temp->{$flag}{global})
-#				  && defined($_use_temp->{$flag}{"local"}{$pkg})) {
-#				  	$_use_temp->{$flag}{"local"}{$pkg}{"package"} = $state ? -1 : 0;
-#				}
-#			} ## End of looping PKGUSE
 			
 		}
 		closedir $catdir;
