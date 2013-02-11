@@ -141,7 +141,7 @@ static void read_flags(void)
 				ERROR_EXIT(-1, "Description read failed on line %d\n\"%s\"\n", lineNum + 1, line);
 
 			// Check stats
-			if ((state.end - state.start) != 6)
+			if ((state.end - state.start) != 7)
 				ERROR_EXIT(-1, "Illegal description stats on line %d:\n\"%s\"\n", lineNum + 1, line);
 
 			// Add description line to flag:
@@ -339,7 +339,10 @@ static int drawflag(sFlag* flag, bool highlight)
 				mvwaddch(wLst, line, minwidth + 1, special);
 			} else {
 				wattrset(wLst, COLOR_PAIR(3));
-				mvwaddch(wLst, line, minwidth + 1, flag->stateDefault);
+				if (' ' == flag->desc[idx].stateDefault)
+					mvwaddch(wLst, line, minwidth + 1, flag->stateDefault);
+				else
+					mvwaddch(wLst, line, minwidth + 1, flag->desc[idx].stateDefault);
 			}
 
 			++line;
