@@ -152,7 +152,7 @@ sub _add_flag
 	
 	if ($descKey =~ /^\[(.*)\](-?\d+):(-?\d+):(-?\d+):(-?\d+):(-?\d+):(-?\d+):(-?\d+)$/ ) {
 		my ($descr, $conf, $default, $forced, $installed, $masked, $package, $pkguse)
-			= ($1, $2, $3, $4, $5, $6, $7);
+			= ($1, $2, $3, $4, $5, $6, $7, $8);
 		my %data = ();
 
 		$data{descr}     = $descr;
@@ -316,7 +316,6 @@ sub _gen_use_flags
 			$gKey  = sprintf("[%s]%d:%d:%d:%d:%d:%d:%d", $gDesc, $gRef->{conf}, $gRef->{"default"},
 							$gRef->{forced}, $gRef->{installed}, $gRef->{masked},
 							$gRef->{"package"}, $gRef->{pkguse});
-			$descCons{$gKey}{global} = 1;
 		}
 		for my $pkg (sort keys %{$flagRef->{"local"}}) {
 			$pRef  = $flagRef->{"local"}{$pkg};
