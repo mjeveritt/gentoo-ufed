@@ -84,7 +84,7 @@ sub flags_dialog {
 
 		# Print global description first (if available)
 		if (defined($conf->{global}) && length($conf->{global}{descr})) {
-			$outTxt .= sprintf("\t%s\t ( ) [+%s%s%s  ]\n",
+			$outTxt .= sprintf("\t%s\t ( ) [+%s%s%s   ]\n",
 						$conf->{global}{descr},
 						$conf->{global}{installed} ? '+' : ' ',
 						$conf->{global}{forced} ? '+' : ' ',
@@ -93,7 +93,7 @@ sub flags_dialog {
 
 		# Finally print the local description lines
 		for my $pkg (sort keys %{$conf->{"local"}}) {
-			$outTxt .= sprintf("\t%s\t (%s) [ %s%s%s%s%s]\n",
+			$outTxt .= sprintf("\t%s\t (%s) [ %s%s%s%s%s%s]\n",
 						$conf->{"local"}{$pkg}{descr},
 						$pkg,
 						$conf->{"local"}{$pkg}{installed} > 0 ? '+' :
@@ -102,6 +102,8 @@ sub flags_dialog {
 						$conf->{"local"}{$pkg}{forced}    < 0 ? '-' : ' ',
 						$conf->{"local"}{$pkg}{masked}    > 0 ? '+' :
 						$conf->{"local"}{$pkg}{masked}    < 0 ? '-' : ' ',
+						$conf->{"local"}{$pkg}{"default"} > 0 ? '+' :
+						$conf->{"local"}{$pkg}{"default"} < 0 ? '-' : ' ',
 						$conf->{"local"}{$pkg}{"package"} > 0 ? '+' :
 						$conf->{"local"}{$pkg}{"package"} < 0 ? '-' : ' ',
 						$conf->{"local"}{$pkg}{pkguse}    > 0 ? '+' :

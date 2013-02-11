@@ -334,7 +334,6 @@ sub _gen_use_flags
 				|| $pRef->{masked}       ## explicitly (un)masked from package.use.mask
 				|| $pRef->{pkguse}       ## explicitly (un)set from users package.use
 			   ) {
-printf STDERR "Added $flag / $pkg local \"%s\" (lCount %d, pdLen %d)\n", $pKey, $lCount, $pdLen;
 				$descCons{$pKey}{$pkg} = 1;
 				++$lCount;
 			}
