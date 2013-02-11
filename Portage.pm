@@ -267,6 +267,23 @@ sub _determine_profiles
 # No parameters accepted
 sub _final_cleaning
 {
+	# All flags that are specific to explicit versioning have no
+	# descriptions yet. This must be enriched from the versionless
+	# package setting, or deleted if none are found.
+	for my $flag (keys %{$_use_temp}) {
+		my $flagRef  = $_use_temp->{$flag}; ## Shortcut
+		for my $pkg (sort keys %{$flagRef->{"local"}}) {
+			next if (length($flagRef->{"local"}{$pkg}{descr}));
+			
+			if ($pkg =~ /^[<>=~]+([^<>=~].+)-\d+(?:\.\d+)*\w?(?:_(?:alpha|beta|pre|rc|p)\d*)*(?:-r\d+)?$/) {
+				defined($flagRef->{"local"}{$1})
+					and $flagRef->{"local"}{$pkg}{descr} = $flagRef->{"local"}{$1}{descr}
+					or  delete($flagRef->{"local"}{$pkg}{descr});
+			}
+			
+		} ## End of looping packages
+	} ## End of looping flags
+	
 	# The "disable all" flag is truncated to '*' by the parsing, but it
 	# has to read '-*'.
 	_add_temp("-*", "global");
@@ -302,17 +319,19 @@ sub _gen_use_flags
 		my $flagRef  = $_use_temp->{$flag}; ## Shortcut
 		my $hasGlobal= defined($flagRef->{global}) ? 1 : 0;
 		my $lCount   = ($hasGlobal && length($flagRef->{global}{descr})) ? 1 : 0;
-		my $gDesc    = "(Unknown)";
+		my $gDesc    = "";
 		my $gKey     = "";
 		my $gRef     = $flagRef->{global};
+		my $gdLen    = 0;
 		my $pDesc    = "";
 		my $pKey     = "";
 		my $pRef     = undef;
-		my $pdLen     = 0;
+		my $pdLen    = 0;
 		
 		# Build the description consolidation hash
-		if ($lCount) {
+		if ($hasGlobal) {
 			$gDesc = $gRef->{descr};
+			$gdLen = length($gDesc);
 			$gKey  = sprintf("[%s]%d:%d:%d:%d:%d:%d:%d", $gDesc, $gRef->{conf}, $gRef->{"default"},
 							$gRef->{forced}, $gRef->{installed}, $gRef->{masked},
 							$gRef->{"package"}, $gRef->{pkguse});
@@ -320,7 +339,8 @@ sub _gen_use_flags
 		for my $pkg (sort keys %{$flagRef->{"local"}}) {
 			$pRef  = $flagRef->{"local"}{$pkg};
 			$pdLen = length($pRef->{descr});
-			$pDesc = $pdLen ? "$pRef->{descr}" : $gDesc;
+			$pDesc = $pdLen ? "$pRef->{descr}" :
+					 $gdLen ? $gDesc : "(Unknown)";
 			
 			# Now the Key can be assembled...
 			$pKey  = sprintf("[%s]%d:%d:%d:%d:%d:%d:%d", $pDesc, $pRef->{conf}, $pRef->{"default"},
@@ -577,7 +597,7 @@ sub _read_make_defaults {
 			# acceptable way determine which versions are relevant,
 			# we have to *skip* all settings that have specific version
 			# and/or slot information limiting their scope.
-			$pkg =~ /^[<>=~]/ and next;
+# CHECK			$pkg =~ /^[<>=~]/ and next;
 			
 			for my $flag (@flags) {
 				my $state = $flag =~ s/^-// || 0;
@@ -640,7 +660,7 @@ sub _read_packages {
 			}
 
 			# could be shortened, but make sure not to strip off part of the name
-			$pkg =~ s/-\d+(?:\.\d+)*\w?(?:_(?:alpha|beta|pre|rc|p)\d*)?(?:-r\d+)?$//;
+			$pkg =~ s/-\d+(?:\.\d+)*\w?(?:_(?:alpha|beta|pre|rc|p)\d*)*(?:-r\d+)?$//;
 			$pkg = $cat . "/" . $pkg;
 
 			# Now save the knowledge gained (if any) in $_use_temp:
