@@ -576,7 +576,7 @@ sub _read_make_defaults {
 			# acceptable way determine which versions are relevant,
 			# we have to *skip* all settings that have specific version
 			# and/or slot information limiting their scope.
-			$pkg =~ /^[<>=]/ and next;
+			$pkg =~ /^[<>=~]/ and next;
 			
 			for my $flag (@flags) {
 				my $state = $flag =~ s/^-// || 0;
