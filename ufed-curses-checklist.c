@@ -141,7 +141,7 @@ static void read_flags(void)
 				ERROR_EXIT(-1, "Description read failed on line %d\n\"%s\"\n", lineNum + 1, line);
 
 			// Check stats
-			if ((state.end - state.start) != 5)
+			if ((state.end - state.start) != 6)
 				ERROR_EXIT(-1, "Illegal description stats on line %d:\n\"%s\"\n", lineNum + 1, line);
 
 			// Add description line to flag:
