@@ -84,7 +84,7 @@ sub flags_dialog {
 
 		# Print global description first (if available)
 		if (defined($conf->{global}) && length($conf->{global}{descr})) {
-			$outTxt .= sprintf("\t%s\t ( ) [+%s%s%s ]\n",
+			$outTxt .= sprintf("\t%s\t ( ) [+%s%s%s  ]\n",
 						$conf->{global}{descr},
 						$conf->{global}{installed} ? '+' : ' ',
 						$conf->{global}{forced} ? '+' : ' ',
