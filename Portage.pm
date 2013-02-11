@@ -160,9 +160,9 @@ sub _add_flag
 		$data{installed} = $installed;
 		$data{masked}    = $masked;
 		$data{"package"} = $package;
+		$data{"default"} = $default;
 		if ("global" eq "$pkg") {
 			$data{conf}      = $conf;
-			$data{"default"} = $default;
 			%{$use_flags->{$flag}{global}} = %data;
 		} else {
 			$data{pkguse}    = $pkguse;
@@ -308,6 +308,7 @@ sub _gen_use_flags
 		my $pDesc    = "";
 		my $pKey     = "";
 		my $pRef     = undef;
+		my $pdLen     = 0;
 		
 		# Build the description consolidation hash
 		if ($lCount) {
@@ -318,18 +319,22 @@ sub _gen_use_flags
 		}
 		for my $pkg (sort keys %{$flagRef->{"local"}}) {
 			$pRef  = $flagRef->{"local"}{$pkg};
-			$pDesc = "$pRef->{descr}";
+			$pdLen = length($pRef->{descr});
+			$pDesc = $pdLen ? "$pRef->{descr}" : $gDesc;
 			
-			# If the flag has no local description, it is "affected"
-			length($pDesc) or $pDesc = $gDesc;
-
 			# Now the Key can be assembled...
 			$pKey  = sprintf("[%s]%d:%d:%d:%d:%d:%d:%d", $pDesc, $pRef->{conf}, $pRef->{"default"},
 							$pRef->{forced}, $pRef->{installed}, $pRef->{masked},
 							$pRef->{"package"}, $pRef->{pkguse});
 							
-			# ...and safed, unless it equals the global key
-			if ($pKey ne $gKey) {
+			# ...and safed, if it has an own description or differs in its settings from global
+			if ($pdLen || (0 == $lCount) ## has own description or no global description available
+				|| $pRef->{"default"}    ## explicitly set default from IUSE
+				|| $pRef->{forced}       ## explicitly (un)forced from package.use.force
+				|| $pRef->{masked}       ## explicitly (un)masked from package.use.mask
+				|| $pRef->{pkguse}       ## explicitly (un)set from users package.use
+			   ) {
+printf STDERR "Added $flag / $pkg local \"%s\" (lCount %d, pdLen %d)\n", $pKey, $lCount, $pdLen;
 				$descCons{$pKey}{$pkg} = 1;
 				++$lCount;
 			}
