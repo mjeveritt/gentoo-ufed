@@ -151,8 +151,8 @@ sub _add_flag
 {
 	my ($flag, $pkg, $descKey) = @_;
 	
-	if ($descKey =~ /^\[(.*)\](-?\d+):(-?\d+):(-?\d+):(-?\d+):(-?\d+):(-?\d+)$/ ) {
-		my ($descr, $conf, $default, $forced, $installed, $masked, $package)
+	if ($descKey =~ /^\[(.*)\](-?\d+):(-?\d+):(-?\d+):(-?\d+):(-?\d+):(-?\d+):(-?\d+)$/ ) {
+		my ($descr, $conf, $default, $forced, $installed, $masked, $package, $pkguse)
 			= ($1, $2, $3, $4, $5, $6, $7);
 		my %data = ();
 
@@ -167,6 +167,7 @@ sub _add_flag
 			$data{"default"} = $default;
 			%{$use_flags->{$flag}{global}} = %data;
 		} else {
+			$data{pkguse}    = $pkguse;
 			%{$use_flags->{$flag}{"local"}{$pkg}} = %data;
 		}
 		++$use_flags->{$flag}{count} if (length($descr));

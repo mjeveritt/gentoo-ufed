@@ -100,7 +100,7 @@ sub flags_dialog {
 
 		# Finally print the local description lines
 		for my $pkg (sort keys %{$conf->{"local"}}) {
-			$outTxt .= sprintf("\t%s\t (%s) [ %s%s%s%s]\n",
+			$outTxt .= sprintf("\t%s\t (%s) [ %s%s%s%s%s]\n",
 						$conf->{"local"}{$pkg}{descr},
 						$pkg,
 						$conf->{"local"}{$pkg}{installed} > 0 ? '+' :
@@ -110,7 +110,9 @@ sub flags_dialog {
 						$conf->{"local"}{$pkg}{masked}    > 0 ? '+' :
 						$conf->{"local"}{$pkg}{masked}    < 0 ? '-' : ' ',
 						$conf->{"local"}{$pkg}{"package"} > 0 ? '+' :
-						$conf->{"local"}{$pkg}{"package"} < 0 ? '-' : ' ');
+						$conf->{"local"}{$pkg}{"package"} < 0 ? '-' : ' ',
+						$conf->{"local"}{$pkg}{pkguse}    > 0 ? '+' :
+						$conf->{"local"}{$pkg}{pkguse}    < 0 ? '-' : ' ');
 		}
 	}
 
