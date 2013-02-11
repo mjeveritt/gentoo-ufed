@@ -102,6 +102,7 @@ typedef struct sDesc_ {
 	char* pkg;          //!< affected packages
 	char  stateForced;  //!< unforced '-', forced '+' or not set ' ' by *use.force
 	char  stateMasked;  //!< unmasked '-', masked '+' or not sed ' ' by *use.mask
+	char  stateDefault; //!< disabled '-', enabled '+' or not set ' ' ebuilds IUSE (installed packages only)
 	char  statePackage; //!< disabled '-', enabled '+' or not set ' ' by profiles package.use
 	char  statePkgUse;  //!< disabled '-', enabled '+' or not set ' ' by users package.use
 } sDesc;
