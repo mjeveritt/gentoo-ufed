@@ -76,7 +76,7 @@ my $_use_template = {
 	installed => 0,
 	masked    => 0,
 	"package" => 0,
-	pkguse    => 0,
+	pkguse    => 0
 };
 
 # --- public methods ---
@@ -194,7 +194,6 @@ sub _add_temp
 		defined ($_use_temp->{$flag}{global})
 			or %{$_use_temp->{$flag}{global}} = %$_use_template;
 	} else {
-		_add_temp($flag, "global"); ## This must exist!
 		defined ($_use_temp->{$flag}{"local"}{$pkg})
 			or %{$_use_temp->{$flag}{"local"}{$pkg}} = %$_use_template;
 	}
@@ -311,7 +310,7 @@ sub _gen_use_flags
 		my $pRef     = undef;
 		
 		# Build the description consolidation hash
-		if ($hasGlobal) {
+		if ($lCount) {
 			$gDesc = $gRef->{descr};
 			$gKey  = sprintf("[%s]%d:%d:%d:%d:%d:%d:%d", $gDesc, $gRef->{conf}, $gRef->{"default"},
 							$gRef->{forced}, $gRef->{installed}, $gRef->{masked},
