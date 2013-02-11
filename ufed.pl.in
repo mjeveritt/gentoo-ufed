@@ -89,13 +89,6 @@ sub flags_dialog {
 						$conf->{global}{installed} ? '+' : ' ',
 						$conf->{global}{forced} ? '+' : ' ',
 						$conf->{global}{masked} ? '+' : ' ');
-
-			for my $afLst (@{$conf->{global}{affected}}) {
-				(defined($afLst) && length($afLst))
-					and $outTxt .= sprintf("\t%s\t (%s) [+    ]\n",
-									"Affected by global flag setting",
-									$afLst);
-			}
 		}
 
 		# Finally print the local description lines

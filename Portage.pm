@@ -24,7 +24,6 @@ BEGIN {
 # {count}  = number of different description lines
 #  Note: +1 for the list of affected packages, and +1 for each descriptionless package with settings differing from global.
 # {global} = hashref for the global paramters if the flag has a description in use.desc, otherwise undefined
-#   ->{affected}  = List of packages that are affected but have no own description
 #   ->{conf}      = The flag is disabled (-1), enabled (1) or not set (0) in make.conf
 #   ->{default}   = The flag is disabled (-1), enabled (1) or not set (0) by default
 #   ->{descr}     = Global description
@@ -162,7 +161,6 @@ sub _add_flag
 		$data{masked}    = $masked;
 		$data{"package"} = $package;
 		if ("global" eq "$pkg") {
-			$data{affected}  = [];
 			$data{conf}      = $conf;
 			$data{"default"} = $default;
 			%{$use_flags->{$flag}{global}} = %data;
