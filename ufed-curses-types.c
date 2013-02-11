@@ -102,7 +102,7 @@ sFlag* addFlag (sFlag** root, const char* name, int line, int ndesc, const char 
  *  @param[in] state '+','-',' ' for global, installed, forced, masked, package - in that order.
  *  @return the full length of the description including package list and separators
 **/
-size_t addFlagDesc (sFlag* flag, const char* pkg, const char* desc, const char state[5])
+size_t addFlagDesc (sFlag* flag, const char* pkg, const char* desc, const char state[6])
 {
 	size_t result = 3; // space and brackets.
 	if (flag) {
@@ -111,7 +111,7 @@ size_t addFlagDesc (sFlag* flag, const char* pkg, const char* desc, const char s
 		if (idx < flag->ndesc) {
 
 			// state is a byte mask. Check it first:
-			for (int i = 0; i < 5; ++i) {
+			for (int i = 0; i < 6; ++i) {
 				if (('+' != state[i]) && ('-' != state[i]) && (' ' != state[i]))
 					ERROR_EXIT(-1, "Illegal character '%c' in state string at position %d\n",
 						state[i], i)
@@ -125,6 +125,7 @@ size_t addFlagDesc (sFlag* flag, const char* pkg, const char* desc, const char s
 			flag->desc[idx].stateForced  = state[2];
 			flag->desc[idx].stateMasked  = state[3];
 			flag->desc[idx].statePackage = state[4];
+			flag->desc[idx].statePkgUse  = state[5];
 
 			// Set flag mask and force status if this is a global and masked/forced description
 			if (flag->desc[idx].isGlobal && ('+' == flag->desc[idx].stateMasked))

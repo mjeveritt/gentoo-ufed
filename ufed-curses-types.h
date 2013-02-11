@@ -96,13 +96,14 @@ typedef enum eWin_ {
  *  @brief Describe one description line
 **/
 typedef struct sDesc_ {
-	char* desc;        //!< The description line
-	bool  isGlobal;    //!< true if this is the global description and setting
-	bool  isInstalled; //!< global: at least one pkg is installed, local: all in *pkg are installed.
-	char* pkg;         //!< affected packages
+	char* desc;         //!< The description line
+	bool  isGlobal;     //!< true if this is the global description and setting
+	bool  isInstalled;  //!< global: at least one pkg is installed, local: all in *pkg are installed.
+	char* pkg;          //!< affected packages
 	char  stateForced;  //!< unforced '-', forced '+' or not set ' ' by *use.force
 	char  stateMasked;  //!< unmasked '-', masked '+' or not sed ' ' by *use.mask
-	char  statePackage; //!< disabled '-', enabled '+' or not set ' ' by package.use
+	char  statePackage; //!< disabled '-', enabled '+' or not set ' ' by profiles package.use
+	char  statePkgUse;  //!< disabled '-', enabled '+' or not set ' ' by users package.use
 } sDesc;
 
 
@@ -163,7 +164,7 @@ typedef struct sWindow_ {
  * =======================================
  */
 sFlag* addFlag      (sFlag** root, const char* name, int line, int ndesc, const char state[2]);
-size_t addFlagDesc  (sFlag* flag, const char* pkg, const char* desc, const char state[5]);
+size_t addFlagDesc  (sFlag* flag, const char* pkg, const char* desc, const char state[6]);
 void   addLineStats (const sFlag* flag, sListStats* stats);
 void   destroyFlag  (sFlag** root, sFlag** flag);
 void   genFlagStats (sFlag* flag);
