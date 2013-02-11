@@ -120,9 +120,9 @@ void drawBottom(bool withSep)
 	waddch(w, ACS_LLCORNER);
 	whline(w, ACS_HLINE, wWidth(Bottom)-6);
 	if (withSep) {
-		mvwaddch(w, 0, minwidth + 4, ACS_BTEE); // Before state
-		mvwaddch(w, 0, minwidth + 8, ACS_BTEE); // Between state and scope
-		mvwaddch(w, 0, minwidth + 11, ACS_BTEE); // After scope
+		mvwaddch(w, 0, minwidth + 3, ACS_BTEE); // Before state
+		mvwaddch(w, 0, minwidth + 7, ACS_BTEE); // Between state and scope
+		mvwaddch(w, 0, minwidth + 10, ACS_BTEE); // After scope
 	}
 	mvwaddch(w, 0, wWidth(Bottom)-3, ACS_LRCORNER);
 	waddch(w, ' ');
@@ -283,15 +283,14 @@ void drawStatus(bool withSep)
 		char buf[COLS+1];
 
 		// Add Status separators and explenation characters
-		mvwaddch (w, 0, minwidth,     'M');       // Masked / Forced
-		mvwaddch (w, 0, minwidth + 1, ACS_VLINE); // Before state
-		mvwaddstr(w, 0, minwidth + 2, "DPC");     // Default, Package, Config
-		mvwaddch (w, 0, minwidth + 5, ACS_VLINE); // Between state and scope
-		mvwaddstr(w, 0, minwidth + 6, "Si");      // Scope, installed
-		mvwaddch (w, 0, minwidth + 8, ACS_VLINE); // After scope
+		mvwaddch (w, 0, minwidth    , ACS_VLINE); // Before state
+		mvwaddstr(w, 0, minwidth + 1, "DPC");     // Default, Profile, Config
+		mvwaddch (w, 0, minwidth + 4, ACS_VLINE); // Between state and scope
+		mvwaddstr(w, 0, minwidth + 5, "Si");      // Scope, installed
+		mvwaddch (w, 0, minwidth + 7, ACS_VLINE); // After scope
 
 		// Use the unused right side to show the filter status
-		sprintf(buf, "%-*s%-6s / %-6s / %-12s] ",
+		sprintf(buf, "%*s%-6s / %-6s / %-13s] ",
 			max(2, iWidth - 40 - minwidth), " [",
 			eMask_masked        == e_mask ? "masked" :
 			eMask_unmasked      == e_mask ? "normal" : "all",
@@ -345,9 +344,9 @@ void drawTop(bool withSep)
 	waddch(w, ACS_ULCORNER);
 	whline(w, ACS_HLINE, wWidth(Top)-6);
 	if (withSep) {
-		mvwaddch(w, 4, minwidth + 4, ACS_TTEE); // Before state
-		mvwaddch(w, 4, minwidth + 8, ACS_TTEE); // Between state and scope
-		mvwaddch(w, 4, minwidth + 11, ACS_TTEE); // After scope
+		mvwaddch(w, 4, minwidth + 3, ACS_TTEE); // Before state
+		mvwaddch(w, 4, minwidth + 7, ACS_TTEE); // Between state and scope
+		mvwaddch(w, 4, minwidth + 10, ACS_TTEE); // After scope
 	}
 	mvwaddch(w, 4, wWidth(Top)-3, ACS_URCORNER);
 	waddch(w, ' ');

@@ -230,7 +230,7 @@ static int drawflag(sFlag* flag, bool highlight)
 	if(idx < flag->ndesc) {
 		WINDOW* wLst = win(List);
 		int  lHeight = wHeight(List);
-		int  descLen = wWidth(List) - (minwidth + 9);
+		int  descLen = wWidth(List) - (minwidth + 8);
 		bool hasHead = false;
 		char *p, special;
 
@@ -241,9 +241,9 @@ static int drawflag(sFlag* flag, bool highlight)
 
 			// Set special character if needed:
 			if (isDescForced(flag, idx))
-				special = 'F';
+				special = 'f';
 			else if (isDescMasked(flag, idx))
-				special = 'M';
+				special = 'm';
 			else
 				special = ' ';
 
@@ -271,18 +271,17 @@ static int drawflag(sFlag* flag, bool highlight)
 
 			/* Display flag state
 			 * The order in which the states are to be displayed is:
-			 * 1. Masked/Forced special hint
-			 * 2. make.defaults
-			 * 3. package.use
-			 * 4. make.conf
-			 * 5. global/local
-			 * 6. installed/not installed
+			 * 1. [D]efaults (make.defaults, IUSE, package.mask, package.force)
+			 *    Note: Filled in later
+			 * 2. [P]rofile package.use files
+			 * 3. [C]onfiguration (make.conf, users package.use)
+			 * 4. global/local
+			 * 5. installed/not installed
 			 */
-			sprintf(buf + minwidth, "%c %c%c%c %c%c ",
-				special,
-				flag->stateDefault,
+			sprintf(buf + minwidth, "  %c%c %c%c ",
 				flag->desc[idx].statePackage,
-				flag->stateConf,
+				' ' == flag->desc[idx].statePkgUse ?
+					flag->stateConf : flag->desc[idx].statePkgUse,
 				flag->desc[idx].isGlobal ? ' ' : 'L',
 				flag->desc[idx].isInstalled ? 'i' : ' ');
 
@@ -298,7 +297,7 @@ static int drawflag(sFlag* flag, bool highlight)
 				sprintf(desc, "%s", flag->desc[idx].desc);
 
 			// Now display the description line according to its horizontal position
-			sprintf(buf + minwidth + 9, "%-*.*s", descLen, descLen,
+			sprintf(buf + minwidth + 8, "%-*.*s", descLen, descLen,
 				strlen(desc) > (size_t)descriptionleft
 					? &desc[descriptionleft]
 					: "");
@@ -309,19 +308,38 @@ static int drawflag(sFlag* flag, bool highlight)
 			else
 				wattrset(wLst, COLOR_PAIR(3));
 
-			// Finally put the line on the screen
+			// Put the line on the screen
 			mvwaddstr(wLst, line, 0, buf);
-			mvwaddch(wLst, line, minwidth + 1, ACS_VLINE); // Before state
-			mvwaddch(wLst, line, minwidth + 5, ACS_VLINE); // Between state and scope
-			mvwaddch(wLst, line, minwidth + 8, ACS_VLINE); // After scope
+			mvwaddch(wLst, line, minwidth,     ACS_VLINE); // Before state
+			mvwaddch(wLst, line, minwidth + 4, ACS_VLINE); // Between state and scope
+			mvwaddch(wLst, line, minwidth + 7, ACS_VLINE); // After scope
 
+			// Add (default) selection if this is the header line
 			if (!hasHead) {
 				hasHead = true;
-				if (' ' == flag->stateConf) {
+				if (flag->globalForced) {
+					wattrset(wLst, COLOR_PAIR(5) | A_BOLD);
+					mvwaddch(wLst, line, 2, '+');
+				} else if (flag->globalMasked) {
+					wattrset(wLst, COLOR_PAIR(4) | A_BOLD);
+					mvwaddch(wLst, line, 2, '-');
+				} else if (' ' == flag->stateConf) {
 					wattrset(wLst, COLOR_PAIR(3) | A_BOLD);
 					mvwaddch(wLst, line, 2, flag->stateDefault);
 				} else
 					mvwaddch(wLst, line, 2, flag->stateConf);
+			}
+
+			// Add [D]efault column content
+			if ('f' == special) {
+				wattrset(wLst, COLOR_PAIR(5) | A_BOLD);
+				mvwaddch(wLst, line, minwidth + 1, special);
+			} else if ('m' == special) {
+				wattrset(wLst, COLOR_PAIR(4) | A_BOLD);
+				mvwaddch(wLst, line, minwidth + 1, special);
+			} else {
+				wattrset(wLst, COLOR_PAIR(3));
+				mvwaddch(wLst, line, minwidth + 1, flag->stateDefault);
 			}
 
 			++line;
