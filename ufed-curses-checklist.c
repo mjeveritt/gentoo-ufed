@@ -448,14 +448,14 @@ static int callback(sFlag** curr, int key)
 				drawFlags();
 			break;
 		case KEY_LEFT:
-			if(descriptionleft>0)
-				descriptionleft--;
+			if(descriptionleft > 0)
+				descriptionleft -= min(descriptionleft, (wWidth(List) - minwidth) * 2 / 3);
 			drawflag(*curr, TRUE);
 			wmove(wLst, (*curr)->currline, 2);
 			wrefresh(wLst);
 			break;
 		case KEY_RIGHT:
-			descriptionleft++;
+			descriptionleft += (wWidth(List) - minwidth) * 2 / 3;
 			drawflag(*curr, TRUE);
 			wmove(wLst, (*curr)->currline, 2);
 			wrefresh(wLst);
