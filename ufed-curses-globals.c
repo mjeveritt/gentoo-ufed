@@ -14,6 +14,7 @@ eMask      e_mask         = eMask_unmasked;
 eOrder     e_order        = eOrder_left;
 eScope     e_scope        = eScope_all;
 eState     e_state        = eState_all;
+char*      fayt           = NULL;
 sListStats listStats      = { 0, 0, 0, 0, 0, 0 };
 sWindow    window[wCount] = {
 	{ NULL,  0,  0,  5,  0 }, /* Top       --- Top ---- */

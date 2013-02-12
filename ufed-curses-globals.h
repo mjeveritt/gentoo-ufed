@@ -15,6 +15,7 @@ extern eMask      e_mask;
 extern eOrder     e_order;
 extern eScope     e_scope;
 extern eState     e_state;
+extern char*      fayt;
 extern sListStats listStats;
 extern int        minwidth;
 extern int        topline;
