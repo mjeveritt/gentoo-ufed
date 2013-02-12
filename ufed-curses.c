@@ -178,7 +178,12 @@ void drawFlags() {
 	sFlag* flag = currentflag;
 	sFlag* last = currentflag;
 
-	int line = flag->listline - topline;
+	/* lHeight - flagHeight are compared against listline - topline,
+	 * because the latter can result in a too large value if a
+	 * strong limiting filter (like "masked") has just been turned
+	 * off.
+	 */
+	int line = min(lHeight - getFlagHeight(flag), flag->listline - topline);
 
 	/* move to the top of the displayed list */
 	while ((flag != flags) && (line > 0)) {
