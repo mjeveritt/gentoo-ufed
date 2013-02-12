@@ -165,7 +165,9 @@ void drawBottom(bool withSep)
 
 
 void drawFlags() {
-	int lHeight = wHeight(List);
+	WINDOW* wLst    = win(List);
+	int     lHeight = wHeight(List);
+	int     lWidth  = wWidth(List);
 
 	/* this method must not be called if the current
 	 * item is not valid.
@@ -220,18 +222,19 @@ void drawFlags() {
 			 * flag list, but not the end of the display.
 			 */
 			if(flag == flags) {
-				int lWidth = wWidth(List);
-				char buf[lWidth];
-				memset(buf, ' ', lWidth);
-				buf[lWidth] = '\0';
-				wmove(win(List), line, 0);
-				wattrset(win(List), COLOR_PAIR(3));
-				while(line++ < lHeight)
-					waddstr(win(List), buf);
+				wattrset(wLst, COLOR_PAIR(3));
+				while(line < lHeight) {
+					mvwhline(wLst, line, 0, ' ', lWidth);
+					mvwaddch(wLst, line, minwidth,     ACS_VLINE); // Before state
+					mvwaddch(wLst, line, minwidth + 4, ACS_VLINE); // Between state and scope
+					mvwaddch(wLst, line, minwidth + 7, ACS_VLINE); // After scope
+					++line;
+				}
 			}
 		} else
 			dispEnd = flag->listline + flag->ndesc;
 	}
+	wmove(wLst, lHeight - 1, lWidth - 1);
 	wnoutrefresh(win(List));
 }
 
@@ -779,7 +782,7 @@ bool setNextItem(int count, bool strict)
 		return false;
 	}
 
-	while (result && (skipped < count)) {
+	while (result && (skipped < count) && (curr->next != flags)) {
 		lastFlag = curr;
 		lastTop  = topline;
 		fHeight  = getFlagHeight(curr);
@@ -849,7 +852,7 @@ bool setPrevItem(int count, bool strict)
 		return false;
 	}
 
-	while (result && (skipped < count)) {
+	while (result && (skipped < count) && (curr != flags)) {
 		lastFlag = curr;
 		lastTop  = topline;
 		curr     = curr->prev;
