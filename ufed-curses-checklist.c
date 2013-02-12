@@ -258,12 +258,12 @@ static int drawflag(sFlag* flag, bool highlight)
 					' ', // Filled in later
 					flag->stateConf == ' ' ? ')' : ']',
 					/* name */
-					flag->globalForced ? "(+" : flag->globalMasked ? "(" : "",
+					flag->globalForced ? "(" : flag->globalMasked ? "(-" : "",
 					flag->name,
 					(flag->globalForced || flag->globalMasked) ? ")" : "",
 					/* distance */
 					(int)(minwidth
-						- (flag->globalForced ? 2 : flag->globalMasked ? 3 : 5)
+						- (flag->globalForced ? 3 : flag->globalMasked ? 2 : 5)
 						- strlen(flag->name)), " ");
 					// At this point buf is filled up to minwidth
 			} // End of generating left side mask display
@@ -328,13 +328,9 @@ static int drawflag(sFlag* flag, bool highlight)
 					else
 						wattrset(wLst, COLOR_PAIR(4) | A_BOLD);
 					mvwaddch(wLst, line, 2, '-');
-				} else if (' ' == flag->stateConf) {
-					if(highlight)
-						wattrset(wLst, COLOR_PAIR(3) | A_REVERSE);
-					else
-						wattrset(wLst, COLOR_PAIR(3) | A_BOLD);
+				} else if (' ' == flag->stateConf)
 					mvwaddch(wLst, line, 2, flag->stateDefault);
-				} else
+				else
 					mvwaddch(wLst, line, 2, flag->stateConf);
 			}
 
@@ -352,10 +348,6 @@ static int drawflag(sFlag* flag, bool highlight)
 					wattrset(wLst, COLOR_PAIR(4) | A_BOLD);
 				mvwaddch(wLst, line, minwidth + 1, special);
 			} else {
-				if(highlight)
-					wattrset(wLst, COLOR_PAIR(3) | A_BOLD | A_REVERSE);
-				else
-					wattrset(wLst, COLOR_PAIR(3));
 				if (' ' == flag->desc[idx].stateDefault)
 					mvwaddch(wLst, line, minwidth + 1, flag->stateDefault);
 				else
@@ -432,7 +424,7 @@ static int callback(sFlag** curr, int key)
 			break;
 		case ' ':
 			// Masked flags can be turned off, nothing else
-			if ( (*curr)->globalMasked ) {
+			if ( (*curr)->globalMasked || (*curr)->globalForced ) {
 				if (' ' != (*curr)->stateConf)
 					(*curr)->stateConf = ' ';
 			} else {
@@ -517,7 +509,7 @@ static int callback(sFlag** curr, int key)
 #ifdef NCURSES_MOUSE_VERSION
 		case KEY_MOUSE:
 			// Masked flags can be turned off, nothing else
-			if ( (*curr)->globalMasked ) {
+			if ( (*curr)->globalMasked || (*curr)->globalForced ) {
 				if (' ' != (*curr)->stateConf)
 					(*curr)->stateConf = ' ';
 			} else {
