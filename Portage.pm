@@ -102,10 +102,11 @@ sub _read_packages;
 sub _read_sh;
 sub _read_use_force;
 sub _read_use_mask;
+sub _remove_expands;
 
 # --- Package initialization ---
 INIT {
-	$_environment{$_} = {} for qw{USE};
+	$_environment{$_} = {} for qw{USE USE_EXPAND USE_EXPAND_HIDDEN};
 	_determine_eprefix;
 	_determine_make_conf;
 	_determine_profiles;
@@ -132,6 +133,7 @@ INIT {
 	_read_use_mask;  ## unintentionally unmask explicitly masked flags.
 	_read_archs;
 	_read_descriptions;
+	_remove_expands;
 	_final_cleaning;
 	_gen_use_flags;
 }
@@ -837,6 +839,53 @@ sub _read_use_mask {
 			}
 		} ## End of having a package.use.mask file
 	} ## End of looping through the profiles
+	return;
+}
+
+
+# TODO : Remove this function once the usage of the USE_EXPAND
+#        values is implemented.
+# For now all use flags that are expanded are removed. They are not
+# set in USE="foo" but in their respective values like APACHE2_MODULES="foo"
+#
+# Note: the values from base/make.defaults are: (but there might be more)
+# USE_EXPAND="APACHE2_MODULES APACHE2_MPMS CALLIGRA_FEATURES ENLIGHTENMENT_MODULES 
+#  FOO2ZJS_DEVICES MISDN_CARDS FRITZCAPI_CARDS FCDSL_CARDS VIDEO_CARDS DVB_CARDS 
+#  LIRC_DEVICES INPUT_DEVICES LINGUAS USERLAND KERNEL ELIBC CROSSCOMPILE_OPTS 
+#  ALSA_CARDS ALSA_PCM_PLUGINS LCD_DEVICES CAMERAS NETBEANS_MODULES QEMU_SOFTMMU_TARGETS 
+#  QEMU_USER_TARGETS SANE_BACKENDS RUBY_TARGETS PHP_TARGETS NGINX_MODULES_HTTP 
+#  NGINX_MODULES_MAIL XFCE_PLUGINS XTABLES_ADDONS GPSD_PROTOCOLS COLLECTD_PLUGINS 
+#  DRACUT_MODULES OFED_DRIVERS GRUB_PLATFORMS FFTOOLS PYTHON_TARGETS CURL_SSL 
+#  OPENMPI_FABRICS OPENMPI_RM OPENMPI_OFED_FEATURES LIBREOFFICE_EXTENSIONS
+#  VOICEMAIL_STORAGE PYTHON_SINGLE_TARGET ABI_X86"
+#
+# And the USE_EXPAND variables whose contents are not shown in package manager output.
+# USE_EXPAND_HIDDEN="USERLAND KERNEL ELIBC CROSSCOMPILE_OPTS ABI_X86"
+#
+# Note2: It might be a good idea to leave this function and just reduce it to kill
+#        USE_EXPAND_HIDDEN flags, as they must not be seen anyway.
+sub _remove_expands {
+
+	if (defined($_environment{USE_EXPAND})) {
+		for my $key (map {my $x=lc($_)."_"; $x } keys $_environment{USE_EXPAND}) {
+			for my $flag (keys %$_use_temp) {
+				if ($flag =~ /^$key/ ) {
+					delete($_use_temp->{$flag});
+				} 
+			}
+		}
+	} ## Done looping USE_EXPAND
+
+	if (defined($_environment{USE_EXPAND_HIDDEN})) {
+		for my $key (map {my $x=lc($_)."_"; $x } keys $_environment{USE_EXPAND_HIDDEN}) {
+			for my $flag (keys %$_use_temp) {
+				if ($flag =~ /^$key/ ) {
+					delete($_use_temp->{$flag});
+				} 
+			}
+		}
+	} ## Done looping USE_EXPAND_HIDDEN
+
 	return;
 }
 
