@@ -234,8 +234,8 @@ void drawFlags() {
 		} else
 			dispEnd = flag->listline + flag->ndesc;
 	}
-	wmove(wLst, lHeight - 1, lWidth - 1);
-	wnoutrefresh(win(List));
+	wmove(win(Input), 0, strlen(fayt));
+	wnoutrefresh(wLst);
 }
 
 static void drawScrollbar() {
@@ -268,6 +268,7 @@ static void drawScrollbar() {
 
 	mvwaddch(w, sHeight - 2, 0, ACS_DARROW);
 	mvwaddch(w, sHeight - 1, 0, ACS_VLINE);
+	wmove(win(Input), 0, strlen(fayt));
 	wnoutrefresh(w);
 }
 
@@ -309,9 +310,9 @@ void drawStatus(bool withSep)
 		waddstr(w, buf);
 	}
 
-	// Reset cursor to 0,0 and apply changes
-	wmove(w, 0, 0);
-	wnoutrefresh(w);
+	// Reset cursor and apply changes
+	wmove(w, 0, strlen(fayt));
+	wrefresh(w);
 }
 
 
@@ -388,14 +389,13 @@ void draw(bool withSep) {
 
 	drawTop(withSep);
 	drawBottom(withSep);
-	drawStatus(withSep);
 
 	if (flags) {
 		drawFlags();
 		drawScrollbar();
 	}
 
-	wrefresh(win(List));
+	drawStatus(withSep);
 }
 
 bool scrollcurrent() {
@@ -555,8 +555,10 @@ int maineventloop(
 							if(result>=0)
 								goto exit;
 						}
-						scrollcurrent();
-						drawflag(currentflag, TRUE);
+						if (scrollcurrent())
+							drawStatus(withSep);
+						else
+							drawflag(currentflag, TRUE);
 					}
 				} else if(wmouse_trafo(win(Scrollbar), &event.y, &event.x, FALSE)) {
 					// Only do mouse events if there actually is a scrollbar

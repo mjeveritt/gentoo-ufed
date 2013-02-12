@@ -13,7 +13,6 @@
 
 /* internal members */
 static int     descriptionleft = 0;
-static char*   fayt            = NULL;
 static sFlag** faytsave        = NULL;
 static size_t  maxDescWidth    = 0;
 static char*   lineBuf         = NULL;
@@ -318,13 +317,22 @@ static int drawflag(sFlag* flag, bool highlight)
 			if (!hasHead) {
 				hasHead = true;
 				if (flag->globalForced) {
-					wattrset(wLst, COLOR_PAIR(5) | A_BOLD);
+					if(highlight)
+						wattrset(wLst, COLOR_PAIR(5) | A_REVERSE);
+					else
+						wattrset(wLst, COLOR_PAIR(5) | A_BOLD);
 					mvwaddch(wLst, line, 2, '+');
 				} else if (flag->globalMasked) {
-					wattrset(wLst, COLOR_PAIR(4) | A_BOLD);
+					if(highlight)
+						wattrset(wLst, COLOR_PAIR(4) | A_REVERSE);
+					else
+						wattrset(wLst, COLOR_PAIR(4) | A_BOLD);
 					mvwaddch(wLst, line, 2, '-');
 				} else if (' ' == flag->stateConf) {
-					wattrset(wLst, COLOR_PAIR(3) | A_BOLD);
+					if(highlight)
+						wattrset(wLst, COLOR_PAIR(3) | A_REVERSE);
+					else
+						wattrset(wLst, COLOR_PAIR(3) | A_BOLD);
 					mvwaddch(wLst, line, 2, flag->stateDefault);
 				} else
 					mvwaddch(wLst, line, 2, flag->stateConf);
@@ -332,13 +340,22 @@ static int drawflag(sFlag* flag, bool highlight)
 
 			// Add [D]efault column content
 			if ('f' == special) {
-				wattrset(wLst, COLOR_PAIR(5) | A_BOLD);
+				if(highlight)
+					wattrset(wLst, COLOR_PAIR(5) | A_REVERSE);
+				else
+					wattrset(wLst, COLOR_PAIR(5) | A_BOLD);
 				mvwaddch(wLst, line, minwidth + 1, special);
 			} else if ('m' == special) {
-				wattrset(wLst, COLOR_PAIR(4) | A_BOLD);
+				if(highlight)
+					wattrset(wLst, COLOR_PAIR(4) | A_REVERSE);
+				else
+					wattrset(wLst, COLOR_PAIR(4) | A_BOLD);
 				mvwaddch(wLst, line, minwidth + 1, special);
 			} else {
-				wattrset(wLst, COLOR_PAIR(3));
+				if(highlight)
+					wattrset(wLst, COLOR_PAIR(3) | A_BOLD | A_REVERSE);
+				else
+					wattrset(wLst, COLOR_PAIR(3));
 				if (' ' == flag->desc[idx].stateDefault)
 					mvwaddch(wLst, line, minwidth + 1, flag->stateDefault);
 				else
@@ -375,7 +392,8 @@ static int callback(sFlag** curr, int key)
 		fayt[0] = '\0';
 		drawStatus(true);
 		wrefresh(wInp);
-	}
+	} else
+		wmove(wInp, 0, strlen(fayt));
 
 	// Reset possible side scrolling of the current flags description first
 	if(descriptionleft && (key != KEY_LEFT) && (key != KEY_RIGHT) ) {
@@ -393,8 +411,8 @@ static int callback(sFlag** curr, int key)
 			fayt[--fLen] = '\0';
 			drawflag(*curr, FALSE);
 			*curr = faytsave[fLen];
-			scrollcurrent();
-			drawflag(*curr, TRUE);
+			if (!scrollcurrent())
+				drawflag(*curr, TRUE);
 			wattrset(wInp, COLOR_PAIR(5) | A_BOLD);
 			mvwaddstr(wInp, 0, 0, fayt);
 			whline(wInp, ' ', 2);
@@ -494,6 +512,7 @@ static int callback(sFlag** curr, int key)
 			if (eOrder_left == e_order) e_order = eOrder_right;
 			else                        e_order = eOrder_left;
 			drawFlags();
+			wmove(wInp, 0, strlen(fayt));
 			break;
 #ifdef NCURSES_MOUSE_VERSION
 		case KEY_MOUSE:
@@ -520,6 +539,7 @@ static int callback(sFlag** curr, int key)
 				wrefresh(wLst);
 			} else {
 				drawFlags();
+				wmove(wInp, 0, strlen(fayt));
 			}
 			break;
 #endif
@@ -535,6 +555,8 @@ static int callback(sFlag** curr, int key)
 				fayt[fLen]     = (char) key;
 				faytsave[fLen] = *curr;
 				fayt[++fLen]   = '\0';
+
+				wmove(wInp, 0, fLen);
 
 				/* if the current flag already matches the input string,
 				 * then update the input area only.
@@ -560,18 +582,20 @@ static int callback(sFlag** curr, int key)
 						wmove(wInp, 0, fLen - 1);
 						wrefresh(wInp);
 					} else {
-						wattrset(wInp, COLOR_PAIR(5) | A_BOLD);
-						mvwaddstr(wInp, 0, 0, fayt);
-						wnoutrefresh(wInp);
 						drawflag(*curr, FALSE);
 						*curr = flag;
 						if (!scrollcurrent())
 							drawflag(*curr, TRUE);
+						wattrset(wInp, COLOR_PAIR(5) | A_BOLD);
+						mvwaddstr(wInp, 0, 0, fayt);
+						wmove(wInp, 0, fLen);
+						wrefresh(wInp);
 					}
 				}
 			}
 			break;
 	}
+
 	return -1;
 }
 
