@@ -456,8 +456,8 @@ static int callback(sFlag** curr, int key)
 			else                               e_mask = eMask_masked;
 
 			if ( !isFlagLegal(*curr)
-			  && !setNextItem(1, true)
-			  && !setPrevItem(1, true) )
+			  && !setNextItem(0, true)
+			  && !setPrevItem(0, true) )
 				resetDisplay(true);
 			else
 				draw(true);
@@ -470,8 +470,8 @@ static int callback(sFlag** curr, int key)
 			else                               e_scope = eScope_global;
 
 			if ( !isFlagLegal(*curr)
-			  && !setNextItem(1, true)
-			  && !setPrevItem(1, true) )
+			  && !setNextItem(0, true)
+			  && !setPrevItem(0, true) )
 				resetDisplay(true);
 			else
 				draw(true);
@@ -483,8 +483,8 @@ static int callback(sFlag** curr, int key)
 			else                                     e_state = eState_installed;
 
 			if ( !isFlagLegal(*curr)
-			  && !setNextItem(1, true)
-			  && !setPrevItem(1, true) )
+			  && !setNextItem(0, true)
+			  && !setPrevItem(0, true) )
 				resetDisplay(true);
 			else
 				draw(true);
