@@ -73,6 +73,7 @@ void initcurses() {
 	init_pair(3, COLOR_BLACK, COLOR_WHITE);
 	init_pair(4, COLOR_RED, COLOR_WHITE);
 	init_pair(5, COLOR_BLUE, COLOR_WHITE);
+	init_pair(6, COLOR_BLACK, COLOR_CYAN);
 #ifdef NCURSES_MOUSE_VERSION
 	mousemask(BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED | BUTTON1_PRESSED | BUTTON1_RELEASED, NULL);
 #endif
@@ -111,54 +112,50 @@ static void checktermsize() {
  */
 void drawBottom(bool withSep)
 {
-	WINDOW* w = win(Bottom);
+	WINDOW* w      = win(Bottom);
+	int     bWidth = wWidth(Bottom);
 
 	wattrset(w, COLOR_PAIR(2) | A_BOLD);
 	mvwaddch(w, 0, 0, ACS_VLINE);
 	wattrset(w, COLOR_PAIR(3));
 	waddch(w, ' ');
 	waddch(w, ACS_LLCORNER);
-	whline(w, ACS_HLINE, wWidth(Bottom)-6);
+	whline(w, ACS_HLINE, bWidth - 6);
 	if (withSep) {
 		mvwaddch(w, 0, minwidth + 3, ACS_BTEE); // Before state
 		mvwaddch(w, 0, minwidth + 7, ACS_BTEE); // Between state and scope
 		mvwaddch(w, 0, minwidth + 10, ACS_BTEE); // After scope
 	}
-	mvwaddch(w, 0, wWidth(Bottom)-3, ACS_LRCORNER);
+	mvwaddch(w, 0, bWidth - 3, ACS_LRCORNER);
 	waddch(w, ' ');
 	wattrset(w, COLOR_PAIR(2) | A_BOLD);
-	waddch(w, ACS_VLINE);
+	waddch  (w, ACS_VLINE);                   // Right vline on line 0
+	waddch  (w, ACS_VLINE);                   // Left vline on line 1
+	whline  (w, ' ', bWidth - 2);             // Blank line (filled with keys later)
+	mvwaddch(w, 1, bWidth - 1, ACS_VLINE);    // Right vline on line 1
+	mvwaddch(w, 2, 0, ACS_LLCORNER);          // lower left corner on line 2
+	whline  (w, ACS_HLINE, bWidth - 2);       // bottom line
+	mvwaddch(w, 2, bWidth - 1, ACS_LRCORNER); // lower right corner on line 2
 
-	waddch(w, ACS_VLINE);
-	wattrset(w, COLOR_PAIR(3));
 	if (keys) {
-		char buf[COLS + 1];
-		char *p = buf;
-		const sKey* key;
-		const size_t maxAdr = (const size_t)(buf+wWidth(Bottom)-3);
-		*p++ = ' ';
-		for(key=keys; key->key!='\0'; key++) {
-			size_t n = maxAdr - (size_t)p;
-			if(n > key->length)
-				n = key->length;
-			memcpy(p, key->descr, n);
-			p += n;
-			if ((size_t)p == maxAdr)
-				break;
-			*p++ = ' ';
+		const sKey* key = keys;
+		int pos   = 2;
+		int len   = 0;
+
+		while ((pos < (bWidth - 2)) && (key->key != '\0')) {
+			len = strlen(key->descr);
+			if (len > (bWidth - 2 - pos))
+				len = bWidth - 2 - pos;
+			if (key->key > 0)
+				wattrset(w, COLOR_PAIR(6));
+			else
+				wattrset(w, COLOR_PAIR(3));
+			mvwaddnstr(w, 1, pos, key->descr, len);
+			pos += len + 1;
+			++key;
 		}
-		memset(p, ' ', maxAdr + 1 - (size_t)p);
-		buf[wWidth(Bottom)-2] = '\0';
-		waddstr(w, buf);
-	} else
-		whline(w, ' ', wWidth(Bottom) - 3);
+	}
 
-	wattrset(w, COLOR_PAIR(2) | A_BOLD);
-	waddch(w, ACS_VLINE);
-
-	waddch(w, ACS_LLCORNER);
-	whline(w, ACS_HLINE, wWidth(Bottom)-2);
-	mvwhline(w, 2, wWidth(Bottom)-1, ACS_LRCORNER, 1);
 
 	wnoutrefresh(w);
 }
@@ -626,12 +623,12 @@ int maineventloop(
 						for(key = keys; key->key!='\0'; key++) {
 							if( (key->key > 0) && ((size_t)x < key->length)) {
 								event.x -= x;
-								wattrset(win(Bottom), COLOR_PAIR(3) | A_BOLD | A_REVERSE);
+								wattrset(win(Bottom), COLOR_PAIR(6) | A_BOLD | A_REVERSE);
 								mvwaddstr(win(Bottom), event.y, event.x, key->descr);
 								wmove(win(Bottom), event.y, event.x);
 								wrefresh(win(Bottom));
 								usleep(100000);
-								wattrset(win(Bottom), COLOR_PAIR(3));
+								wattrset(win(Bottom), COLOR_PAIR(6));
 								waddstr(win(Bottom), key->descr);
 								wnoutrefresh(win(Bottom));
 								c = key->key;
