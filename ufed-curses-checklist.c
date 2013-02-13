@@ -23,12 +23,11 @@ static const sKey keys[] = {
 	{ '?',      mkKey("Help (?)")             },
 	{ '\n',     mkKey("Save (Enter)")         },
 	{ '\033',   mkKey("Cancel (Esc)")         },
-	{ -1,       mkKey("Display (")            },
-	{ KEY_F(5), mkKey("Masked/Forced (F5),")  },
-	{ KEY_F(6), mkKey("Local/Global (F6),")   },
-	{ KEY_F(7), mkKey("Installed (F7),")      },
-	{ KEY_F(8), mkKey("Order (F8)")           },
-	{ -1,       mkKey(")")                    },
+	{ -1,       mkKey("Toggle :")             },
+	{ KEY_F(5), mkKey("Local/Global (F5)")    },
+	{ KEY_F(6), mkKey("Installed (F6)")       },
+	{ KEY_F(7), mkKey("Masked/Forced (F7)")   },
+	{ KEY_F(9), mkKey("Pkg/Desc Order (F9)")  },
 	{ '\0',     mkKey("")                     }
 };
 #undef mkKey
@@ -460,7 +459,34 @@ static int callback(sFlag** curr, int key)
 			wmove(wLst, (*curr)->currline, 2);
 			wrefresh(wLst);
 			break;
+
 		case KEY_F(5):
+			if      (eScope_local  == e_scope) e_scope = eScope_all;
+			else if (eScope_global == e_scope) e_scope = eScope_local;
+			else                               e_scope = eScope_global;
+
+			if ( !isFlagLegal(*curr)
+			  && !setNextItem(0, true)
+			  && !setPrevItem(0, true) )
+				resetDisplay(true);
+			else
+				draw(true);
+			break;
+
+		case KEY_F(6):
+			if      (eState_installed    == e_state) e_state = eState_notinstalled;
+			else if (eState_notinstalled == e_state) e_state = eState_all;
+			else                                     e_state = eState_installed;
+
+			if ( !isFlagLegal(*curr)
+			  && !setNextItem(0, true)
+			  && !setPrevItem(0, true) )
+				resetDisplay(true);
+			else
+				draw(true);
+			break;
+
+		case KEY_F(7):
 			if      (eMask_masked   == e_mask) e_mask = eMask_unmasked;
 			else if (eMask_unmasked == e_mask) e_mask = eMask_both;
 			else                               e_mask = eMask_masked;
@@ -474,38 +500,14 @@ static int callback(sFlag** curr, int key)
 
 			break;
 
-		case KEY_F(6):
-			if      (eScope_local  == e_scope) e_scope = eScope_all;
-			else if (eScope_global == e_scope) e_scope = eScope_local;
-			else                               e_scope = eScope_global;
-
-			if ( !isFlagLegal(*curr)
-			  && !setNextItem(0, true)
-			  && !setPrevItem(0, true) )
-				resetDisplay(true);
-			else
-				draw(true);
-			break;
-
-		case KEY_F(7):
-			if      (eState_installed    == e_state) e_state = eState_notinstalled;
-			else if (eState_notinstalled == e_state) e_state = eState_all;
-			else                                     e_state = eState_installed;
-
-			if ( !isFlagLegal(*curr)
-			  && !setNextItem(0, true)
-			  && !setPrevItem(0, true) )
-				resetDisplay(true);
-			else
-				draw(true);
-			break;
-
-		case KEY_F(8):
+		case KEY_F(9):
 			if (eOrder_left == e_order) e_order = eOrder_right;
 			else                        e_order = eOrder_left;
+
 			drawFlags();
 			wmove(wInp, 0, strlen(fayt));
 			break;
+
 #ifdef NCURSES_MOUSE_VERSION
 		case KEY_MOUSE:
 			// Masked flags can be turned off, nothing else
