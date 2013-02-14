@@ -298,14 +298,14 @@ void drawStatus(bool withSep)
 		mvwaddch (w, 0, minwidth + 7, ACS_VLINE); // After scope
 
 		// Use the unused right side to show the filter status
-		sprintf(buf, "%*s%-6s / %-6s / %-13s] ",
+		sprintf(buf, "%*s%-6s / %-13s / %-6s] ",
 			max(2, iWidth - 40 - minwidth), " [",
-			eMask_masked        == e_mask ? "masked" :
-			eMask_unmasked      == e_mask ? "normal" : "all",
 			eScope_global       == e_scope ? "global" :
 			eScope_local        == e_scope ? "local" : "all",
 			eState_installed    == e_state ? "installed" :
-			eState_notinstalled == e_state ? "not installed" : "all");
+			eState_notinstalled == e_state ? "not installed" : "all",
+			eMask_masked        == e_mask  ? "masked" :
+			eMask_unmasked      == e_mask  ? "normal" : "all");
 		waddstr(w, buf);
 	}
 
