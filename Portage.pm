@@ -88,6 +88,7 @@ sub _determine_eprefix;
 sub _determine_make_conf;
 sub _determine_profiles;
 sub _final_cleaning;
+sub _fix_descriptions;
 sub _gen_use_flags;
 sub _merge;
 sub _merge_env;
@@ -134,6 +135,7 @@ INIT {
 	_read_archs;
 	_read_descriptions;
 	_remove_expands;
+	_fix_descriptions;
 	_final_cleaning;
 	_gen_use_flags;
 }
@@ -269,23 +271,6 @@ sub _determine_profiles
 # No parameters accepted
 sub _final_cleaning
 {
-	# All flags that are specific to explicit versioning have no
-	# descriptions yet. This must be enriched from the versionless
-	# package setting, or deleted if none are found.
-	for my $flag (keys %{$_use_temp}) {
-		my $flagRef  = $_use_temp->{$flag}; ## Shortcut
-		for my $pkg (sort keys %{$flagRef->{"local"}}) {
-			next if (length($flagRef->{"local"}{$pkg}{descr}));
-			
-			if ($pkg =~ /^[<>=~]+([^<>=~].+)-\d+(?:\.\d+)*\w?(?:_(?:alpha|beta|pre|rc|p)\d*)*(?:-r\d+)?$/) {
-				defined($flagRef->{"local"}{$1})
-					and $flagRef->{"local"}{$pkg}{descr} = $flagRef->{"local"}{$1}{descr}
-					or  delete($flagRef->{"local"}{$pkg}{descr});
-			}
-			
-		} ## End of looping packages
-	} ## End of looping flags
-	
 	# The "disable all" flag is truncated to '*' by the parsing, but it
 	# has to read '-*'.
 	_add_temp("-*", "global");
@@ -306,6 +291,68 @@ sub _final_cleaning
 	defined($_use_temp->{"build"})     and delete($_use_temp->{"build"});
 	defined($_use_temp->{"livecd"})    and delete($_use_temp->{"livecd"});
 	defined($_use_temp->{"selinux"})   and delete($_use_temp->{"selinux"});
+
+	return;
+}
+
+
+# All flags that are specific to explicit versioning have no
+# descriptions yet. This must be enriched from the versionless
+# package setting.
+# Further flags that have no proper description get the
+# string "(Unknown)" as a description
+sub _fix_descriptions
+{
+	for my $flag (keys %{$_use_temp}) {
+		my $flagRef  = $_use_temp->{$flag}; ## Shortcut
+		my $globRef  = $flagRef->{global}  || undef;
+		my $locaRef  = $flagRef->{"local"} || undef;
+		my $gDesc    = "(Unknown)";
+		my $hasLocal = 0;
+
+		# check global part first
+		if (defined($globRef)) {
+			if (length($globRef->{descr})) {
+				$gDesc = $globRef->{descr};
+			} elsif ( $globRef->{conf}
+				   || $globRef->{"default"}
+				   || $globRef->{forcded}
+				   || $globRef->{masked} ) {
+			    ## The flag is definitely set somewhere
+			    $globRef->{descr} = $gDesc;
+			}
+		}
+
+		# Now check local part
+		for my $pkg (sort keys %$locaRef) {
+			$hasLocal = 1;
+			
+			# No action required if a description is present
+			next if (length($locaRef->{$pkg}{descr}));
+			
+			# Otherwise check wether this is worth to be added
+			if ( $locaRef->{$pkg}{installed}
+			  || $locaRef->{$pkg}{forced}
+			  || $locaRef->{$pkg}{masked}
+			  || $locaRef->{$pkg}{"package"}
+			  || $locaRef->{$pkg}{pkguse}) {
+			    # it is set and/or used by an ebuild
+				if ($pkg =~ /^[<>=~]+([^<>=~].+)-\d+(?:\.\d+)*\w?(?:_(?:alpha|beta|pre|rc|p)\d*)*(?:-r\d+)?$/) {
+					defined($locaRef->{$1})
+						and $locaRef->{$pkg}{descr} = $locaRef->{$1}{descr};
+				}
+				length($locaRef->{$pkg}{descr})
+					or $locaRef->{$pkg}{descr} = $gDesc; ## (Unknown) unless set
+			}
+		} ## End of looping packages
+
+		# Finally remove the global description if it is
+		# (Unknown) with at least one local representation
+		# present.
+		if ($hasLocal && ("(Unknown)" eq $gDesc)) {
+			$globRef->{descr} = "";
+		}
+	} ## End of looping flags
 
 	return;
 }
@@ -341,8 +388,11 @@ sub _gen_use_flags
 		for my $pkg (sort keys %{$flagRef->{"local"}}) {
 			$pRef  = $flagRef->{"local"}{$pkg};
 			$pdLen = length($pRef->{descr});
-			$pDesc = $pdLen ? "$pRef->{descr}" :
-					 $gdLen ? $gDesc : "(Unknown)";
+			
+			# only accept entries with a non-empty description:
+			$pdLen or next;
+
+			$pDesc = $pRef->{descr};
 			
 			# Now the Key can be assembled...
 			$pKey  = sprintf("[%s]%d:%d:%d:%d:%d:%d:%d", $pDesc, $pRef->{conf}, $pRef->{"default"},
@@ -350,11 +400,11 @@ sub _gen_use_flags
 							$pRef->{"package"}, $pRef->{pkguse});
 							
 			# ...and safed, if it has an own description or differs in its settings from global
-			if ($pdLen || (0 == $lCount) ## has own description or no global description available
-				|| $pRef->{"default"}    ## explicitly set default from IUSE
-				|| $pRef->{forced}       ## explicitly (un)forced from package.use.force
-				|| $pRef->{masked}       ## explicitly (un)masked from package.use.mask
-				|| $pRef->{pkguse}       ## explicitly (un)set from users package.use
+			if ( ($pdLen && ($gDesc ne $pDesc)) ## has an own description
+			  || $pRef->{"default"} ## explicitly set default from IUSE
+			  || $pRef->{forced}    ## explicitly (un)forced from package.use.force
+			  || $pRef->{masked}    ## explicitly (un)masked from package.use.mask
+			  || $pRef->{pkguse}    ## explicitly (un)set from users package.use
 			   ) {
 				$descCons{$pKey}{$pkg} = 1;
 				++$lCount;
