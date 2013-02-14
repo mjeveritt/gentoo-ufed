@@ -182,7 +182,9 @@ void drawFlags() {
 	 * strong limiting filter (like "masked") has just been turned
 	 * off.
 	 */
-	int line = min(lHeight - getFlagHeight(flag), flag->listline - topline);
+	int line = flag->listline - topline;
+	if (line > lHeight)
+		line = lHeight - getFlagHeight(flag);
 
 	/* move to the top of the displayed list */
 	while ((flag != flags) && (line > 0)) {
