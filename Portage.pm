@@ -49,6 +49,8 @@ our $used_make_conf = "";
 my %_environment  = ();
 my $_EPREFIX        = "";
 my @_profiles     = ();
+my %_use_order    = ();
+
 # $_use_temp - hashref that represents the current state of
 # all known flags. This is for data gathering, the public
 # $use_flags is generated out of this by _gen_use_flags()
@@ -88,7 +90,7 @@ sub _determine_eprefix;
 sub _determine_make_conf;
 sub _determine_profiles;
 sub _final_cleaning;
-sub _fix_descriptions;
+sub _fix_flags;
 sub _gen_use_flags;
 sub _merge;
 sub _merge_env;
@@ -99,6 +101,7 @@ sub _read_descriptions;
 sub _read_make_conf;
 sub _read_make_defaults;
 sub _read_make_globals;
+sub _read_package_use;
 sub _read_packages;
 sub _read_sh;
 sub _read_use_force;
@@ -112,30 +115,43 @@ INIT {
 	_determine_make_conf;
 	_determine_profiles;
 	_read_make_globals;
-	_read_make_conf; ## Needed first to know about overlays
 
-	# Now with the defaults loaded, a check is in order
-	# whether the set USE_ORDER is supported:
+	# make.conf is loaded first to parse for the set overlays
+	# directories, if any. USE flags from make.conf get a
+	# dedicated area {conf}, so there is no harm in loading
+	# it first.
+	_read_make_conf;
+
+	# USE_ORDER must not only be defined, it sets the order in which settings
+	# are loaded overriding each other.
 	defined($_environment{USE_ORDER})
 		or die("Unable to determine USE_ORDER!\nSomething is seriously broken!\n");
-	my $lastorder = "";
+	my $ordNr  = 0;
 	my @use_order = reverse split /:/, $_environment{USE_ORDER};
 	for my $order(@use_order) {
-		$lastorder = $order
-			if( ($order eq 'defaults') || ($order eq 'conf') );
+		"env"         eq $order and next; ## Not used by ufed
+		"pkg"         eq $order and _read_package_use;
+		# "conf" is already loaded
+		"defaults"    eq $order and _read_make_defaults;
+		"pkginternal" eq $order and _read_packages;
+		"repo"        eq $order and next; ## Done in "defaults" and "pkginternal" in the right order
+		"env.d"       eq $order and next; ## Not used by ufed
+		$_use_order{$order} = ++$ordNr;
 	}
-	$lastorder eq 'conf'
-		or die("Sorry, USE_ORDER without make.conf overriding global"
-			. " USE flags are not currently supported by ufed.\n");
+	if ( !defined($_use_order{"defaults"})
+	  || !defined($_use_order{"conf"})
+	  || ($_use_order{"defaults"} > $_use_order{"conf"})) {
+		die("Sorry, USE_ORDER without make.conf overriding global"
+		  . " USE flags are not currently supported by ufed.\n");
+	}
 
-	_read_make_defaults;
-	_read_packages;
+	# Now the rest can be read	
 	_read_use_force; ## Must be before _read_use_mask to not
 	_read_use_mask;  ## unintentionally unmask explicitly masked flags.
 	_read_archs;
 	_read_descriptions;
 	_remove_expands;
-	_fix_descriptions;
+	_fix_flags;
 	_final_cleaning;
 	_gen_use_flags;
 }
@@ -296,24 +312,30 @@ sub _final_cleaning
 }
 
 
-# All flags that are specific to explicit versioning have no
-# descriptions yet. This must be enriched from the versionless
-# package setting.
-# Further flags that have no proper description get the
-# string "(Unknown)" as a description
-sub _fix_descriptions
+# This function fixes two aspects of the temporary flag hash:
+# A) The {"default"} flag settings of packages might have to be
+#    overridden by the {"global"} ones.
+#    (see USE_ORDER in man make.conf)
+# B) All flags that are specific to explicit versioning have no
+#    descriptions yet. This must be enriched from the versionless
+#    package setting.
+# C) Further flags that have no proper description get the
+#    string "(Unknown)" as a description
+sub _fix_flags
 {
 	for my $flag (keys %{$_use_temp}) {
 		my $flagRef  = $_use_temp->{$flag}; ## Shortcut
 		my $globRef  = $flagRef->{global}  || undef;
 		my $locaRef  = $flagRef->{"local"} || undef;
 		my $gDesc    = "(Unknown)";
+		my $gDefault = 0;
 		my $hasLocal = 0;
 
 		# check global part first
 		if (defined($globRef)) {
 			if (length($globRef->{descr})) {
-				$gDesc = $globRef->{descr};
+				$gDesc    = $globRef->{descr};
+				$gDefault = $globRef->{"default"};
 			} elsif ( $globRef->{conf}
 				   || $globRef->{"default"}
 				   || $globRef->{forcded}
@@ -327,7 +349,15 @@ sub _fix_descriptions
 		for my $pkg (sort keys %$locaRef) {
 			$hasLocal = 1;
 			
-			# No action required if a description is present
+			# fix {default} settings if a global one is set
+			# This is make.defaults overriding IUSE settings.
+			if ( $gDefault
+			  && ( !defined($_use_order{"pkginternal"})
+			    || ($_use_order{"defaults"} > $_use_order{"pkginternal"})) ) {
+				$locaRef->{$pkg}{"default"} = $gDefault;
+			}
+
+			# No further action required if a description is present
 			next if (length($locaRef->{$pkg}{descr}));
 			
 			# Otherwise check wether this is worth to be added
@@ -613,8 +643,8 @@ sub _read_make_conf {
 }
 
 
-# read all found make.defaults and package.use files and merge
-# their values into env, adding flag parameters to $_use_tmp.
+# read all found make.defaults merge their values into env,
+# adding flag parameters to $_use_tmp.
 # TODO : use USE_EXPAND to add Expansion parsing. The most
 #        important of these are set with sane defaults here,
 #        too.
@@ -637,19 +667,31 @@ sub _read_make_defaults {
 		}
 	} ## End of reading make.defaults
 
-	# package.use files are parsed next, finished by /etc/portage/package.use
+	return;
+}
+
+
+# read all found make.globals and merge their
+# settings into %environment. This is done to
+# get the final "PORTDIR" and "USE_ORDER"
+# No parameters accepted
+sub _read_make_globals {
+	for my $dir(@_profiles, "${_EPREFIX}/usr/share/portage/config") {
+		_read_sh("$dir/make.globals");
+	}
+	return;
+}
+
+
+# read all found package.use files and merge their values into
+# env, adding flag parameters to $_use_tmp.
+# No parameters accepted.
+sub _read_package_use
+{
 	for my $dir(@_profiles, "${_EPREFIX}/etc/portage") {
 		my $tgt = $dir eq "${_EPREFIX}/etc/portage" ? "pkguse" : "package";
 		for(_noncomments("$dir/package.use") ) {
 			my($pkg, @flags) = split;
-			
-			# There is an important detail: package.use files can limit
-			# their settings to specific package versions.
-			# As ufed is showing a generalized view and can in no
-			# acceptable way determine which versions are relevant,
-			# we have to *skip* all settings that have specific version
-			# and/or slot information limiting their scope.
-# CHECK			$pkg =~ /^[<>=~]/ and next;
 			
 			for my $flag (@flags) {
 				my $state = $flag =~ s/^-// || 0;
@@ -666,18 +708,6 @@ sub _read_make_defaults {
 		}
 	} ## End of reading package.use
 
-	return
-}
-
-
-# read all found make.globals and merge their
-# settings into %environment. This is done to
-# get the final "PORTDIR" and "USE_ORDER"
-# No parameters accepted
-sub _read_make_globals {
-	for my $dir(@_profiles, "${_EPREFIX}/usr/share/portage/config") {
-		_read_sh("$dir/make.globals");
-	}
 	return;
 }
 
