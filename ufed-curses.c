@@ -201,10 +201,12 @@ void drawFlags() {
 	 * This can happen if the flag filter is toggled
 	 * and the current flag is the first not filtered.
 	 */
-	if ((flag == flags) && !isFlagLegal(flag)) {
-		flag    = last;
-		topline = last->listline;
-		line    = 0;
+	if (flag == flags) {
+		if (!isFlagLegal(flag)) {
+			flag    = last;
+			topline = last->listline;
+		}
+		line = 0;
 	}
 
 	// The display start line might differ from topline:
