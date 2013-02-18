@@ -8,6 +8,13 @@ UFED is a simple program designed to help you configure the
 systems USE flags (see below) to your liking. To enable or
 disable a flag highlight it and hit space.
 
+ufed edits the USE flag settings in your make.conf file only. It can not be
+used to edit your package.use file.
+
+If you have two make.conf files, @GENTOO_PORTAGE_EPREFIX@/etc/make.conf and
+@GENTOO_PORTAGE_EPREFIX@/etc/portage/make.conf, ufed reads the first, overrides
+its settings with the second, and writes changes to the second.
+
 .B What are USE flags?
 
 The USE settings system is a flexible way to enable or disable various features
@@ -131,7 +138,8 @@ packages. Masked flags are shown here as 'm', forced flags as 'f'.
 .br
 P    : [P]rofile package settings from package.use.
 .br
-C    : [C]onfiguration settings from make.conf and
+C    : [C]onfiguration settings from @GENTOO_PORTAGE_EPREFIX@/etc/make.conf,
+@GENTOO_PORTAGE_EPREFIX@/etc/portage/make.conf and
 @GENTOO_PORTAGE_EPREFIX@/etc/portage/package.use.
 .br
 S    : [S]cope of the description, package specific descriptions have an 'L'
