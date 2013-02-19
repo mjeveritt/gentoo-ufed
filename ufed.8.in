@@ -48,23 +48,22 @@ in @GENTOO_PORTAGE_EPREFIX@/usr/portage/profiles/use.local.desc.
 
 .B What are "global" and "local" USE flags?
 
-From the perspective of any package there is no distinction between "local" and
-"global" flags. A package either listens to a specific flag or it doesn't.
+Global USE flags are called such because they represent functionality that is
+found in a wider variety of packages. For example, the global flag "cjk" is
+about adding / not adding support for Eastern-Asian languages, which affects
+a multitude of various packages. Global flags are described in
+@GENTOO_PORTAGE_EPREFIX@/usr/portage/profiles/use.desc.
 
-The difference is the description, and maybe the impact of whether a flag is
-set or not. If a package supports a flag that has a global description in
-@GENTOO_PORTAGE_EPREFIX@/usr/portage/profiles/use.desc but does make use of
-the flag differently, then the package maintainer has to add a local
-description to the packages metadata.xml file.
-.br
-The same applies to flags that have no global description, a local one must be
-provided then.
+Local USE flags are unique package-wise, because the functionality they stand
+for is only found in that particular package and no other. See
+@GENTOO_PORTAGE_EPREFIX@/usr/portage/profiles/use.local.desc for a full, 
+per-package listing of all local USE flags.
 
-An example would be a package with the USE flag "tiff", that does not only add
-support for the TIFF image format, but changes the output format of the
-program installed. The USE flag then would have a different impact on the
-package than described in the global description; a local description must be
-provided then.
+It still happens that a flag which is defined as global is also defined as
+local for one or more packages. That is because the general definition of the
+global flag takes on specialized semantics in some particular package. It also
+occurs that multiple packages define a local flag of the same name - the
+meaning of the flag differs, however, for each package.
 
 .B What are "Masked" and "Forced" flags?
 
