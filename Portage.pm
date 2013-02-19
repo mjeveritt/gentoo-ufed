@@ -946,23 +946,22 @@ sub _read_use_mask {
 #        USE_EXPAND_HIDDEN flags, as they must not be seen anyway.
 sub _remove_expands {
 
-	if (defined($_environment{USE_EXPAND})) {
-		for my $key (map {my $x=lc($_)."_"; $x } keys $_environment{USE_EXPAND}) {
-			for my $flag (keys %$_use_temp) {
-				if ($flag =~ /^$key/ ) {
-					delete($_use_temp->{$flag});
-				} 
-			}
+	my $expands = $_environment{USE_EXPAND} || {};
+	my $hidden  = $_environment{USE_EXPAND_HIDDEN} || {};
+
+	for my $key (map {my $x=lc($_)."_"; $x } keys %$expands) {
+		for my $flag (keys %$_use_temp) {
+			if ($flag =~ /^$key/ ) {
+				delete($_use_temp->{$flag});
+			} 
 		}
 	} ## Done looping USE_EXPAND
 
-	if (defined($_environment{USE_EXPAND_HIDDEN})) {
-		for my $key (map {my $x=lc($_)."_"; $x } keys $_environment{USE_EXPAND_HIDDEN}) {
-			for my $flag (keys %$_use_temp) {
-				if ($flag =~ /^$key/ ) {
-					delete($_use_temp->{$flag});
-				} 
-			}
+	for my $key (map {my $x=lc($_)."_"; $x } keys %$hidden) {
+		for my $flag (keys %$_use_temp) {
+			if ($flag =~ /^$key/ ) {
+				delete($_use_temp->{$flag});
+			} 
 		}
 	} ## Done looping USE_EXPAND_HIDDEN
 
