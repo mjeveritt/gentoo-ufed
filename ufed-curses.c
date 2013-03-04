@@ -133,9 +133,12 @@ void drawBottom(bool withSep)
 	waddch  (w, ACS_VLINE);                   // Left vline on line 1
 	whline  (w, ' ', bWidth - 2);             // Blank line (filled with keys later)
 	mvwaddch(w, 1, bWidth - 1, ACS_VLINE);    // Right vline on line 1
-	mvwaddch(w, 2, 0, ACS_LLCORNER);          // lower left corner on line 2
+	waddch  (w, ACS_VLINE);                   // Left vline on line 2
+	whline  (w, ' ', bWidth - 2);             // Blank line (filled with keys later)
+	mvwaddch(w, 2, bWidth - 1, ACS_VLINE);    // Right vline on line 2
+	mvwaddch(w, 3, 0, ACS_LLCORNER);          // lower left corner on line 3
 	whline  (w, ACS_HLINE, bWidth - 2);       // bottom line
-	mvwaddch(w, 2, bWidth - 1, ACS_LRCORNER); // lower right corner on line 2
+	mvwaddch(w, 3, bWidth - 1, ACS_LRCORNER); // lower right corner on line 3
 
 	if (keys) {
 		const sKey* key = keys;
@@ -330,12 +333,13 @@ void drawTop(bool withSep)
 	sprintf(buf, "%-*.*s", wWidth(Top), wWidth(Top), "Gentoo USE flags editor " PACKAGE_VERSION);
 	mvwaddstr(w, 0, 0, buf);
 
-	whline(w, ACS_HLINE, wWidth(Top));
+	/// REMOVEME: Stop wasting space
+	//whline(w, ACS_HLINE, wWidth(Top));
 
 	wattrset(w, COLOR_PAIR(2) | A_BOLD);
-	mvwaddch(w, 2, 0, ACS_ULCORNER);
+	mvwaddch(w, 1, 0, ACS_ULCORNER);
 	whline(w, ACS_HLINE, wWidth(Top)-2);
-	mvwaddch(w, 2, wWidth(Top)-1, ACS_URCORNER);
+	mvwaddch(w, 1, wWidth(Top)-1, ACS_URCORNER);
 
 	waddch(w, ACS_VLINE);
 	wattrset(w, COLOR_PAIR(3));
@@ -354,11 +358,11 @@ void drawTop(bool withSep)
 	waddch(w, ACS_ULCORNER);
 	whline(w, ACS_HLINE, wWidth(Top)-6);
 	if (withSep) {
-		mvwaddch(w, 4, minwidth + 3, ACS_TTEE); // Before state
-		mvwaddch(w, 4, minwidth + 7, ACS_TTEE); // Between state and scope
-		mvwaddch(w, 4, minwidth + 10, ACS_TTEE); // After scope
+		mvwaddch(w, 3, minwidth + 3, ACS_TTEE); // Before state
+		mvwaddch(w, 3, minwidth + 7, ACS_TTEE); // Between state and scope
+		mvwaddch(w, 3, minwidth + 10, ACS_TTEE); // After scope
 	}
-	mvwaddch(w, 4, wWidth(Top)-3, ACS_URCORNER);
+	mvwaddch(w, 3, wWidth(Top)-3, ACS_URCORNER);
 	waddch(w, ' ');
 	wattrset(w, COLOR_PAIR(2) | A_BOLD);
 	waddch(w, ACS_VLINE);

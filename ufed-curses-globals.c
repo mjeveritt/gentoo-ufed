@@ -16,12 +16,13 @@ eScope     e_scope        = eScope_all;
 eState     e_state        = eState_all;
 char*      fayt           = NULL;
 sListStats listStats      = { 0, 0, 0, 0, 0, 0 };
+// windows: top, left, height width
 sWindow    window[wCount] = {
-	{ NULL,  0,  0,  5,  0 }, /* Top       --- Top ---- */
-	{ NULL,  5,  0, -8,  3 }, /* Left      L+------+S|R */
-	{ NULL,  5,  3, -9, -6 }, /* List      E|      |c|i */
-	{ NULL, -4,  3,  1, -6 }, /* Input     F| List |r|g */
-	{ NULL,  5, -3, -8,  1 }, /* Scrollbar T|______|B|h */
-	{ NULL,  5, -2, -8,  2 }, /* Right     |+Input-+r|t */
-	{ NULL, -3,  0,  3,  0 }, /* Bottom    ---Bottom--- */
+	{ NULL,  0,  0,   4,  0 }, /* Top       --- Top ---- */
+	{ NULL,  4,  0,  -8,  3 }, /* Left      L+------+S|R */
+	{ NULL,  4,  3,  -9, -6 }, /* List      E|      |c|i */
+	{ NULL, -5,  3,   1, -6 }, /* Input     F| List |r|g */
+	{ NULL,  4, -3,  -8,  1 }, /* Scrollbar T|______|B|h */
+	{ NULL,  4, -2,  -8,  2 }, /* Right     |+Input-+r|t */
+	{ NULL, -4,  0,   4,  0 }, /* Bottom    ---Bottom--- */
 };
