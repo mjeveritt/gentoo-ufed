@@ -148,6 +148,7 @@ typedef struct sKey_ {
 	int key;           //!< curses key or -1 if no key shall be used
 	const char *descr; //!< Help text to display
 	size_t length;     //!< length of the description
+	int row;           //!< On which row this key is to be displayed, 0 or 1
 } sKey;
 
 

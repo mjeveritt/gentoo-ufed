@@ -283,12 +283,12 @@ static void free_lines(void)
 	}
 }
 
-static const sKey keys[] = {
 #define key(x) x, sizeof(x)-1
-	{ '\033', key("Back (Esc)") },
-	{ '\0',   key("")         }
-#undef key
+static const sKey keys[] = {
+	{ '\033', key("Back (Esc)"), 0 },
+	{ '\0',   key(""), 0         }
 };
+#undef key
 
 static int drawline(sFlag* line, bool highlight)
 {
