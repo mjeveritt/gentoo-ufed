@@ -41,7 +41,7 @@ See http://www.gentoo.org/doc/en/handbook/handbook-x86.xml?part=2&chap=2
 for more information on USE flags.
 
 Please also note that if UFED describes a flag (Unknown) it generally means
-that it is either a spelling error in one of the 3 configuration files or
+that it is either a spelling error in one of the three configuration files or
 it is not an officially sanctioned USE flag. Sanctioned USE flags can be found 
 in @GENTOO_PORTAGE_EPREFIX@/usr/portage/profiles/use.desc and
 in @GENTOO_PORTAGE_EPREFIX@/usr/portage/profiles/use.local.desc.

@@ -47,16 +47,16 @@ static void init_lines(void)
 "to the optional features which can be compiled into those packages.",
 "",
 "For instance, packages with optional GNOME support can have this support "
-"disabled at compile time by disabling the \"gnome\" USE setting. Enabling the "
-"\"gnome\" USE setting would enable GNOME support in these packages.",
+"disabled at compile time by disabling the \"gnome\" USE flag. Enabling the "
+"\"gnome\" USE flag would enable GNOME support in these packages.",
 "",
-"The effect of USE settings on packages is dependent on whether both the "
-"software itself and the package ebuild supports the USE setting as an "
+"The effect of USE flags on packages is dependent on whether both the "
+"software itself and the package ebuild supports the USE flag as an "
 "optional feature. If the software does not have support for an optional "
-"feature then the corresponding USE setting will obviously have no effect.",
+"feature then the corresponding USE flag will obviously have no effect.",
 "",
 "Also many package dependencies are not considered optional by the software "
-"and thus USE settings will have no effect on those mandatory dependencies.",
+"and thus USE flags will have no effect on those mandatory dependencies.",
 "",
 "A list of USE keywords used by a particular package can be found by checking "
 "the IUSE line in any ebuild file.",
@@ -75,23 +75,23 @@ static void init_lines(void)
 "",
 "--- What are \"global\" and \"local\" USE flags? ---",
 "",
-"From the perspective of any package there is no distinction between \"local\" "
-"and \"global\" flags. A package either listens to a specific flag or it "
-"doesn't.",
+"Global USE flags are called such because they represent functionality that "
+"is found in a wider variety of packages. For example, the global flag "
+"\"cjk\" is about adding / not adding support for Eastern-Asian languages, "
+"which affects a multitude of various packages. Global flags are described in",
+" /usr/portage/profiles/use.desc.",
 "",
-"The difference is the description, and maybe the impact of whether a flag is "
-"set or not. If a package supports a flag that has a global description in "
-"/usr/portage/profiles/use.desc but does make use of the flag differently, "
-"then the package maintainer has to add a local description to the packages "
-"metadata.xml file.",
-"The same applies to flags that have no global description, a local one must "
-"be provided then.",
+"Local USE flags are unique package-wise, because the functionality they "
+"stand for is only found in that particular package and no other.",
+"See",
+" /usr/portage/profiles/use.local.desc",
+"for a full, per-package listing of all local USE flags.",
 "",
-"An example would be a package with the USE flag \"tiff\", that does not only "
-"add support for the TIFF image format, but changes the output format of the "
-"program installed. The USE flag then would have a different impact on the "
-"package than described in the global description; a local description must be "
-"provided then.",
+"It still happens that a flag which is defined as global is also defined as "
+"local for one or more packages. That is because the general definition of "
+"the global flag takes on specialized semantics in some particular package. "
+"It also occurs that multiple packages define a local flag of the same "
+"name - the meaning of the flag differs, however, for each package.",
 "",
 "--- What are \"Masked\" and \"Forced\" flags? ---",
 "",
@@ -99,17 +99,23 @@ static void init_lines(void)
 "forced.",
 "",
 "If a USE flag does not apply to your system, or is highly experimental, it "
-"can be masked, making it impossible to select.",
-"If a USE flag is mandatory for your system or for a specific package, it can "
-"be forced, making it impossible to turn it off.",
+"is masked and can not be enabled.",
+"",
+"If a USE flag is mandatory for your system or for a specific package, it is "
+"forced and can not be disabled.",
 "",
 "Flags that are masked or forced globally have their names displayed in "
 "parentheses, and are prefixed with a '-' if they are masked. If one of these "
 "flags is set in your make.conf, you can remove it with ufed.",
+"",
 "If a flag is only masked or forced for specific packages, a lower case 'm' "
 "or 'f' in the defaults column (see \"Display layout\" below) indicates this.",
 "",
 "--- Navigation and control ---",
+"",
+"ufed will present you with a list of descriptions for each USE flag. If a "
+"description is too long to fit on your screen, you can use the Left and Right "
+"arrow keys to scroll the descriptions.",
 "",
 "Use the Up and Down arrow keys, the Page Up and Page Down keys, the Home and "
 "End keys, or start typing the name of a flag to select it.",
@@ -118,19 +124,21 @@ static void init_lines(void)
 "You can apply various filters on the flags to display. A status line on the "
 "bottom right will show you which filters are in effect.",
 "",
-" F5: Switch between local, global or all flag descriptions.",
-" F6: Switch between flags for which packages are installed that accept this "
-"flag, no packages are installed or all flag descriptions.",
-" F7: Switch between masked and forced flags, flags that are neither masked "
-"nor forced and all flag descriptions."
+" F5: Toggle display of local / global / all flag descriptions.",
+"",
+" F6: Toggle display of flags supported by at least one installed "
+"package / supported by no installed package / all flags.",
+"",
+" F7: Toggle display of masked and forced flags / flags that are "
+"neither masked nor forced / all flags."
 "",
 "The default is to display all flags that are neither masked nor forced.",
 "",
 "If ncurses is installed with the \"gpm\" use flag enabled, you can use your "
 "mouse to navigate and to toggle the settings, too.",
 "",
-"After changing flags, press the Return or Enter key to make this permanent, "
-"or press Escape to revert your changes.",
+"After changing flags, press the Return or Enter key to save your USE flag "
+"setup, or press Escape to revert your changes.",
 "",
 "Note: Depending on your system, you may need to wait a second before ufed "
 "detects the Escape key or mouse clicks; in some cases, you can use the "
@@ -139,10 +147,6 @@ static void init_lines(void)
 "",
 "--- Display layout ---",
 "",
-"ufed will present you with a list of descriptions for each USE flag. If a "
-"description is too long to fit on your screen, you can use the Left and Right "
-"arrow keys to scroll the descriptions.",
-"",
 "ufed attempts to show you where a particular use setting came from, and what "
 "its scope and state is.",
 "",
@@ -150,28 +154,53 @@ static void init_lines(void)
 "",
 " (s) flag  M|DPC|Si| (packages) description",
 "",
-"(s)  : Your selection, either [+] to enable, [-] to disable, or empty to keep "
+"(s)  : Your selection",
+"either [+] to enable, [-] to disable, or empty to keep "
 "the default value. If a flag is enabled or disabled by default, it will be "
 "shown as either (+) or (-).",
-"flag : The name of the flag. If the flag is globally masked, it will be shown "
+"",
+"flag : The name of the flag.",
+"If the flag is globally masked, it will be shown "
 "as (-flag). If the flag is globally forced, it will be shown as (flag).",
-"D    : [D]efault settings from make.defaults or the ebuilds of installed "
-"packages. Masked flags are shown here as 'm', forced flags as 'f'.",
-"P    : [P]rofile package settings from package.use.",
-"C    : [C]onfiguration settings from /etc/make.conf, /etc/portage/package.use "
-"and /etc/portage/package.use.",
-"S    : [S]cope of the description, package specific descriptions have an "
-"'L' for \"local\".",
-"i    : [i]nstalled, indicates with an 'i' if either the listed packages are "
-"installed on your system, or if at least one package that supports this flag "
-"is installed. The latter applies to the global description of the flag.",
-"(packages): List of packages that support this flag with the following "
-"description.",
+"",
+"D    : [D]efault settings",
+"These are read from",
+" /usr/portage/profiles/.../make.defaults",
+"and the ebuild(5) IUSE defaults of installed packages. The settings in "
+"make.defaults, however, take precedence over the ebuild IUSE settings.",
+"Masked flags are shown here as 'm', forced flags as 'f'.",
+"",
+"P    : [P]rofile package settings.",
+"These are read from",
+" /usr/portage/profiles/.../package.use.",
+"These package specific settings take precedence over the [D]efault settings.",
+"",
+"C    : [C]onfiguration settings",
+"These are read from",
+" /etc/make.conf",
+" /etc/portage/make.conf and",
+" /etc/portage/package.use.",
+"These take precedence over the [D]efault and [P]rofile settings, with "
+" package.use overriding settings from make.conf.",
+"",
+"S    : [S]cope of the description",
+"Local flag descriptions have an 'L' for \"local\" here.",
+"",
+"i    : [i]nstalled",
+"Indicates with an 'i' if either the listed packages are installed on your ",
+"system, or if at least one package that supports this flag is installed. ",
+"The latter applies to the global description of the flag.",
+"",
+"(packages): List of packages that support this flag.",
+"",
 "description : The description of the flag from use.desc or use.local.desc.",
 "",
 "If the character in any of the D, P or C column is a + then that USE flag was "
 "set in that file(s), if it is a space then the flag was not mentioned in that "
 "file(s) and if it is a - then that flag was unset in that file(s).",
+"",
+"Flags marked as [+] or [-] will be saved in your make.conf when you leave "
+"the program with an Enter.",
 "",
 "You can change the order of the (packages) and the description with the F9 "
 "key.",
