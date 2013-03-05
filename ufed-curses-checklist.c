@@ -27,7 +27,7 @@ static const sKey keys[] = {
 	{ KEY_F(5), mkKey("F5: Local/Global"),   1 },
 	{ KEY_F(6), mkKey("F6: Installed"),      1 },
 	{ KEY_F(7), mkKey("F7: Masked/Forced"),  1 },
-	{ KEY_F(9), mkKey("F8: Pkg/Desc Order"), 1 },
+	{ KEY_F(9), mkKey("F9: Pkg/Desc Order"), 1 },
 	{ '\0',     mkKey(""),                   0 }
 };
 #undef mkKey
