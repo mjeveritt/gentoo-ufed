@@ -20,15 +20,15 @@ static sFlag*  flags           = NULL;
 
 #define mkKey(x) x, sizeof(x)-1
 static const sKey keys[] = {
-	{ '?',      mkKey("Help (?)"),            0 },
-	{ '\n',     mkKey("Save (Enter)"),        0 },
-	{ '\033',   mkKey("Cancel (Esc)"),        0 },
-	{ -1,       mkKey("Toggle :"),            1 },
-	{ KEY_F(5), mkKey("Local/Global (F5)"),   1 },
-	{ KEY_F(6), mkKey("Installed (F6)"),      1 },
-	{ KEY_F(7), mkKey("Masked/Forced (F7)"),  1 },
-	{ KEY_F(9), mkKey("Pkg/Desc Order (F9)"), 1 },
-	{ '\0',     mkKey(""),                    0 }
+	{ '?',      mkKey("?: Help"),            0 },
+	{ '\n',     mkKey("Enter: Save"),        0 },
+	{ '\033',   mkKey("Esc: Cancel"),        0 },
+	{ -1,       mkKey("Toggle"),             1 },
+	{ KEY_F(5), mkKey("F5: Local/Global"),   1 },
+	{ KEY_F(6), mkKey("F6: Installed"),      1 },
+	{ KEY_F(7), mkKey("F7: Masked/Forced"),  1 },
+	{ KEY_F(9), mkKey("F8: Pkg/Desc Order"), 1 },
+	{ '\0',     mkKey(""),                   0 }
 };
 #undef mkKey
 
