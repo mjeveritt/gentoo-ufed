@@ -143,17 +143,27 @@ void drawBottom(bool withSep)
 	if (keys) {
 		const sKey* key = keys;
 		int pos   = 2;
+		int row   = 0;
 		int len   = 0;
 
-		while ((pos < (bWidth - 2)) && (key->key != '\0')) {
+		while (key->key != '\0') {
+			if (row != key->row) {
+				row = key->row;
+				pos = 2;
+			}
+
 			len = strlen(key->descr);
-			if (len > (bWidth - 2 - pos))
-				len = bWidth - 2 - pos;
-			if (key->key > 0)
-				wattrset(w, COLOR_PAIR(6));
-			else
-				wattrset(w, COLOR_PAIR(3));
-			mvwaddnstr(w, 1, pos, key->descr, len);
+
+			if (pos < (bWidth - 2)) {
+				if (len > (bWidth - 2 - pos))
+					len = bWidth - 2 - pos;
+				if (key->key > 0)
+					wattrset(w, COLOR_PAIR(6));
+				else
+					wattrset(w, COLOR_PAIR(3));
+
+				mvwaddnstr(w, row + 1, pos, key->descr, len);
+			}
 			pos += len + 1;
 			++key;
 		}
@@ -622,14 +632,21 @@ int maineventloop(
 					} // End of having a scrollbar
 				} else if(wmouse_trafo(win(Bottom), &event.y, &event.x, FALSE)) {
 					if( (event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED))
-					 && (event.y == 1) ) {
-						const sKey* key;
-						int x = event.x;
-						if(x < 2)
+					 && (event.y >= 1) && (event.y <= 2)) {
+						const sKey* key = keys;
+						int x   = event.x;
+						int y   = event.y;
+						if((x < 2) || (y < 1) || (y > 2))
 							continue;
 						x -= 2;
-						for(key = keys; key->key!='\0'; key++) {
-							if( (key->key > 0) && ((size_t)x < key->length)) {
+						--y;
+
+						// Forward to second row if y is 1
+						for ( ; y > key->row; key++) ;
+
+						// Check key
+						for ( ; (key->row == y) && (x >= 0) && (key->key != '\0'); key++) {
+							if ((key->key > 0) && ((size_t)x < key->length) ) {
 								event.x -= x;
 								wattrset(win(Bottom), COLOR_PAIR(6) | A_BOLD | A_REVERSE);
 								mvwaddstr(win(Bottom), event.y, event.x, key->descr);
@@ -642,10 +659,7 @@ int maineventloop(
 								c = key->key;
 								goto check_key;
 							}
-							x -= key->length;
-							if(x == 0)
-								break;
-							x--;
+							x -= key->length + 1;
 						}
 					}
 				}
