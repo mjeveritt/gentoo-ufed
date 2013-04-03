@@ -15,6 +15,8 @@ ufed_curses_SOURCES = \
 	ufed-curses-globals.c \
 	ufed-curses-types.c
 
+ufed_curses_LDADD = $(NCURSES_LIBS)
+
 noinst_HEADERS = \
 	ufed-curses.h \
 	ufed-curses-debug.h \
