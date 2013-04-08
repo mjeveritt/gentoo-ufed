@@ -49,6 +49,7 @@ our $used_make_conf = "";
 my %_environment  = ();
 my $_EPREFIX        = "";
 my @_profiles     = ();
+my %_use_eh_safe  = (); ## USE_EXPAND_HIDDEN safe hash. See _read_make_defaults()
 my %_use_order    = ();
 
 # $_use_temp - hashref that represents the current state of
@@ -664,6 +665,12 @@ sub _read_make_defaults {
 					and $_use_temp->{$flag}{global}{"default"} = 1
 					or  $_use_temp->{$flag}{global}{"default"} = -1;
 			}
+			
+			# Safe USE_EXPAND_HIDDEN if set. This is done because a user might
+			# set it to "-*" in make.conf, which does not disable flags but only
+			# the hidden status making them visible.
+			_merge(\%_use_eh_safe, $env{USE_EXPAND_HIDDEN})
+				if (defined($env{USE_EXPAND_HIDDEN}));
 		}
 	} ## End of reading make.defaults
 
@@ -944,10 +951,20 @@ sub _read_use_mask {
 #
 # Note2: It might be a good idea to leave this function and just reduce it to kill
 #        USE_EXPAND_HIDDEN flags, as they must not be seen anyway.
+#
+# Note3: It can happen, that a user sets USE_EXPAND_HIDDEN to "-*" - which then moves
+#        all entries to MOVE_EXPAND making them visible.
 sub _remove_expands {
 
 	my $expands = $_environment{USE_EXPAND} || {};
 	my $hidden  = $_environment{USE_EXPAND_HIDDEN} || {};
+
+	# If USE_EXPAND_HIDDEN is set to "-*", the safed flags have to be merged
+	# into USE_EXPAND
+	if (defined($hidden->{"*"})) {
+		_merge($expands, \%_use_eh_safe);
+		$hidden = {};
+	}
 
 	for my $key (map {my $x=lc($_)."_"; $x } keys %$expands) {
 		for my $flag (keys %$_use_temp) {
