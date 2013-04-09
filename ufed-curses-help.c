@@ -342,5 +342,7 @@ void help(void)
 		init_lines();
 	}
 
+	int oldVis = curs_set(0);
 	maineventloop("", &callback, &drawline, lines, keys, false);
+	curs_set(oldVis);
 }
