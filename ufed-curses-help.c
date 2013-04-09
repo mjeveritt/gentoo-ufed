@@ -303,7 +303,7 @@ static int drawline(sFlag* line, bool highlight)
 			wattrset(win(List), COLOR_PAIR(5) | A_BOLD);
 	} else {
 		if (highlight)
-			wattrset(win(List), COLOR_PAIR(2) | A_BOLD | A_REVERSE);
+			wattrset(win(List), COLOR_PAIR(6) | A_BOLD);
 		else
 			wattrset(win(List), COLOR_PAIR(3));
 	}
