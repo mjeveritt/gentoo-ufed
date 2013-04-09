@@ -1,4 +1,4 @@
-.TH "UFED" "8" "15 Feb 2013" "UFED 0.90" "UFED"
+.TH "UFED" "8" "09 Apr 2013" "UFED 0.90" "UFED"
 .SH "NAME"
 ufed \- Gentoo Linux USE flags editor
 .SH "SYNOPSIS"
@@ -236,3 +236,8 @@ ufed was previously maintained by
 ufed is currently maintained by
 .br
  Sven Eden <yamakuzure@gmx.net>.
+
+.SH Thanks
+Paul Varner - for proxy maintaining and support.
+.br
+Roman Zilka - for ideas, testing and a lot of patience.

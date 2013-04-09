@@ -220,6 +220,12 @@ static void init_lines(void)
 "ufed is currently maintained by",
 " Sven Eden <yamakuzure@gmx.net>.",
 "",
+"--- Thanks ---",
+" Paul Varner - for proxy maintaining and support.",
+" Roman Zilka - for ideas, testing and a lot of patience.",
+"",
+"--------------",
+"",
 "Copyright 1999-2013 Gentoo Foundation",
 "Distributed under the terms of the GNU General Public License v2"
 };
