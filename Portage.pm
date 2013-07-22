@@ -654,7 +654,7 @@ sub _read_make_conf {
 	
 	for my $confPath ($stOldPath, $stNewPath) {
 		if ( -d $confPath) {
-			for my $confFile (sort glob("$confPath/*")) {
+			for my $confFile (sort {lc($a) cmp lc($b)} glob("$confPath/*")) {
 				# Skip backup and temporary files
 				$confFile =~ /(?:\.bak|~|\.old|\.tmp)$/
 					and next;
