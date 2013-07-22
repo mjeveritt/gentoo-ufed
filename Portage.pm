@@ -1,11 +1,12 @@
 package Portage;
 
-# Copyright 1999-2005 Gentoo Foundation
+# Copyright 1999-2013 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-src/ufed/Portage.pm,v 1.3 2005/11/13 00:28:17 truedfx Exp $
+# $Header: $
 
 use strict;
 use warnings;
+use Readonly;
 
 BEGIN {
     use Exporter ();
@@ -17,6 +18,9 @@ BEGIN {
 
 
 # --- public members ---
+
+# Set this to 1 to get debugging output
+Readonly our $DEBUG => 1;
 
 # $use_flags - hashref that represents the combined and
 # consolidated data about all valid use flags
@@ -43,6 +47,8 @@ BEGIN {
 our $use_flags;
 
 # $used_make_conf - path of the used make.conf
+# If PREFIX/etc/[portage/]make.conf is a directory, $used_make_conf
+# points to the file the last USE settings are found in.
 our $used_make_conf = "";
 
 # --- private members ---
@@ -83,6 +89,7 @@ my $_use_template = {
 };
 
 # --- public methods ---
+sub debugMsg;
 
 # --- private methods ---
 sub _add_flag;
@@ -159,6 +166,17 @@ INIT {
 
 # --- public methods implementations ---
 
+# Write a given message to STDERR adding a newline at the end
+# This function does nothing unless $DEBUG is set to something
+# different than zero
+# Parameter 1: The message
+sub debugMsg
+{
+	my ($msg) = @_;
+	$DEBUG or return;
+	print STDERR "$msg\n";
+	return;
+}
 
 # --- private methods implementations ---
 
@@ -251,8 +269,16 @@ sub _determine_eprefix {
 sub _determine_make_conf
 {
 	$used_make_conf = "${_EPREFIX}/etc/portage/make.conf";
-	(! -r $used_make_conf)
-		and $used_make_conf = "${_EPREFIX}/etc/make.conf";
+	(-r $used_make_conf)
+		or $used_make_conf = "${_EPREFIX}/etc/make.conf";
+	
+	# If $used_make_conf points to a directory now,
+	# it is emptied so _read_make_conf will determine
+	# the later used value
+	
+	( -d $used_make_conf)
+		and $used_make_conf = "";
+		
 	return; 
 }
 
@@ -615,11 +641,46 @@ sub _read_descriptions
 # The last added profile directory, if it exists, is
 # /etc/portage/profile to allow recognition of user
 # overrides.
+# If either of the make.conf paths is a directory, all
+# files are read in alphanumerical order. The file
+# changes are written to will be the last file that
+# contains a USE assignement.
 # No parameters accepted.
 sub _read_make_conf {
-	my %oldEnv = _read_sh("${_EPREFIX}/etc/make.conf");
-	my %newEnv = _read_sh("${_EPREFIX}/etc/portage/make.conf");
-	_merge (\%oldEnv, \%newEnv);
+	my ($stOldPath, $stNewPath) = (	"${_EPREFIX}/etc/make.conf",
+									"${_EPREFIX}/etc/portage/make.conf" );
+	my (%oldEnv, %newEnv)		= ([], []);
+	my $lastUSEFile				= "";
+	
+	for my $confPath ($stOldPath, $stNewPath) {
+		if ( -d $confPath) {
+			for my $confFile (sort glob("$confPath/*")) {
+				# Skip backup and temporary files
+				$confFile =~ /(?:\.bak|~|\.old|\.tmp)$/
+					and next;
+				
+				# Now read the file and merge its content
+				debugMsg("Reading $confFile");
+				%newEnv = _read_sh($confFile);
+				_merge (\%oldEnv, \%newEnv);
+				defined($newEnv{USE})
+					and $lastUSEFile = $confFile
+					and debugMsg(" -> USE flags found");
+			}
+		} else {
+			%newEnv = _read_sh($confPath);
+			_merge (\%oldEnv, \%newEnv);
+			$lastUSEFile = $confPath;
+		}
+	}
+	
+	# If there is no used make.conf found, yet, save it:
+	if ( 0 == length($used_make_conf) ) {
+		$used_make_conf = $lastUSEFile;
+		$used_make_conf =~ /\/make\.conf$/
+			or print "Using $used_make_conf as USE flags file\n";
+	}
+	debugMsg("$used_make_conf will be used to store changes");
 
 	# Note the conf state of the read flags:
 	for my $flag ( keys %{$oldEnv{USE}}) {

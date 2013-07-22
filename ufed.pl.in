@@ -2,9 +2,9 @@
 use strict;
 use warnings;
 
-# Copyright 1999-2005 Gentoo Foundation
+# Copyright 1999-2013 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-src/ufed/ufed.pl,v 1.45 2005/10/18 11:14:33 truedfx Exp $
+# $
 
 use lib qw{XX_perldir@};
 use Portage;
@@ -133,13 +133,15 @@ sub flags_dialog {
 			my @flags = grep { $_ ne '--*' } do { local $/; split /\n/, <$fh> };
 			close $fh;
 			save_flags finalise @flags;
-		} elsif($rc==1)
-		{ print "Cancelled, not saving changes.\n" }
+		} elsif($rc==1) {
+			print "Cancelled, not saving changes.\n";
+		}
 		exit $rc;
-	} elsif(POSIX::WIFSIGNALED($?))
-	{ kill POSIX::WTERMSIG($?), $$ }
-	else
-	{ exit 127 }
+	} elsif(POSIX::WIFSIGNALED($?)) {
+		kill (POSIX::WTERMSIG($?), $$);
+	} else {
+		exit 127;
+	}
 	return;
 }
 
@@ -309,6 +311,8 @@ EOF
 		open my $makeconf, '>', $makeconf_name or die "Couldn't open $makeconf_name\n";
 		print $makeconf $_;
 		close $makeconf;
+		$makeconf_name =~ /\/make\.conf$/
+			or print "USE flags written to $makeconf_name\n";
 	}
 	
 	return;
