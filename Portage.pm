@@ -20,7 +20,7 @@ BEGIN {
 # --- public members ---
 
 # Set this to 1 to get debugging output
-Readonly our $DEBUG => 1;
+Readonly our $DEBUG => 0;
 
 # $use_flags - hashref that represents the combined and
 # consolidated data about all valid use flags
@@ -100,6 +100,7 @@ sub _determine_profiles;
 sub _final_cleaning;
 sub _fix_flags;
 sub _gen_use_flags;
+sub _get_files_from_dir;
 sub _merge;
 sub _merge_env;
 sub _noncomments;
@@ -214,7 +215,7 @@ sub _add_flag
 		die ("\n\"$flag\" ($pkg) Description Hash Key\n  \"$descKey\"\nis illegal!\n");
 	}
 
-	return;	
+	return 1;	
 }
 
 
@@ -505,6 +506,56 @@ sub _gen_use_flags
 }
 
 
+# Get an alphabetical case insensitive list of files
+# from a path (_not_ depth first!) and return it
+# Param 1: the path to search in
+# Param 2: recursive calls should set this to 1
+sub _get_files_from_dir {
+	my ($search_path, $isRecursive) = @_;
+	my @result        = ();
+	
+	# Nothing to do if the search path is empty
+	(	defined($search_path)
+	 &&	length($search_path) )
+	 or return @result; 
+	 
+	defined($isRecursive) or $isRecursive = 0;
+
+	for my $confFile (glob("$search_path/*")) {
+		# Skip hidden, backup and temporary files
+		if ( (-f $confFile )
+		  && ( ($confFile =~ /(?:\.bak|~|\.old|\.tmp)$/)
+		    || ($confFile =~ /^\./) ) ) {
+			debugMsg("Skipping file $confFile");
+			next;
+		}
+		
+		# Skip special directories CVS, RCS and SCCS
+		if ( (-d $confFile)
+		  && ($confFile =~ /\/(?:CVS|RCS|SCCS)$/ ) ) {
+			debugMsg("Skipping directory $confFile");
+			next;
+		}
+		
+		# recurse if this is a directory:
+		if (-d $confFile) {
+			push @result, _get_files_from_dir($confFile, 1);
+			next;
+		}
+		
+		# Otherwise just add to result list
+		push @result, $confFile;
+	}
+
+	# return plain list if this is a recursive call
+	$isRecursive and return @result;
+
+	# return an alphabetically sorted list:
+	my @sorted = sort {lc($a) cmp lc($b)} @result;
+	return @sorted;
+}
+
+
 # merges two hashes into the first.
 # Parameter 1: reference of the destination hash
 # Parameter 2: reference of the source hash
@@ -654,12 +705,8 @@ sub _read_make_conf {
 	
 	for my $confPath ($stOldPath, $stNewPath) {
 		if ( -d $confPath) {
-			for my $confFile (sort {lc($a) cmp lc($b)} glob("$confPath/*")) {
-				# Skip backup and temporary files
-				$confFile =~ /(?:\.bak|~|\.old|\.tmp)$/
-					and next;
-				
-				# Now read the file and merge its content
+			my @confFileList = _get_files_from_dir($confPath);
+			for my $confFile (@confFileList) {
 				debugMsg("Reading $confFile");
 				%newEnv = _read_sh($confFile);
 				_merge (\%oldEnv, \%newEnv);
