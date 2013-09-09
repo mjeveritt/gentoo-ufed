@@ -51,6 +51,10 @@ our $use_flags;
 # points to the file the last USE settings are found in.
 our $used_make_conf = "";
 
+# If the found make.conf can not be changed by the effective
+# uid/gid of the caller, this value is set to 1
+our $ro_mode = 0;
+
 # --- private members ---
 my %_environment  = ();
 my $_EPREFIX        = "";
@@ -274,11 +278,13 @@ sub _determine_make_conf
 		or $used_make_conf = "${_EPREFIX}/etc/make.conf";
 	
 	# If $used_make_conf points to a directory now,
-	# it is emptied so _read_make_conf will determine
-	# the later used value
+	# or if it is simply not present, it is emptied so
+	# _read_make_conf will determine the later used
+	# value
 	
-	( -d $used_make_conf)
-		and $used_make_conf = "";
+	if ( (! -e $used_make_conf) || (-d $used_make_conf) ) {
+		$used_make_conf = "";
+	}
 		
 	return; 
 }
@@ -728,6 +734,15 @@ sub _read_make_conf {
 			or print "Using $used_make_conf as USE flags file\n";
 	}
 	debugMsg("$used_make_conf will be used to store changes");
+
+	# If the make.conf is not writable, enable read-only-mode
+	if (! -w $used_make_conf ) {
+		my $egid = $);
+		$egid =~ s/\s+.*$//; 
+		$ro_mode = 1;
+		print "$used_make_conf not writable by uid/gid $>/$egid\n";
+		print "ufed will run in read-only-mode!\n";
+	}
 
 	# Note the conf state of the read flags:
 	for my $flag ( keys %{$oldEnv{USE}}) {
