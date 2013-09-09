@@ -128,12 +128,12 @@ sub flags_dialog {
 	wait;
 	if(POSIX::WIFEXITED($?)) {
 		my $rc = POSIX::WEXITSTATUS($?);
-		if($rc==0) {
+		if( (0 == $rc) && (0 == $Portage::ro_mode) ) {
 			open my $fh, '<&=', $oread or die "Couldn't read output.\n";
 			my @flags = grep { $_ ne '--*' } do { local $/; split /\n/, <$fh> };
 			close $fh;
 			save_flags finalise @flags;
-		} elsif($rc==1) {
+		} elsif( 1 == $rc ) {
 			print "Cancelled, not saving changes.\n";
 		}
 		exit $rc;
@@ -169,7 +169,7 @@ sub save_flags {
 	my $makeconf_name = $Portage::used_make_conf;
 	{
 		open my $makeconf, '<', $makeconf_name or die "Couldn't open $makeconf_name\n";
-		open my $makeconfold, '>', $makeconf_name . '.old' or die "Couldn't open $makeconf_name.old\n";
+		open my $makeconfold, '>', $makeconf_name . '~' or die "Couldn't open ${makeconf_name}~\n";
 		local $/;
 		$_ = <$makeconf>;
 		print $makeconfold $_;
