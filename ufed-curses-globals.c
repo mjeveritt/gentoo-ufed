@@ -8,7 +8,9 @@
 #include "ufed-curses-types.h"
 
 int        bottomline     = 0;
+bool       configDone     = false;
 int        minwidth       = 0;
+int        ro_mode        = false;
 int        topline        = 0;
 eMask      e_mask         = eMask_unmasked;
 eOrder     e_order        = eOrder_left;

@@ -339,8 +339,14 @@ void drawTop(bool withSep)
 	WINDOW* w = win(Top);
 	char buf[COLS + 1];
 
-	wattrset(w, COLOR_PAIR(1) | A_BOLD);
-	sprintf(buf, "%-*.*s", wWidth(Top), wWidth(Top), "Gentoo USE flags editor " PACKAGE_VERSION);
+	if (ro_mode) {
+		wattrset(w, COLOR_PAIR(4) | A_BOLD | A_REVERSE);
+		sprintf(buf, "%-*.*s", wWidth(Top), wWidth(Top),
+			"(RO) Gentoo USE flags editor " PACKAGE_VERSION " (RO)");
+	} else {
+		wattrset(w, COLOR_PAIR(1) | A_BOLD);
+		sprintf(buf, "%-*.*s", wWidth(Top), wWidth(Top), "Gentoo USE flags editor " PACKAGE_VERSION);
+	}
 	mvwaddstr(w, 0, 0, buf);
 
 	/// REMOVEME: Stop wasting space
@@ -352,8 +358,13 @@ void drawTop(bool withSep)
 	mvwaddch(w, 1, wWidth(Top)-1, ACS_URCORNER);
 
 	waddch(w, ACS_VLINE);
-	wattrset(w, COLOR_PAIR(3));
-	sprintf(buf, " %-*.*s ", wWidth(Top)-4, wWidth(Top)-4, subtitle);
+	if (ro_mode) {
+		wattrset(w, COLOR_PAIR(4) | A_REVERSE);
+		sprintf(buf, " READ-ONLY MODE! %-*.*s READ-ONLY MODE! ", wWidth(Top)-36, wWidth(Top)-36, subtitle);
+	} else {
+		wattrset(w, COLOR_PAIR(3));
+		sprintf(buf, " %-*.*s ", wWidth(Top)-4, wWidth(Top)-4, subtitle);
+	}
 	waddstr(w, buf);
 	wattrset(w, COLOR_PAIR(2) | A_BOLD);
 	waddch(w, ACS_VLINE);

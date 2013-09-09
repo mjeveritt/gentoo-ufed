@@ -119,7 +119,11 @@ sub flags_dialog {
 	# Now let the interface know of the result
 	if (open my $fh, '>&=', $iwrite) {
 		binmode( $fh, ":encoding(ISO-8859-1)" );
-		print $fh $outTxt;
+
+		# Fixed config:
+		# byte 1: Read only 0/1
+		# Rest: The flags configuration
+		print $fh "$Portage::ro_mode$outTxt";
 		close $fh;
 	} else {
 		die "Couldn't let interface know of flags\n";

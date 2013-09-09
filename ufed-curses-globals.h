@@ -11,6 +11,7 @@
 #include "ufed-curses-types.h"
 
 extern int        bottomline;
+extern bool       configDone;
 extern eMask      e_mask;
 extern eOrder     e_order;
 extern eScope     e_scope;
@@ -18,6 +19,7 @@ extern eState     e_state;
 extern char*      fayt;
 extern sListStats listStats;
 extern int        minwidth;
+extern bool       ro_mode;
 extern int        topline;
 extern sWindow    window[wCount];
 

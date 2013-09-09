@@ -51,6 +51,24 @@ static char *getline(FILE *fp)
 	if(fgets(lineBuf, size, fp) == NULL)
 		return NULL;
 	else {
+
+		/* See to configuration bytes if not read already */
+		if (!configDone) {
+			/* Byte 1: Whether read-only-mode is set or not */
+			if ( '0' != lineBuf[0] )
+				ro_mode = true;
+
+			configDone = true;
+
+			/* Remove the leading bytes transporting configuration values */
+			char *oldLine = lineBuf;
+			lineBuf = malloc(size);
+			if (NULL == lineBuf)
+				ERROR_EXIT(-1, "Can not allocate %lu bytes for line buffer\n", sizeof(char) * size);
+			memcpy(lineBuf, oldLine + 1, size - 1);
+			free(oldLine);
+		} /* End of having to read configuration bytes */
+
 		char *p = strchr(lineBuf, '\n');
 		if(p != NULL) {
 			*p = '\0';
