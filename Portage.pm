@@ -740,8 +740,8 @@ sub _read_make_conf {
 		my $egid = $);
 		$egid =~ s/\s+.*$//; 
 		$ro_mode = 1;
-		print "$used_make_conf not writable by uid/gid $>/$egid\n";
-		print "ufed will run in read-only-mode!\n";
+		print "WARNING: $used_make_conf not writable by uid/gid $>/$egid\n";
+		print "WARNING: ufed will run in read-only-mode!\n";
 	}
 
 	# Note the conf state of the read flags:
