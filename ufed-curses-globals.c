@@ -12,6 +12,7 @@ bool       configDone     = false;
 int        minwidth       = 0;
 int        ro_mode        = false;
 int        topline        = 0;
+eDesc      e_desc         = eDesc_ori;
 eMask      e_mask         = eMask_unmasked;
 eOrder     e_order        = eOrder_left;
 eScope     e_scope        = eScope_all;

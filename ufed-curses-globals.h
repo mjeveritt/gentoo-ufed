@@ -12,6 +12,7 @@
 
 extern int        bottomline;
 extern bool       configDone;
+extern eDesc      e_desc;
 extern eMask      e_mask;
 extern eOrder     e_order;
 extern eScope     e_scope;
