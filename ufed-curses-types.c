@@ -206,6 +206,8 @@ void destroyFlag (sFlag** root, sFlag** flag)
 				free (xFlag->desc[i].pkg);
 			if (xFlag->desc[i].desc)
 				free (xFlag->desc[i].desc);
+			if (xFlag->desc[i].desc_alt)
+				free (xFlag->desc[i].desc_alt);
 		}
 		if (xFlag->desc)
 			free (xFlag->desc);
