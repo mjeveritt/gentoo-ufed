@@ -528,9 +528,10 @@ sub _get_files_from_dir {
 	defined($isRecursive) or $isRecursive = 0;
 
 	for my $confFile (glob("$search_path/*")) {
-		# Skip hidden, backup and temporary files
+		
+		# Skip hidden and backup files
 		if ( (-f $confFile )
-		  && ( ($confFile =~ /(?:\.bak|~|\.old|\.tmp)$/)
+		  && ( ($confFile =~ /~$/)
 		    || ($confFile =~ /^\./) ) ) {
 			debugMsg("Skipping file $confFile");
 			next;
