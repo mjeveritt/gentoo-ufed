@@ -613,7 +613,9 @@ static int callback(sFlag** curr, int key)
 
 int main(void)
 {
-	int result;
+	int result = EXIT_SUCCESS;
+	const char subtitle_ro[] = "USE flags can be browsed, but changes will NOT be saved!";
+	const char subtitle_rw[] = "Select desired USE flags from the list below:";
 
 	read_flags();
 	fayt     = (char*)  calloc(minwidth, sizeof(*fayt));
@@ -625,7 +627,7 @@ int main(void)
 
 	initcurses();
 
-	result = maineventloop("Select desired USE flags from the list below:",
+	result = maineventloop(ro_mode ? subtitle_ro : subtitle_rw,
 				&callback, &drawflag, flags, keys, true);
 
 	cursesdone();

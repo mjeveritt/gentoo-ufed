@@ -341,8 +341,8 @@ void drawTop(bool withSep)
 
 	if (ro_mode) {
 		wattrset(w, COLOR_PAIR(4) | A_BOLD | A_REVERSE);
-		sprintf(buf, "%-*.*s", wWidth(Top), wWidth(Top),
-			"(RO) Gentoo USE flags editor " PACKAGE_VERSION " (RO)");
+		sprintf(buf, " READ ONLY %-*.*s READ ONLY ", wWidth(Top) - 22, wWidth(Top) - 22,
+			"Gentoo USE flags editor " PACKAGE_VERSION);
 	} else {
 		wattrset(w, COLOR_PAIR(1) | A_BOLD);
 		sprintf(buf, "%-*.*s", wWidth(Top), wWidth(Top), "Gentoo USE flags editor " PACKAGE_VERSION);
@@ -360,7 +360,7 @@ void drawTop(bool withSep)
 	waddch(w, ACS_VLINE);
 	if (ro_mode) {
 		wattrset(w, COLOR_PAIR(4) | A_REVERSE);
-		sprintf(buf, " READ-ONLY MODE! %-*.*s READ-ONLY MODE! ", wWidth(Top)-36, wWidth(Top)-36, subtitle);
+		sprintf(buf, " READ ONLY %-*.*s READ ONLY ", wWidth(Top)-24, wWidth(Top)-24, subtitle);
 	} else {
 		wattrset(w, COLOR_PAIR(3));
 		sprintf(buf, " %-*.*s ", wWidth(Top)-4, wWidth(Top)-4, subtitle);
