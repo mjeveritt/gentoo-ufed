@@ -524,6 +524,7 @@ static int callback(sFlag** curr, int key)
 			else                        e_order = eOrder_left;
 
 			drawFlags();
+			drawBottom(true);
 			wmove(wInp, 0, strlen(fayt));
 			break;
 
@@ -532,6 +533,7 @@ static int callback(sFlag** curr, int key)
 			else                     e_desc = eDesc_ori;
 
 			drawFlags();
+			drawBottom(true);
 			wmove(wInp, 0, strlen(fayt));
 			break;
 
@@ -639,19 +641,21 @@ int main(void)
 	/* The keys to use differ whether ro_mode is true or false */
 #define mkKey(x) x, sizeof(x)-1
 	sKey keys[] = {
-		{ '?',      mkKey("?: Help"),            0 },
-		{ '\n',     mkKey(ro_mode ?
+		{ '?',       mkKey("?: Help"),            0 },
+		{ '\n',      mkKey(ro_mode ?
 							"Enter: Exit"
-						:	"Enter: Save"),      0 },
-		{ '\033',   mkKey(ro_mode ?
+						:	"Enter: Save"),       0 },
+		{ '\033',    mkKey(ro_mode ?
 							"Esc: Exit"
-						:	"Esc: Cancel"),      0 },
-		{ -1,       mkKey("Toggle"),             1 },
-		{ KEY_F(5), mkKey("F5: Local/Global"),   1 },
-		{ KEY_F(6), mkKey("F6: Installed"),      1 },
-		{ KEY_F(7), mkKey("F7: Masked/Forced"),  1 },
-		{ KEY_F(9), mkKey("F9: Pkg/Desc Order"), 1 },
-		{ '\0',     mkKey(""),                   0 }
+						:	"Esc: Cancel"),       0 },
+		{ -1,        mkKey("Toggle"),             1 },
+		{ KEY_F( 5), mkKey("F5: Local/Global"),   1 },
+		{ KEY_F( 6), mkKey("F6: Installed"),      1 },
+		{ KEY_F( 7), mkKey("F7: Masked/Forced"),  1 },
+		{ -1,        mkKey("      "),             2 },
+		{ KEY_F( 9), mkKey("F9: Swap Pkg/Desc"),  2 },
+		{ KEY_F(10), mkKey("F10: Strip Desc"),    2 },
+		{ '\0',      mkKey(""),                   0 }
 	};
 #undef mkKey
 
