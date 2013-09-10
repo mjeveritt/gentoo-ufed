@@ -142,9 +142,12 @@ void drawBottom(bool withSep)
 
 	if (keys) {
 		const sKey* key = keys;
-		int pos   = 2;
-		int row   = 0;
-		int len   = 0;
+		char buf[COLS + 1];
+		int  pos   = 2;
+		int  row   = 0;
+		int  len_full = 0;
+		int  len_name = 0;
+		int  len_desc = 0;
 
 		while (key->key != '\0') {
 			if (row != key->row) {
@@ -152,19 +155,35 @@ void drawBottom(bool withSep)
 				pos = 2;
 			}
 
-			len = strlen(key->descr);
+			len_name = key->name_len;
+			len_desc = key->desc_len;
+			len_full = len_name + len_desc;
 
 			if (pos < (bWidth - 2)) {
-				if (len > (bWidth - 2 - pos))
-					len = bWidth - 2 - pos;
-				if (key->key > 0)
-					wattrset(w, COLOR_PAIR(6));
-				else
-					wattrset(w, COLOR_PAIR(3));
+				if (len_full > (bWidth - 2 - pos))
+					len_full = bWidth - 2 - pos;
 
-				mvwaddnstr(w, row + 1, pos, key->descr, len);
+				/* Write name of the key */
+				if (len_name > len_full)
+					len_name = len_full;
+				len_full -= len_name;
+				wattrset(w, COLOR_PAIR(3));
+				mvwaddnstr(w, row + 1, pos, key->name, len_name);
+				pos += len_name;
+
+				/* Add description (button) if possible */
+				if (len_full) {
+					if (len_desc > len_full)
+						len_desc = len_full;
+					len_full -= len_desc;
+
+					sprintf(buf, "%-*.*s", len_desc - 1, len_desc - 1, key->desc[*key->idx]);
+					wattrset(w, COLOR_PAIR(6));
+					mvwaddstr(w, row + 1, pos, buf);
+
+					pos += len_desc;
+				}
 			}
-			pos += len + 1;
 			++key;
 		}
 	}
@@ -645,8 +664,11 @@ int maineventloop(
 					if( (event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED))
 					 && (event.y >= 1) && (event.y <= 2)) {
 						const sKey* key = keys;
-						int x   = event.x;
-						int y   = event.y;
+						char  buf[COLS + 1];
+						int x        = event.x;
+						int y        = event.y;
+						int len_name = 0;
+						int len_desc = 0;
 						if((x < 2) || (y < 1) || (y > 2))
 							continue;
 						x -= 2;
@@ -657,20 +679,29 @@ int maineventloop(
 
 						// Check key
 						for ( ; (key->row == y) && (x >= 0) && (key->key != '\0'); key++) {
-							if ((key->key > 0) && ((size_t)x < key->length) ) {
-								event.x -= x;
-								wattrset(win(Bottom), COLOR_PAIR(6) | A_BOLD | A_REVERSE);
-								mvwaddstr(win(Bottom), event.y, event.x, key->descr);
+							len_name = key->name_len;
+							len_desc = key->desc_len;
+							if ( (key->key > 0)
+							  && (x > len_name)
+							  && (x < (len_name + len_desc) ) ) {
+								event.x -= x - len_name;
+
+								sprintf(buf, "%-*.*s", len_desc - 1, len_desc - 1, key->desc[*key->idx]);
+								wattrset(win(Bottom), COLOR_PAIR(7) | A_BOLD);
+								mvwaddstr(win(Bottom), event.y, event.x, buf);
+
 								wmove(win(Bottom), event.y, event.x);
 								wrefresh(win(Bottom));
 								usleep(100000);
+
 								wattrset(win(Bottom), COLOR_PAIR(6));
-								waddstr(win(Bottom), key->descr);
+								waddstr(win(Bottom), buf);
+
 								wnoutrefresh(win(Bottom));
 								c = key->key;
 								goto check_key;
 							}
-							x -= key->length + 1;
+							x -= len_name + len_desc;
 						}
 					}
 				}

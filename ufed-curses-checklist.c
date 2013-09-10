@@ -480,9 +480,10 @@ static int callback(sFlag** curr, int key)
 			break;
 
 		case KEY_F(5):
-			if      (eScope_local  == e_scope) e_scope = eScope_all;
-			else if (eScope_global == e_scope) e_scope = eScope_local;
-			else                               e_scope = eScope_global;
+			if (eScope_local  == e_scope)
+				e_scope = eScope_all;
+			else
+				++e_scope;
 
 			if ( !isFlagLegal(*curr)
 			  && !setNextItem(0, true)
@@ -493,9 +494,11 @@ static int callback(sFlag** curr, int key)
 			break;
 
 		case KEY_F(6):
-			if      (eState_installed    == e_state) e_state = eState_notinstalled;
-			else if (eState_notinstalled == e_state) e_state = eState_all;
-			else                                     e_state = eState_installed;
+			if (eState_notinstalled == e_state)
+				e_state = eState_all;
+			else
+				++e_state;
+
 
 			if ( !isFlagLegal(*curr)
 			  && !setNextItem(0, true)
@@ -506,9 +509,10 @@ static int callback(sFlag** curr, int key)
 			break;
 
 		case KEY_F(7):
-			if      (eMask_masked   == e_mask) e_mask = eMask_unmasked;
-			else if (eMask_unmasked == e_mask) e_mask = eMask_both;
-			else                               e_mask = eMask_masked;
+			if      (eMask_both   == e_mask)
+				e_mask = eMask_unmasked;
+			else
+				++e_mask;
 
 			if ( !isFlagLegal(*curr)
 			  && !setNextItem(0, true)
@@ -520,8 +524,10 @@ static int callback(sFlag** curr, int key)
 			break;
 
 		case KEY_F(9):
-			if (eOrder_left == e_order) e_order = eOrder_right;
-			else                        e_order = eOrder_left;
+			if (eOrder_left == e_order)
+				e_order = eOrder_right;
+			else
+				e_order = eOrder_left;
 
 			drawFlags();
 			drawBottom(true);
@@ -529,8 +535,10 @@ static int callback(sFlag** curr, int key)
 			break;
 
 		case KEY_F(10):
-			if (eDesc_ori == e_desc) e_desc = eDesc_alt;
-			else                     e_desc = eDesc_ori;
+			if (eDesc_ori == e_desc)
+				e_desc = eDesc_alt;
+			else
+				e_desc = eDesc_ori;
 
 			drawFlags();
 			drawBottom(true);
@@ -639,25 +647,20 @@ int main(void)
 	initcurses();
 
 	/* The keys to use differ whether ro_mode is true or false */
-#define mkKey(x) x, sizeof(x)-1
 	sKey keys[] = {
-		{ '?',       mkKey("?: Help"),            0 },
-		{ '\n',      mkKey(ro_mode ?
-							"Enter: Exit"
-						:	"Enter: Save"),       0 },
-		{ '\033',    mkKey(ro_mode ?
-							"Esc: Exit"
-						:	"Esc: Cancel"),       0 },
-		{ -1,        mkKey("Toggle"),             1 },
-		{ KEY_F( 5), mkKey("F5: Local/Global"),   1 },
-		{ KEY_F( 6), mkKey("F6: Installed"),      1 },
-		{ KEY_F( 7), mkKey("F7: Masked/Forced"),  1 },
-		{ -1,        mkKey("      "),             2 },
-		{ KEY_F( 9), mkKey("F9: Swap Pkg/Desc"),  2 },
-		{ KEY_F(10), mkKey("F10: Strip Desc"),    2 },
-		{ '\0',      mkKey(""),                   0 }
+		/* Row 0 - General keys */
+		MAKE_KEY('?',    "?:",     "Help",   "",     "", NULL,           0),
+		MAKE_KEY('\n',   "Enter:", "Save",   "Exit", "", (int*)&ro_mode, 0),
+		MAKE_KEY('\033', "Esc:",   "Cancel", "Exit", "", (int*)&ro_mode, 0),
+
+		/* Row 1 - F-KEy toggles */
+		MAKE_KEY(KEY_F( 5), "F5:",  "global",    "local",         "all",      (int*)&e_scope, 1),
+		MAKE_KEY(KEY_F( 6), "F6:",  "installed", "not installed", "all",      (int*)&e_state, 1),
+		MAKE_KEY(KEY_F( 7), "F7:",  "masked",    "all",           "unmasked", (int*)&e_mask,  1),
+		MAKE_KEY(KEY_F( 9), "F9:",  "desc left", "desc right",    "",         (int*)&e_order, 1),
+		MAKE_KEY(KEY_F(10), "F10:", "stripped",  "full",          "",         (int*)&e_desc,  1),
+		MAKE_KEY('\0', "", "", "", "", NULL, 0)
 	};
-#undef mkKey
 
 	result = maineventloop(ro_mode ? subtitle_ro : subtitle_rw,
 				&callback, &drawflag, flags, keys, true);
