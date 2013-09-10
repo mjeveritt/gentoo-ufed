@@ -289,12 +289,6 @@ static void free_lines(void)
 	}
 }
 
-#define key(x) x, sizeof(x)-1
-static const sKey keys[] = {
-	{ '\033', key("Back (Esc)"), 0 },
-	{ '\0',   key(""), 0         }
-};
-#undef key
 
 static int drawline(sFlag* line, bool highlight)
 {
@@ -341,6 +335,11 @@ static int callback(sFlag** curr, int key)
 
 void help(void)
 {
+	sKey keys[] = {
+		MAKE_KEY('\033', "Esc", "Back", "", "", NULL, 0),
+		MAKE_KEY('\0',   "",    "",     "", "", NULL, 0)
+	};
+
 	if ( ((int)helpheight != wHeight(List))
 	  || ((int)helpwidth  != wWidth(List)) ) {
 		if(lines!=NULL)
