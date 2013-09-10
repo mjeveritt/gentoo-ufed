@@ -18,21 +18,6 @@ static size_t  maxDescWidth    = 0;
 static char*   lineBuf         = NULL;
 static sFlag*  flags           = NULL;
 
-#define mkKey(x) x, sizeof(x)-1
-static const sKey keys[] = {
-	{ '?',      mkKey("?: Help"),            0 },
-	{ '\n',     mkKey("Enter: Save"),        0 },
-	{ '\033',   mkKey("Esc: Cancel"),        0 },
-	{ -1,       mkKey("Toggle"),             1 },
-	{ KEY_F(5), mkKey("F5: Local/Global"),   1 },
-	{ KEY_F(6), mkKey("F6: Installed"),      1 },
-	{ KEY_F(7), mkKey("F7: Masked/Forced"),  1 },
-	{ KEY_F(9), mkKey("F9: Pkg/Desc Order"), 1 },
-	{ '\0',     mkKey(""),                   0 }
-};
-#undef mkKey
-
-
 /* internal prototypes */
 static void free_flags(void);
 
@@ -432,11 +417,17 @@ static int callback(sFlag** curr, int key)
 			break;
 		case '\n':
 		case KEY_ENTER:
-			if(yesno("Save and exit? (Y/N) "))
+			if (ro_mode) {
+				if (yesno("Exit? (Y/N) "))
+					return 0;
+			} else if (yesno("Save and exit? (Y/N) "))
 				return 0;
 			break;
 		case '\033':
-			if(yesno("Cancel? (Y/N) "))
+			if (ro_mode) {
+				if (yesno("Exit? (Y/N) "))
+					return 0;
+			} else if (yesno("Cancel? (Y/N) "))
 				return 1;
 			break;
 		case ' ':
@@ -626,6 +617,25 @@ int main(void)
 	fayt[0] = '\0';
 
 	initcurses();
+
+	/* The keys to use differ whether ro_mode is true or false */
+#define mkKey(x) x, sizeof(x)-1
+	sKey keys[] = {
+		{ '?',      mkKey("?: Help"),            0 },
+		{ '\n',     mkKey(ro_mode ?
+							"Enter: Exit"
+						:	"Enter: Save"),      0 },
+		{ '\033',   mkKey(ro_mode ?
+							"Esc: Exit"
+						:	"Esc: Cancel"),      0 },
+		{ -1,       mkKey("Toggle"),             1 },
+		{ KEY_F(5), mkKey("F5: Local/Global"),   1 },
+		{ KEY_F(6), mkKey("F6: Installed"),      1 },
+		{ KEY_F(7), mkKey("F7: Masked/Forced"),  1 },
+		{ KEY_F(9), mkKey("F9: Pkg/Desc Order"), 1 },
+		{ '\0',     mkKey(""),                   0 }
+	};
+#undef mkKey
 
 	result = maineventloop(ro_mode ? subtitle_ro : subtitle_rw,
 				&callback, &drawflag, flags, keys, true);
