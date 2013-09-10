@@ -295,9 +295,14 @@ static int drawflag(sFlag* flag, bool highlight)
 			memset(desc, 0, maxDescWidth * sizeof(char));
 			if (flag->desc[idx].pkg) {
 				if (e_order == eOrder_left)
-					sprintf(desc, "(%s) %s", flag->desc[idx].pkg, flag->desc[idx].desc);
+					sprintf(desc, "(%s) %s", flag->desc[idx].pkg, e_desc == eDesc_ori
+							? flag->desc[idx].desc
+							: flag->desc[idx].desc_alt);
 				else
-					sprintf(desc, "%s (%s)", flag->desc[idx].desc, flag->desc[idx].pkg);
+					sprintf(desc, "%s (%s)", e_desc == eDesc_ori
+							? flag->desc[idx].desc
+							: flag->desc[idx].desc_alt,
+							  flag->desc[idx].pkg);
 			}
 			else
 				sprintf(desc, "%s", flag->desc[idx].desc);
