@@ -203,7 +203,16 @@ sub _add_flag
 		# where various words are stripped, as they do not
 		# bear much information.
 		my $descr_alt = $descr;
-		$descr_alt =~ s/^(?:include|enable|add)(?:s)?\s+(?:support\s+for\s+)?//mig;
+		
+		if (length($descr)) {
+			my $VERB   = "(?:build|include|enable|add|support|use|be|install)(?:s)?";
+			my $BIND   = "(?:and|for|in|the|a)?";
+			my $WHAT   = "(?:install|support|build|include|able)?(?:s|ing|ed)?";
+			my $POST   = "(?:in|for|the|on|with|a|to)?";
+			$descr_alt =~ s/^$VERB\s*$BIND\s*$WHAT\s*$POST\s*$POST\s+//mig;
+			
+			debugMsg("   \"$descr\"\n-> \"$descr_alt\"");
+		}
 
 		$data{descr}     = $descr;
 		$data{descr_alt} = $descr_alt;
