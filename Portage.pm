@@ -31,6 +31,7 @@ Readonly our $DEBUG => 0;
 #   ->{conf}      = The flag is disabled (-1), enabled (1) or not set (0) in make.conf
 #   ->{default}   = The flag is disabled (-1), enabled (1) or not set (0) by default
 #   ->{descr}     = Global description
+#   ->{descr_alt} = Alternative description with stripped words like "Enables support for"
 #   ->{forced}    = The flag is globally force enabled (and masked) (0,1)
 #   ->{installed} = At least one affected package is installed (0,1)
 #   ->{masked}    = The flag is globally masked (0,1)
@@ -199,7 +200,14 @@ sub _add_flag
 			= ($1, $2, $3, $4, $5, $6, $7, $8);
 		my %data = ();
 
+		# An alternate form of the description is a version
+		# where various words are stripped, as they do not
+		# bear much information.
+		my $descr_alt = $descr;
+		$descr_alt =~ s/^(?:include|enable|add)(?:s)?\s+(?:support\s+for\s+)?//mig;
+
 		$data{descr}     = $descr;
+		$data{descr_alt} = $descr_alt;
 		$data{forced}    = $forced;
 		$data{installed} = $installed;
 		$data{masked}    = $masked;
