@@ -522,6 +522,14 @@ static int callback(sFlag** curr, int key)
 			wmove(wInp, 0, strlen(fayt));
 			break;
 
+		case KEY_F(10):
+			if (eDesc_ori == e_desc) e_desc = eDesc_alt;
+			else                     e_desc = eDesc_ori;
+
+			drawFlags();
+			wmove(wInp, 0, strlen(fayt));
+			break;
+
 #ifdef NCURSES_MOUSE_VERSION
 		case KEY_MOUSE:
 			// Masked flags can be turned off, nothing else
