@@ -91,7 +91,7 @@ static void read_flags(void)
 	size_t fullWidth = 0;
 	struct {
 		int start, end;
-	} name, desc, pkg, state;
+	} name, desc, desc_alt, pkg, state;
 
 	if(input == NULL)
 		ERROR_EXIT(-1, "fdopen failed with error %d\n", errno);
@@ -126,15 +126,17 @@ static void read_flags(void)
 
 		/* read description(s) and determine flag status */
 		for (int i = 0; i < ndescr; ++i) {
-			desc.start  = desc.end  = -1;
-			pkg.start   = pkg.end   = -1;
-			state.start = state.end = -1;
+			desc.start     = desc.end     = -1;
+			desc_alt.start = desc_alt.end = -1;
+			pkg.start      = pkg.end      = -1;
+			state.start    = state.end    = -1;
 
 			line = getline(input);
 			if (!line) break;
 
-			if ( (sscanf(line, "\t%n%*[^\t]%n\t (%n%*[^)]%n) [%n%*[ +-]%n%c",
+			if ( (sscanf(line, "\t%n%*[^\t]%n\t%n%*[^\t]%n\t (%n%*[^)]%n) [%n%*[ +-]%n%c",
 					&desc.start,  &desc.end,
+					&desc_alt.start,  &desc_alt.end,
 					&pkg.start,   &pkg.end,
 					&state.start, &state.end,
 					&endChar) != 1)
@@ -146,13 +148,16 @@ static void read_flags(void)
 				ERROR_EXIT(-1, "Illegal description stats on line %d:\n\"%s\"\n", lineNum + 1, line);
 
 			// Add description line to flag:
-			line[desc.end]  = '\0';
-			line[state.end] = '\0';
+			line[desc.end]     = '\0';
+			line[desc_alt.end] = '\0';
+			line[state.end]    = '\0';
 			if ( (pkg.end - pkg.start) > 1) {
 				line[pkg.end]   = '\0';
-				fullWidth = addFlagDesc(newFlag, &line[pkg.start], &line[desc.start], &line[state.start]);
+				fullWidth = addFlagDesc(newFlag, &line[pkg.start], &line[desc.start],
+										&line[desc_alt.start], &line[state.start]);
 			} else
-				fullWidth = addFlagDesc(newFlag, NULL, &line[desc.start], &line[state.start]);
+				fullWidth = addFlagDesc(newFlag, NULL, &line[desc.start],
+										&line[desc_alt.start], &line[state.start]);
 
 			// Note new max length if this line is longest:
 			if (fullWidth > maxDescWidth)

@@ -258,9 +258,9 @@ static void init_lines(void)
 		if (n) {
 			memcpy(buf, word, n);
 			buf[n++] = '\0';
-			addFlagDesc(line, NULL, buf, "+      ");
+			addFlagDesc(line, NULL, buf, NULL, "+      ");
 		} else
-			addFlagDesc(line, NULL, " ", "+      ");
+			addFlagDesc(line, NULL, " ", NULL, "+      ");
 
 		// Advance behind current spaces
 		while (word[n] == ' ')
