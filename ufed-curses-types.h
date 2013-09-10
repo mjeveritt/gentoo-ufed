@@ -38,6 +38,14 @@
  * =============
  */
 
+/** @enum eDesc_
+ * @brief determine whether to display the original/alternative description
+**/
+typedef enum eDesc_ {
+	eDesc_ori,
+	eDesc_alt
+} eDesc;
+
 /** @enum eMask_
  *  @brief determine which flags are shown concerning masked status
 **/
