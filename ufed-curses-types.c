@@ -4,10 +4,17 @@
  *  Created on: 28.01.2013
  *      Author: Sven Eden
  */
+
+
 #include "ufed-curses-types.h"
 #include "ufed-curses.h"
 #include <stdlib.h>
 #include <string.h>
+
+/* internal zero index sentry, replaces
+ * NULL argument for idx in MAKE_KEY
+ */
+int IDX_NULL_SENTRY = 0;
 
 /* external members */
 extern eMask  e_mask;

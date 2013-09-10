@@ -42,17 +42,17 @@
  * @brief determine whether to display the original/alternative description
 **/
 typedef enum eDesc_ {
-	eDesc_ori,
-	eDesc_alt
+	eDesc_ori = 0,
+	eDesc_alt = 1
 } eDesc;
 
 /** @enum eMask_
  *  @brief determine which flags are shown concerning masked status
 **/
 typedef enum eMask_ {
-	eMask_unmasked,
-	eMask_both,
-	eMask_masked
+	eMask_unmasked = 0,
+	eMask_masked   = 1,
+	eMask_both     = 2
 } eMask;
 
 
@@ -60,8 +60,8 @@ typedef enum eMask_ {
  *  @brief determine whether package lists are shown left or right of the description
 **/
 typedef enum eOrder_ {
-	eOrder_left,
-	eOrder_right
+	eOrder_left  = 0,
+	eOrder_right = 1
 } eOrder;
 
 
@@ -69,9 +69,9 @@ typedef enum eOrder_ {
  *  @brief determine whether global, local or all flags are listed
 **/
 typedef enum eScope_ {
-	eScope_all,
-	eScope_global,
-	eScope_local
+	eScope_all    = 0,
+	eScope_global = 1,
+	eScope_local  = 2
 } eScope;
 
 
@@ -79,9 +79,9 @@ typedef enum eScope_ {
  *  @brief determine whether installed, not installed or all packages are listed
 **/
 typedef enum eState_ {
-	eState_all,
-	eState_installed,
-	eState_notinstalled
+	eState_all          = 0,
+	eState_installed    = 1,
+	eState_notinstalled = 2
 } eState;
 
 
@@ -154,12 +154,26 @@ typedef struct sListStats_ {
  *  @brief describe one main control key
 **/
 typedef struct sKey_ {
-	int key;           //!< curses key or -1 if no key shall be used
-	const char *descr; //!< Help text to display
-	size_t length;     //!< length of the description
-	int row;           //!< On which row this key is to be displayed, 0 or 1
+	int key;              //!< curses key or -1 if no key shall be used
+	const char *name;     //!< The name of the key, like "Esc" or "F10"
+	size_t      name_len; //!< length of the name
+	const char *desc[3];  //!< Help text to display, index is the relevant enum
+	size_t      desc_len; //!< length of the (longest) description
+	int        *idx;      //!< index of descr to currently show (points to the relevant enum)
+	int         row;      //!< On which row this key is to be displayed, 0 or 1
 } sKey;
 
+/// Helper macro to initialize sKey entries
+extern int IDX_NULL_SENTRY;
+#define MAKE_KEY(key, name, d1, d2, d3, idx, row) { \
+	key, \
+	name, \
+	sizeof(name), \
+	{ d1, d2, d3 }, \
+	max(max(sizeof(d1), sizeof(d2)), sizeof(d3)), \
+	NULL != (idx) ? idx : &IDX_NULL_SENTRY, \
+	row \
+}
 
 /** @struct sWindow_
  *  @brief describe one curses window dimensions
