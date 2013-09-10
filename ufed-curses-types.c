@@ -99,10 +99,11 @@ sFlag* addFlag (sFlag** root, const char* name, int line, int ndesc, const char 
  *  @param[in,out] flag pointer to the flag to manipulate. Must not be NULL
  *  @param[in] pkg list of affected packages or NULL if no packages are affected
  *  @param[in] desc description line
+ *  @param[in] desc_alt alternative description line
  *  @param[in] state '+','-',' ' for global, installed, forced, masked, package - in that order.
  *  @return the full length of the description including package list and separators
 **/
-size_t addFlagDesc (sFlag* flag, const char* pkg, const char* desc, const char state[7])
+size_t addFlagDesc (sFlag* flag, const char* pkg, const char* desc, const char* desc_alt, const char state[7])
 {
 	size_t result = 3; // space and brackets.
 	if (flag) {
@@ -118,8 +119,9 @@ size_t addFlagDesc (sFlag* flag, const char* pkg, const char* desc, const char s
 			}
 
 			// Now apply.
-			if (pkg)  flag->desc[idx].pkg  = strdup(pkg);
-			if (desc) flag->desc[idx].desc = strdup(desc);
+			if (pkg)      flag->desc[idx].pkg      = strdup(pkg);
+			if (desc)     flag->desc[idx].desc     = strdup(desc);
+			if (desc_alt) flag->desc[idx].desc_alt = strdup(desc_alt);
 			if ('+' == state[0]) flag->desc[idx].isGlobal    = true;
 			if ('+' == state[1]) flag->desc[idx].isInstalled = true;
 			flag->desc[idx].stateForced  = state[2];

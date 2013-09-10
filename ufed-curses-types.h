@@ -97,6 +97,7 @@ typedef enum eWin_ {
 **/
 typedef struct sDesc_ {
 	char* desc;         //!< The description line
+	char* desc_alt;     //!< The alternative description line
 	bool  isGlobal;     //!< true if this is the global description and setting
 	bool  isInstalled;  //!< global: at least one pkg is installed, local: all in *pkg are installed.
 	char* pkg;          //!< affected packages
@@ -166,7 +167,7 @@ typedef struct sWindow_ {
  * =======================================
  */
 sFlag* addFlag      (sFlag** root, const char* name, int line, int ndesc, const char state[2]);
-size_t addFlagDesc  (sFlag* flag, const char* pkg, const char* desc, const char state[6]);
+size_t addFlagDesc  (sFlag* flag, const char* pkg, const char* desc, const char* desc_alt, const char state[6]);
 void   addLineStats (const sFlag* flag, sListStats* stats);
 void   destroyFlag  (sFlag** root, sFlag** flag);
 void   genFlagStats (sFlag* flag);
