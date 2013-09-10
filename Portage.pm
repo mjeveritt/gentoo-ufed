@@ -6,7 +6,6 @@ package Portage;
 
 use strict;
 use warnings;
-use Readonly;
 
 BEGIN {
     use Exporter ();
@@ -20,7 +19,7 @@ BEGIN {
 # --- public members ---
 
 # Set this to 1 to get debugging output
-Readonly our $DEBUG => 0;
+use constant { DEBUG => 0 };
 
 # $use_flags - hashref that represents the combined and
 # consolidated data about all valid use flags
@@ -172,13 +171,13 @@ INIT {
 # --- public methods implementations ---
 
 # Write a given message to STDERR adding a newline at the end
-# This function does nothing unless $DEBUG is set to something
+# This function does nothing unless DEBUG is set to something
 # different than zero
 # Parameter 1: The message
 sub debugMsg
 {
 	my ($msg) = @_;
-	$DEBUG or return;
+	DEBUG or return;
 	print STDERR "$msg\n";
 	return;
 }
