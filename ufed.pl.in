@@ -9,13 +9,17 @@ use warnings;
 use lib qw{XX_perldir@};
 use Portage;
 
+# 0 = normal, 1 = gdb, 2 = valgrind
+use constant { EXEC => 0 };
+
 my $version = 'XX_PACKAGE_VERSION@';
 
 my $interface = 'ufed-curses';
-#my $memcheck  = "/usr/bin/valgrind -v --trace-children=yes --tool=memcheck"
-#			  . " --track-origins=yes --leak-check=full --show-reachable=no"
-#			  . " --read-var-info=yes"
-#              . " XX_libexecdir@/ufed-curses 2>/tmp/ufed_memcheck.log";
+my $gdb       = "gdb -ex run ufed-curses";
+my $memcheck  = "/usr/bin/valgrnd -v --trace-children=yes --tool=memcheck"
+			  . " --track-origins=yes --leak-check=full --show-reachable=no"
+			  . " --read-var-info=yes"
+              . " XX_libexecdir@/ufed-curses 2>/tmp/ufed_memcheck.log";
 
 sub finalise;
 sub flags_dialog;
@@ -60,10 +64,19 @@ sub flags_dialog {
 		POSIX::close $iread;
 		POSIX::dup2 $owrite, 4;
 		POSIX::close $owrite;
-		exec { "XX_libexecdir@/$interface" } $interface or
-		do { print STDERR "Couldn't launch $interface\n"; exit 3 }
-#		exec $memcheck or
-#		do { print STDERR "Couldn't launch valgrind\n$!\n"; exit 3 }
+		if (0 == EXEC) {
+			exec { "XX_libexecdir@/$interface" } $interface or
+			do { print STDERR "Couldn't launch $interface\n"; exit 3 }
+		} elsif (1 == EXEC) {
+			exec $gdb or
+			do { print STDERR "Couldn't launch $interface\n"; exit 3 }
+		} elsif (2 == EXEC) {
+			exec $memcheck or
+			do { print STDERR "Couldn't launch $interface\n"; exit 3 }
+		} else {
+			print STDERR "Value " . EXEC . " unknown for EXEC\n";
+			exit 4;
+		}
 	}
 	POSIX::close $iread;
 	POSIX::close $owrite;
