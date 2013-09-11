@@ -39,6 +39,11 @@ static void init_lines(void)
 "ufed reads the first, overrides its settings with the second, and writes "
 "changes to the second.",
 "",
+"If /etc/portage/make.conf is a directory, ufed will parse all files in this "
+"directory recursively, omitting files that begin with a '.' or end with a "
+"'~', and will read all USE flag settings that can be found. Changes are "
+"written to the last file found, overriding all others.",
+"",
 "--- What Are USE Flags? ---",
 "",
 "The USE settings system is a flexible way to enable or disable various "
@@ -121,8 +126,8 @@ static void init_lines(void)
 "End keys, or start typing the name of a flag to select it.",
 "Use the space bar to toggle the setting.",
 "",
-"You can apply various filters on the flags to display. A status line on the "
-"bottom right will show you which filters are in effect.",
+"You can apply various filters on the flags to display. The text of the bottom "
+"line buttons show, which filter the button (or key press) will switch to.",
 "",
 " F5: Toggle display of local / global / all flag descriptions.",
 "",
@@ -133,6 +138,23 @@ static void init_lines(void)
 "neither masked nor forced / all flags."
 "",
 "The default is to display all flags that are neither masked nor forced.",
+"",
+"You can change the way the descriptions are displayed. The text of the "
+"bottom line buttons show, which way the button (or key press) the display "
+"will change to.",
+"",
+" F9: Toggle the order of the affected package list and the description.",
+"",
+" F10: Toggle whether to display the full description or a stripped version. "
+"The stripped version has various wordings like \"Enables support for\" or "
+"\"Build and install the\" at the beginning of the description removed.",
+"Although somewhat crippled, the descriptions key information then needs "
+"less space and allows, with switched order of the package list and the "
+"description, to determine a flags meaning without scrolling the text in most "
+"cases; even on low resolution displays.",
+"",
+"The default is to display the full description preceeded by the list of "
+"affected packages.",
 "",
 "If ncurses is installed with the \"gpm\" use flag enabled, you can use your "
 "mouse to navigate and to toggle the settings, too.",
