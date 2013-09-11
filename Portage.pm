@@ -56,11 +56,13 @@ our $used_make_conf = "";
 our $ro_mode = 0;
 
 # --- private members ---
-my %_environment  = ();
-my $_EPREFIX        = "";
-my @_profiles     = ();
-my %_use_eh_safe  = (); ## USE_EXPAND_HIDDEN safe hash. See _read_make_defaults()
-my %_use_order    = ();
+my %_environment     = ();
+my $_EPREFIX         = "";
+my $_PORTDIR         = "";
+my $_PORTDIR_OVERLAY = "";
+my @_profiles        = ();
+my %_use_eh_safe     = (); ## USE_EXPAND_HIDDEN safe hash. See _read_make_defaults()
+my %_use_order       = ();
 
 # $_use_temp - hashref that represents the current state of
 # all known flags. This is for data gathering, the public
@@ -98,7 +100,7 @@ sub debugMsg;
 # --- private methods ---
 sub _add_flag;
 sub _add_temp;
-sub _determine_eprefix;
+sub _determine_eprefix_portdir;
 sub _determine_make_conf;
 sub _determine_profiles;
 sub _final_cleaning;
@@ -124,7 +126,7 @@ sub _remove_expands;
 # --- Package initialization ---
 INIT {
 	$_environment{$_} = {} for qw{USE USE_EXPAND USE_EXPAND_HIDDEN};
-	_determine_eprefix;
+	_determine_eprefix_portdir;
 	_determine_make_conf;
 	_determine_profiles;
 	_read_make_globals;
@@ -267,10 +269,24 @@ sub _add_temp
 # Other output from portageq is printed on
 # STDERR.
 # No parameters accepted.
-sub _determine_eprefix {
+sub _determine_eprefix_portdir {
 	my $tmp = "/tmp/ufed_$$.tmp";
-	$_EPREFIX = qx{portageq envvar EPREFIX 2>$tmp};
-	die "Couldn't determine EPREFIX from Portage" if $? != 0;
+	my @res = map {
+		my $x=$_;
+		chomp $x;
+		$x =~ s/^.*'([^']*)'.*$/$1/;
+		$x
+	} qx{portageq envvar -v EPREFIX PORTDIR PORTDIR_OVERLAY 2>$tmp};
+	
+	if (scalar @res) {
+		$_EPREFIX         = $res[0];
+		$_PORTDIR         = $res[1];
+		$_PORTDIR_OVERLAY = $res[2];
+		debugMsg("EPREFIX='${_EPREFIX}'");
+		debugMsg("PORTDIR='${_PORTDIR}'");
+		debugMsg("PORTDIR_OVERLAY='${_PORTDIR_OVERLAY}'");
+	}
+	die "Couldn't determine EPREFIX and PORTDIR from Portage" if $? != 0;
 
 	if ( -s $tmp ) {
 		if (open (my $fTmp, "<", $tmp)) {
@@ -771,13 +787,11 @@ sub _read_make_conf {
 	}
 	
 	# Add PORTDIR and overlays to @_profiles
-	defined ($_environment{PORTDIR})
-		and push @_profiles, "$_environment{PORTDIR}/profiles"
+	length ($_PORTDIR)
+		and push @_profiles, "${_PORTDIR}/profiles"
 		or  die("Unable to determine PORTDIR!\nSomething is seriously broken here!\n");
-	defined ($_environment{PORTDIR_OVERLAY})
-		and push @_profiles,
-				map { my $x=$_; $x =~ s/^\s*(\S+)\s*$/$1\/profiles/mg ; $x }
-				split('\n', $_environment{PORTDIR_OVERLAY});
+	length ($_PORTDIR_OVERLAY)
+		and push @_profiles, split(' ', $_PORTDIR_OVERLAY);
 	-e "${_EPREFIX}/etc/portage/profile"
 		and push @_profiles, "${_EPREFIX}/etc/portage/profile";
 	return;
