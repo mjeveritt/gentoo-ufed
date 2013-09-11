@@ -129,12 +129,12 @@ static void init_lines(void)
 "You can apply various filters on the flags to display. The text of the bottom "
 "line buttons show, which filter the button (or key press) will switch to.",
 "",
-" F5: Toggle display of local / global / all flag descriptions.",
+" F5 : Toggle display of local / global / all flag descriptions.",
 "",
-" F6: Toggle display of flags supported by at least one installed "
+" F6 : Toggle display of flags supported by at least one installed "
 "package / supported by no installed package / all flags.",
 "",
-" F7: Toggle display of masked and forced flags / flags that are "
+" F7 : Toggle display of masked and forced flags / flags that are "
 "neither masked nor forced / all flags."
 "",
 "The default is to display all flags that are neither masked nor forced.",
@@ -143,9 +143,10 @@ static void init_lines(void)
 "bottom line buttons show, which way the button (or key press) the display "
 "will change to.",
 "",
-" F9: Toggle the order of the affected package list and the description.",
+" F9 : Toggle the order of the affected package list and the description.",
 "",
-" F10: Toggle whether to display the full description or a stripped version. "
+" F10: Toggle whether to display the full description or a stripped version.",
+"",
 "The stripped version has various wordings like \"Enables support for\" or "
 "\"Build and install the\" at the beginning of the description removed.",
 "Although somewhat crippled, the descriptions key information then needs "
@@ -155,6 +156,29 @@ static void init_lines(void)
 "",
 "The default is to display the full description preceeded by the list of "
 "affected packages.",
+"",
+"Below the list of descriptions an indicator line is displayed that shows the "
+"current setting of all filters and settings.",
+"The order and layout is:",
+"[Scope|State|Mask|Order|Description] with",
+"Scope:",
+"  glob : Global USE flags are shown.",
+"  loca : Local USE flags are shown.",
+"  all  : All USE flags are shown.",
+"State:",
+"  inst : USE flags affecting installed packages are shown.",
+"  noti : USE flags affecting not installed packages are shown.",
+"  all  : All USE flags are shown",
+"Mask:",
+"  mask : Masked and forced USE flags are shown",
+"  norm : USE flags that are neither masked nor forced are shown.",
+"  all  : All USE flags are shown.",
+"Order:",
+"  left : The list of affected packages is shown left of the description.",
+"  righ : The list of affected packages is shown right of the description.",
+"Description:",
+"  orig : The original full description is shown.",
+"  stri : The stripped version of the description is shown.",
 "",
 "If ncurses is installed with the \"gpm\" use flag enabled, you can use your "
 "mouse to navigate and to toggle the settings, too.",
