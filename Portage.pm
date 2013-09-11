@@ -264,24 +264,28 @@ sub _add_temp
 }
 
 
-# Determine the value for EPREFIX and save it
-# in $_EPREFIX. This is done using 'portageq'.
+# Determine the values for EPREFIX, PORTDIR
+# and PORTDIR_OVERLAY. These are saved in
+# $_EPREFIX, $_PORTDIR and $_PORTDIR_OVERLAY.
+# This is done using 'portageq'.
 # Other output from portageq is printed on
 # STDERR.
 # No parameters accepted.
 sub _determine_eprefix_portdir {
 	my $tmp = "/tmp/ufed_$$.tmp";
 	my @res = map {
-		my $x=$_;
+		my $x = $_;
 		chomp $x;
-		$x =~ s/^.*'([^']*)'.*$/$1/;
+		$x =~ s/'//g;
 		$x
 	} qx{portageq envvar -v EPREFIX PORTDIR PORTDIR_OVERLAY 2>$tmp};
 	
-	if (scalar @res) {
-		$_EPREFIX         = $res[0];
-		$_PORTDIR         = $res[1];
-		$_PORTDIR_OVERLAY = $res[2];
+	while (my $res = shift @res) {
+		if ($res =~ /^(.*)=(.*)$/) {
+			"EPREFIX"         eq $1 and $_EPREFIX         = $2;
+			"PORTDIR"         eq $1 and $_PORTDIR         = $2;
+			"PORTDIR_OVERLAY" eq $1 and $_PORTDIR_OVERLAY = $2;
+		}
 		debugMsg("EPREFIX='${_EPREFIX}'");
 		debugMsg("PORTDIR='${_PORTDIR}'");
 		debugMsg("PORTDIR_OVERLAY='${_PORTDIR_OVERLAY}'");
@@ -296,7 +300,6 @@ sub _determine_eprefix_portdir {
 	}
 	-e $tmp and unlink $tmp;
 
-	chomp($_EPREFIX);
 	return;
 }
 
