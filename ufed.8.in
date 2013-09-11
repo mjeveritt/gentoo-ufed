@@ -117,6 +117,7 @@ will change to.
 F9: Toggle the order of the affected package list and the description.
 .br
 F10: Toggle whether to display the full description or a stripped version.
+
 The stripped version has various wordings like "Enables support for" or
 "Build and install the" at the beginning of the description removed.
 Although somewhat crippled, the descriptions key information then needs
@@ -126,6 +127,36 @@ cases; even on low resolution displays.
 
 The default is to display the full description preceeded by the list of
 affected packages.
+
+Below the list of descriptions an indicator line is displayed that shows the
+current setting of all filters and settings.
+.br
+The order and layout is:
+.br
+[Scope|State|Mask|Order|Description] with
+.br
+Scope:
+  glob : Global USE flags are shown.
+  loca : Local USE flags are shown.
+  all  : All USE flags are shown.
+.br
+State:
+  inst : USE flags affecting installed packages are shown.
+  noti : USE flags affecting not installed packages are shown.
+  all  : All USE flags are shown
+.br
+Mask:
+  mask : Masked and forced USE flags are shown
+  norm : USE flags that are neither masked nor forced are shown.
+  all  : All USE flags are shown.
+.br
+Order:
+  left : The list of affected packages is shown left of the description.
+  righ : The list of affected packages is shown right of the description.
+.br
+Description:
+  orig : The original full description is shown.
+  stri : The stripped version of the description is shown.
 
 If ncurses is installed with the "gpm" use flag enabled, you can use your
 mouse to navigate and to toggle the settings, too.
