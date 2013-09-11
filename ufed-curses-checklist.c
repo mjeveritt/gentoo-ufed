@@ -529,9 +529,7 @@ static int callback(sFlag** curr, int key)
 			else
 				e_order = eOrder_left;
 
-			drawFlags();
-			drawBottom(true);
-			wmove(wInp, 0, strlen(fayt));
+			draw(true);
 			break;
 
 		case KEY_F(10):
@@ -540,9 +538,7 @@ static int callback(sFlag** curr, int key)
 			else
 				e_desc = eDesc_ori;
 
-			drawFlags();
-			drawBottom(true);
-			wmove(wInp, 0, strlen(fayt));
+			draw(true);
 			break;
 
 #ifdef NCURSES_MOUSE_VERSION
