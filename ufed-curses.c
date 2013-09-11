@@ -331,15 +331,24 @@ void drawStatus(bool withSep)
 		mvwaddstr(w, 0, minwidth + 5, "Si");      // Scope, installed
 		mvwaddch (w, 0, minwidth + 7, ACS_VLINE); // After scope
 
-		// Use the unused right side to show the filter status
-		sprintf(buf, "%*s%-6s / %-13s / %-6s] ",
-			max(2, iWidth - 40 - minwidth), " [",
-			eScope_global       == e_scope ? "global" :
-			eScope_local        == e_scope ? "local" : "all",
-			eState_installed    == e_state ? "installed" :
-			eState_notinstalled == e_state ? "not installed" : "all",
-			eMask_masked        == e_mask  ? "masked" :
-			eMask_unmasked      == e_mask  ? "normal" : "all");
+		/* Use the unused right side to show the filter status
+		 * The Order and layout is:
+		 * [Scope|State|Mask|Order|Desc] with
+		 * all items limited to four characters.
+		 * 5 * 4 = 20
+		 * + 2 brackets = 22
+		 * + 4 pipes    = 26
+		*/
+		sprintf(buf, "%*s%-4s|%-4s|%-4s|%-4s|%-4s] ",
+			max(2, iWidth - 33 - minwidth), " [",
+			eScope_global         == e_scope ? "glob"
+			: eScope_local        == e_scope ? "loca" : "all",
+			eState_installed      == e_state ? "inst"
+			: eState_notinstalled == e_state ? "noti" : "all",
+			eMask_masked          == e_mask  ? "mask"
+			: eMask_unmasked      == e_mask  ? "norm" : "all",
+			eOrder_left           == e_order ? "left" : "righ",
+			eDesc_ori             == e_desc  ? "orig" : "stri");
 		waddstr(w, buf);
 	}
 
