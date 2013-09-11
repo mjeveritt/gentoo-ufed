@@ -16,9 +16,9 @@ my $version = 'XX_PACKAGE_VERSION@';
 
 my $interface = 'ufed-curses';
 my $gdb       = "gdb -ex run ufed-curses";
-my $memcheck  = "/usr/bin/valgrnd -v --trace-children=yes --tool=memcheck"
-			  . " --track-origins=yes --leak-check=full --show-reachable=no"
-			  . " --read-var-info=yes"
+my $memcheck  = "/usr/bin/valgrind -v --trace-children=yes --tool=memcheck"
+              . " --track-origins=yes --leak-check=full --show-reachable=no"
+              . " --read-var-info=yes"
               . " XX_libexecdir@/ufed-curses 2>/tmp/ufed_memcheck.log";
 
 sub finalise;
