@@ -14,7 +14,7 @@ int maineventloop(
 	int (*callback)(sFlag** curr, int key),
 	int (*drawflag)(sFlag*  flag, bool highlight),
 	sFlag* flags,
-	const sKey* keys,
+	sKey* keys,
 	bool withSep);
 void resetDisplay(bool withSep);
 bool scrollcurrent(void);

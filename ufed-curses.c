@@ -8,7 +8,7 @@
 
 /* internal members */
 static const char* subtitle = NULL;
-static const sKey* keys     = NULL;
+static sKey*  keys          = NULL;
 static sFlag* currentflag   = NULL;
 static sFlag* flags         = NULL;
 static bool   withSep       = false;
@@ -141,27 +141,21 @@ void drawBottom(bool withSep)
 	mvwaddch(w, 3, bWidth - 1, ACS_LRCORNER); // lower right corner on line 3
 
 	if (keys) {
-		const sKey* key = keys;
-		char buf[COLS + 1];
-		int  pos   = 2;
-		int  row   = 0;
-		int  len_full = 0;
-		int  len_name = 0;
-		int  len_desc = 0;
+		setKeyDispLen(keys, bWidth - 1);
 
-		while (key->key != '\0') {
-			if (row != key->row) {
-				row = key->row;
-				pos = 2;
-			}
+		sKey* key = keys;
+		char  buf[COLS + 1];
+		int   row   = 0;
+		int   pos   = 2;
 
-			len_name = key->name_len;
-			len_desc = key->desc_len;
-			len_full = len_name + len_desc;
+		while (key->key) {
+			int len_name = key->name_len;
+			int len_desc = key->disp_len;
+			int len_full = len_name + len_desc;
 
-			if (pos < (bWidth - 2)) {
-				if (len_full > (bWidth - 2 - pos))
-					len_full = bWidth - 2 - pos;
+			if (pos < (bWidth - 1)) {
+				if (len_full > (bWidth - 1 - pos))
+					len_full = bWidth - 1 - pos;
 
 				/* Write name of the key */
 				if (len_name > len_full)
@@ -185,8 +179,12 @@ void drawBottom(bool withSep)
 				}
 			}
 			++key;
-		}
-	}
+			if (row != key->row) {
+				row = key->row;
+				pos = 2;
+			}
+		} // End of key display loop
+	} // End of having keys
 
 
 	wnoutrefresh(w);
@@ -377,9 +375,6 @@ void drawTop(bool withSep)
 	}
 	mvwaddstr(w, 0, 0, buf);
 
-	/// REMOVEME: Stop wasting space
-	//whline(w, ACS_HLINE, wWidth(Top));
-
 	wattrset(w, COLOR_PAIR(2) | A_BOLD);
 	mvwaddch(w, 1, 0, ACS_ULCORNER);
 	whline(w, ACS_HLINE, wWidth(Top)-2);
@@ -524,7 +519,7 @@ int maineventloop(
 		int(*_callback)(sFlag**, int),
 		int(*_drawflag)(sFlag*, bool),
 		sFlag* _flags,
-		const sKey *_keys,
+		sKey *_keys,
 		bool _withSep) {
 	int result;
 
@@ -540,7 +535,7 @@ int maineventloop(
 	{ sFlag* temp = flags;
 		flags  = _flags;
 		_flags = temp; }
-	{ const sKey *temp = keys;
+	{ sKey *temp = keys;
 		keys  = _keys;
 		_keys = temp; }
 
@@ -670,14 +665,14 @@ int maineventloop(
 						} // End of alternate scrollbar event
 					} // End of having a scrollbar
 				} else if(wmouse_trafo(win(Bottom), &event.y, &event.x, FALSE)) {
+					WINDOW* w      = win(Bottom);
+					int     bWidth = wWidth(Bottom);
 					if( (event.bstate & (BUTTON1_CLICKED | BUTTON1_DOUBLE_CLICKED))
 					 && (event.y >= 1) && (event.y <= 2)) {
 						const sKey* key = keys;
 						char  buf[COLS + 1];
 						int x        = event.x;
 						int y        = event.y;
-						int len_name = 0;
-						int len_desc = 0;
 						if((x < 2) || (y < 1) || (y > 2))
 							continue;
 						x -= 2;
@@ -688,25 +683,29 @@ int maineventloop(
 
 						// Check key
 						for ( ; (key->row == y) && (x >= 0) && (key->key != '\0'); key++) {
-							len_name = key->name_len;
-							len_desc = key->desc_len;
+							int len_name = key->name_len;
+							int len_desc = key->disp_len;
 							if ( (key->key > 0)
 							  && (x > len_name)
 							  && (x < (len_name + len_desc) ) ) {
 								event.x -= x - len_name;
 
-								sprintf(buf, "%-*.*s", len_desc - 1, len_desc - 1, key->desc[*key->idx]);
-								wattrset(win(Bottom), COLOR_PAIR(7) | A_BOLD);
-								mvwaddstr(win(Bottom), event.y, event.x, buf);
+								if (len_desc > (bWidth - 1 - event.x))
+									len_desc = bWidth - 1 - event.x;
 
-								wmove(win(Bottom), event.y, event.x);
-								wrefresh(win(Bottom));
+								sprintf(buf, "%-*.*s", len_desc - 1, len_desc - 1, key->desc[*key->idx]);
+
+								wattrset(w, COLOR_PAIR(7) | A_BOLD);
+								mvwaddstr(w, event.y, event.x, buf);
+
+								wmove(w, event.y, event.x);
+								wrefresh(w);
 								usleep(100000);
 
-								wattrset(win(Bottom), COLOR_PAIR(6));
-								waddstr(win(Bottom), buf);
+								wattrset(w, COLOR_PAIR(6));
+								waddstr(w, buf);
 
-								wnoutrefresh(win(Bottom));
+								wnoutrefresh(w);
 								c = key->key;
 								goto check_key;
 							}

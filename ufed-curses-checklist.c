@@ -642,20 +642,47 @@ int main(void)
 
 	initcurses();
 
-	/* The keys to use differ whether ro_mode is true or false */
+	/* Some notes on the keys:
+	 * - The key '\0' (or simply 0) stops the processing of the
+	 * array. This means, templates or future keys can be added
+	 * beforehand behind a key=0 line - they will never be
+	 * displayed.
+	 * - key < 0 will show the key name only. This is useful for
+	 * adding spaces or titles.
+	 * - The texts are dynamic. As a smaller display shows only
+	 * a limited amount of characters, texts should be crafted to
+	 * start with their core information.
+	 * Bad : "Show only global" => "Show only g" => "Show o"
+	 * Good: "Global flags"     => "Global flag" => "Global"
+	 */
 	sKey keys[] = {
-		/* Row 0 - General keys */
+		/* Row 0 left - General keys */
 		MAKE_KEY('?',    "?:",     "Help",   "",     "", NULL,           0),
 		MAKE_KEY('\n',   "Enter:", "Save",   "Exit", "", (int*)&ro_mode, 0),
 		MAKE_KEY('\033', "Esc:",   "Cancel", "Exit", "", (int*)&ro_mode, 0),
 
-		/* Row 1 - F-KEy toggles */
-		MAKE_KEY(KEY_F( 5), "F5:",  "global",    "local",         "all",      (int*)&e_scope, 1),
-		MAKE_KEY(KEY_F( 6), "F6:",  "installed", "not installed", "all",      (int*)&e_state, 1),
-		MAKE_KEY(KEY_F( 7), "F7:",  "masked",    "all",           "unmasked", (int*)&e_mask,  1),
-		MAKE_KEY(KEY_F( 9), "F9:",  "desc left", "desc right",    "",         (int*)&e_order, 1),
-		MAKE_KEY(KEY_F(10), "F10:", "stripped",  "full",          "",         (int*)&e_desc,  1),
-		MAKE_KEY('\0', "", "", "", "", NULL, 0)
+		/* Row 0 right - Display style (description) */
+		MAKE_KEY(-1, "  ", "", "", "", NULL, 0),
+		MAKE_KEY(-1, "Display: ", "", "", "", NULL, 0),
+		MAKE_KEY(KEY_F( 9), "F9:",  "Pkg right",            "Pkg left",           "", (int*)&e_order, 0),
+		MAKE_KEY(KEY_F(10), "F10:", "Stripped description", "Normal description", "", (int*)&e_desc,  0),
+
+		/* Row 1 - Filter settings */
+		MAKE_KEY(-1, "Filter: ", "", "", "", NULL, 1),
+		MAKE_KEY(KEY_F( 5), "F5:",
+				"Global flags",        "Local flags",             "All (Global and Local)",
+				(int*)&e_scope, 1),
+		MAKE_KEY(KEY_F( 6), "F6:",
+				"Installed packages",  "Not installed packages",  "All",
+				(int*)&e_state, 1),
+		MAKE_KEY(KEY_F( 7), "F7:",
+				"Masked/Forced flags", "All (Masked and Normal)", "Unmasked flags",
+				(int*)&e_mask,  1),
+		MAKE_KEY(0, "", "", "", "", NULL, 0), /* processing stops here (row _MUST_ be 0 here!) */
+
+		/* future keys, that are planned */
+		MAKE_KEY(KEY_F( 8), "F8:",  "Unknown flags", "Known flags", "all", NULL, 1),
+		MAKE_KEY(KEY_F(11), "F11:", "Wrap descriptions", "One-line-descriptions", "", NULL, 0)
 	};
 
 	result = maineventloop(ro_mode ? subtitle_ro : subtitle_rw,
