@@ -159,6 +159,7 @@ typedef struct sKey_ {
 	size_t      name_len; //!< length of the name
 	const char *desc[3];  //!< Help text to display, index is the relevant enum
 	size_t      desc_len; //!< length of the (longest) description
+	size_t      disp_len; //!< length that is available for display (space on screen)
 	int        *idx;      //!< index of descr to currently show (points to the relevant enum)
 	int         row;      //!< On which row this key is to be displayed, 0 or 1
 } sKey;
@@ -168,9 +169,10 @@ extern int IDX_NULL_SENTRY;
 #define MAKE_KEY(key, name, d1, d2, d3, idx, row) { \
 	key, \
 	name, \
-	sizeof(name), \
+	strlen(name), \
 	{ d1, d2, d3 }, \
-	max(max(sizeof(d1), sizeof(d2)), sizeof(d3)), \
+	/* Note: do not use strlen, the final 0-byte must be counted! */ \
+	max(max(sizeof(d1), sizeof(d2)), sizeof(d3)), 0, \
 	NULL != (idx) ? idx : &IDX_NULL_SENTRY, \
 	row \
 }
@@ -198,5 +200,6 @@ bool   isDescForced (const sFlag* flag, int idx);
 bool   isDescLegal  (const sFlag* flag, int idx);
 bool   isDescMasked (const sFlag* flag, int idx);
 bool   isFlagLegal  (const sFlag* flag);
+void   setKeyDispLen(sKey* keys, size_t dispWidth);
 
 #endif /* UFED_TYPES_H_INCLUDED */
