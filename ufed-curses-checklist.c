@@ -663,26 +663,19 @@ int main(void)
 
 		/* Row 0 right - Display style (description) */
 		MAKE_KEY(-1, "  ", "", "", "", NULL, 0),
-		MAKE_KEY(-1, "Display: ", "", "", "", NULL, 0),
-		MAKE_KEY(KEY_F( 9), "F9:",  "Pkg right",            "Pkg left",           "", (int*)&e_order, 0),
-		MAKE_KEY(KEY_F(10), "F10:", "Stripped description", "Normal description", "", (int*)&e_desc,  0),
+		MAKE_KEY(KEY_F( 9), "F9:",  "Pkg right",  "Pkg left",  "", (int*)&e_order, 0),
+		MAKE_KEY(KEY_F(10), "F10:", "Strip desc", "Full desc", "", (int*)&e_desc,  0),
 
 		/* Row 1 - Filter settings */
 		MAKE_KEY(-1, "Filter: ", "", "", "", NULL, 1),
-		MAKE_KEY(KEY_F( 5), "F5:",
-				"Global flags",        "Local flags",             "All (Global and Local)",
-				(int*)&e_scope, 1),
-		MAKE_KEY(KEY_F( 6), "F6:",
-				"Installed packages",  "Not installed packages",  "All",
-				(int*)&e_state, 1),
-		MAKE_KEY(KEY_F( 7), "F7:",
-				"Masked/Forced flags", "All (Masked and Normal)", "Unmasked flags",
-				(int*)&e_mask,  1),
+		MAKE_KEY(KEY_F( 5), "F5:", "Global only", "Local only",    "Both Scopes",   (int*)&e_scope, 1),
+		MAKE_KEY(KEY_F( 6), "F6:", "Inst pkgs",   "Not inst pkgs", "All pkgs",      (int*)&e_state, 1),
+		MAKE_KEY(KEY_F( 7), "F7:", "Masked only", "Both states",   "Unmasked only", (int*)&e_mask,  1),
 		MAKE_KEY(0, "", "", "", "", NULL, 0), /* processing stops here (row _MUST_ be 0 here!) */
 
 		/* future keys, that are planned */
 		MAKE_KEY(KEY_F( 8), "F8:",  "Unknown flags", "Known flags", "all", NULL, 1),
-		MAKE_KEY(KEY_F(11), "F11:", "Wrap descriptions", "One-line-descriptions", "", NULL, 0)
+		MAKE_KEY(KEY_F(11), "F11:", "Wrap desc", "Unwrap desc", "", NULL, 0)
 	};
 
 	result = maineventloop(ro_mode ? subtitle_ro : subtitle_rw,
