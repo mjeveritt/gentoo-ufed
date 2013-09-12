@@ -100,20 +100,36 @@ typedef enum eWin_ {
  * ===============
  */
 
+
+/** @struct sWrap_
+ *  @brief Describe one start and length of a wrapped description line
+**/
+typedef struct sWrap_ {
+	size_t  len; //!< Length of the wrapped line part
+	size_t  pos; //!< Starting position of a wrapped line part
+	struct
+	sWrap_* next; //!< Next part of the wrapped line
+} sWrap;
+
 /** @struct sDesc_
  *  @brief Describe one description line
 **/
 typedef struct sDesc_ {
-	char* desc;         //!< The description line
-	char* desc_alt;     //!< The alternative description line
-	bool  isGlobal;     //!< true if this is the global description and setting
-	bool  isInstalled;  //!< global: at least one pkg is installed, local: all in *pkg are installed.
-	char* pkg;          //!< affected packages
-	char  stateForced;  //!< unforced '-', forced '+' or not set ' ' by *use.force
-	char  stateMasked;  //!< unmasked '-', masked '+' or not sed ' ' by *use.mask
-	char  stateDefault; //!< disabled '-', enabled '+' or not set ' ' ebuilds IUSE (installed packages only)
-	char  statePackage; //!< disabled '-', enabled '+' or not set ' ' by profiles package.use
-	char  statePkgUse;  //!< disabled '-', enabled '+' or not set ' ' by users package.use
+	char*  desc;         //!< The description line
+	char*  desc_alt;     //!< The alternative description line
+	bool   isGlobal;     //!< true if this is the global description and setting
+	bool   isInstalled;  //!< global: at least one pkg is installed, local: all in *pkg are installed.
+	char*  pkg;          //!< affected packages
+	char   stateForced;  //!< unforced '-', forced '+' or not set ' ' by *use.force
+	char   stateMasked;  //!< unmasked '-', masked '+' or not sed ' ' by *use.mask
+	char   stateDefault; //!< disabled '-', enabled '+' or not set ' ' ebuilds IUSE (installed packages only)
+	char   statePackage; //!< disabled '-', enabled '+' or not set ' ' by profiles package.use
+	char   statePkgUse;  //!< disabled '-', enabled '+' or not set ' ' by users package.use
+	sWrap* wrap;         //!< If lines are wrapped, this list describes the parts
+	int    wrapCount;    //!< How many parts there are.
+	eOrder wrapOrder;    //!< State of e_order when the wrap parts were calculated last
+	eDesc  wrapStripped; //!< State of e_desc when the wrap parts were calculated last
+	size_t wrapWidth;    //!< The width available the wrap parts are calculated from
 } sDesc;
 
 

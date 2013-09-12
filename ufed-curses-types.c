@@ -63,6 +63,10 @@ sFlag* addFlag (sFlag** root, const char* name, int line, int ndesc, const char 
 					newFlag->desc[i].stateForced  = ' ';
 					newFlag->desc[i].stateMasked  = ' ';
 					newFlag->desc[i].statePackage = ' ';
+					newFlag->desc[i].wrap         = NULL;
+					newFlag->desc[i].wrapOrder    = e_order;
+					newFlag->desc[i].wrapStripped = e_desc;
+					newFlag->desc[i].wrapWidth    = 0;
 				}
 			} else
 				ERROR_EXIT(-1, "Unable to allocate %lu bytes for %d sDesc_ structs\n",
