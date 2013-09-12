@@ -405,3 +405,78 @@ bool isFlagLegal (const sFlag* flag)
 
 	return result;
 }
+
+
+/** @brief small method that takes @dispWidth and calculates keys button display lengths
+**/
+void setKeyDispLen(sKey* keys, size_t dispWidth)
+{
+	int    count[2]     = { 0, 0 };                 // How many buttons on a row
+	size_t width[2]     = { dispWidth, dispWidth }; // average button width
+	size_t width_max[2] = { dispWidth, dispWidth }; // total width available for button display
+	sKey*  key          = keys;
+	int    row          = 0;
+
+	/* First find out how much space each button row needs,
+	 * and how much space there is to use per button.
+	 */
+	while (key->key) {
+		if (key->key > 0)
+			++count[row];
+		width_max[row] -= key->name_len;
+		if (width_max[row] < (size_t)(4 * count[row]))
+			width_max[row] = (size_t)(4 * count[row]);
+
+		// reset display width of this key
+		key->disp_len = 0;
+
+		// Now advance
+		++key;
+		if (row != key->row) {
+			if (count[row])
+				width[row] = width_max[row] / count[row];
+			row = key->row;
+		}
+	} // End of calculating average space
+
+	/* Second set the display length of each button.
+	 * This can not be done in one single loop, because
+	 * buttons might need less space than there is
+	 * available, and others that are too large can use
+	 * this as well.
+	 */
+	bool isDone[2] = { false, false };
+	while (!isDone[0] || !isDone[1]) {
+		key       = keys;
+		isDone[0] = true;
+		isDone[1] = true;
+		while (key->key) {
+			if (key->key > 0) {
+				// 1) Shorten buttons that have no display length and are too large
+				if ( (0 == key->disp_len) && (key->desc_len > width[row]) ) {
+					isDone[row] = false;
+					key->disp_len = width[row];
+				}
+				// 2) Adapt others
+				else if ( (0 == key->disp_len)
+						||( (count[row] > 0)
+						  &&(width[row] > key->disp_len)
+						  &&(key->desc_len > key->disp_len) ) ) {
+					// This button must be set or adapted
+					isDone[row] = false;
+					key->disp_len = min(width[row], key->desc_len);
+					if (key->disp_len < width[row]) {
+						// The button does not need all available space
+						// and can give the space to others
+						--count[row]; // this one is done
+						width_max[row] -= key->disp_len; // That is what is used
+						if (count[row] > 0)
+							width[row] = width_max[row] / count[row];
+					}
+				} // End of setting/adapting button
+			} // End of having button bearing key
+			++key;
+			row = key->row;
+		} // End of having a key
+	} // End of setting button display lengths
+}
