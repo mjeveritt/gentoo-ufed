@@ -17,6 +17,7 @@ eMask      e_mask         = eMask_unmasked;
 eOrder     e_order        = eOrder_left;
 eScope     e_scope        = eScope_all;
 eState     e_state        = eState_all;
+eWrap      e_wrap         = eWrap_normal;
 char*      fayt           = NULL;
 sListStats listStats      = { 0, 0, 0, 0, 0, 0 };
 // windows: top, left, height width
