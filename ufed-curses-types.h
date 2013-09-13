@@ -95,6 +95,15 @@ typedef enum eWin_ {
 } eWin;
 
 
+/** @enum eWrap_
+ *  @brief determine whether to wrap descriptions or not
+**/
+typedef enum eWrap_ {
+	eWrap_normal = 0,
+	eWrap_wrap   = 1
+} eWrap;
+
+
 /* ===============
  * === structs ===
  * ===============
