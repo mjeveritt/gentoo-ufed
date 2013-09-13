@@ -663,8 +663,9 @@ int main(void)
 
 		/* Row 0 right - Display style (description) */
 		MAKE_KEY(-1, "  ", "", "", "", NULL, 0),
-		MAKE_KEY(KEY_F( 9), "F9:",  "Pkg right",  "Pkg left",  "", (int*)&e_order, 0),
-		MAKE_KEY(KEY_F(10), "F10:", "Strip desc", "Full desc", "", (int*)&e_desc,  0),
+		MAKE_KEY(KEY_F( 9), "F9:",  "Pkg right",  "Pkg left",    "", (int*)&e_order, 0),
+		MAKE_KEY(KEY_F(10), "F10:", "Strip desc", "Full desc",   "", (int*)&e_desc,  0),
+		MAKE_KEY(KEY_F(11), "F11:", "Wrap desc",  "Unwrap desc", "", (int*)&e_wrap,  0),
 
 		/* Row 1 - Filter settings */
 		MAKE_KEY(-1, "Filter: ", "", "", "", NULL, 1),
@@ -674,8 +675,7 @@ int main(void)
 		MAKE_KEY(0, "", "", "", "", NULL, 0), /* processing stops here (row _MUST_ be 0 here!) */
 
 		/* future keys, that are planned */
-		MAKE_KEY(KEY_F( 8), "F8:",  "Unknown flags", "Known flags", "all", NULL, 1),
-		MAKE_KEY(KEY_F(11), "F11:", "Wrap desc", "Unwrap desc", "", NULL, 0)
+		MAKE_KEY(KEY_F( 8), "F8:",  "Unknown flags", "Known flags", "all", NULL, 1)
 	};
 
 	result = maineventloop(ro_mode ? subtitle_ro : subtitle_rw,
