@@ -219,6 +219,16 @@ void destroyFlag (sFlag** root, sFlag** flag)
 				free (xFlag->desc[i].desc);
 			if (xFlag->desc[i].desc_alt)
 				free (xFlag->desc[i].desc_alt);
+			if (xFlag->desc[i].wrap) {
+				sWrap* wrapRoot = xFlag->desc[i].wrap;
+				sWrap* wrapNext = wrapRoot ? wrapRoot->next : NULL;
+				xFlag->desc[i].wrap = NULL;
+				while (wrapRoot) {
+					free (wrapRoot);
+					wrapRoot = wrapNext;
+					wrapNext = wrapRoot ? wrapRoot->next : NULL;
+				}
+			}
 		}
 		if (xFlag->desc)
 			free (xFlag->desc);
