@@ -202,11 +202,11 @@ static void free_flags(void)
 
 static int drawflag(sFlag* flag, bool highlight)
 {
+	int  idx     = 0;
+	int  usedY   = 0;
+	int  line    = flag->currline;
 	char buf[wWidth(List)+1];
 	char desc[maxDescWidth];
-	int idx   = 0;
-	int usedY = 0;
-	int line  = flag->currline;
 
 	// Return early if there is nothing to display:
 	if (!isFlagLegal(flag))

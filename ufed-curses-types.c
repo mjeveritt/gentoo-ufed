@@ -21,6 +21,10 @@ extern eMask  e_mask;
 extern eScope e_scope;
 extern eState e_state;
 
+/* internal prototypes of functions only used here */
+static void calculateDescWrap(sDesc* desc);
+static void destroyWrapList(sWrap* wrap);
+
 /* function implementations */
 
 /** @brief create a new flag without description lines
@@ -219,16 +223,7 @@ void destroyFlag (sFlag** root, sFlag** flag)
 				free (xFlag->desc[i].desc);
 			if (xFlag->desc[i].desc_alt)
 				free (xFlag->desc[i].desc_alt);
-			if (xFlag->desc[i].wrap) {
-				sWrap* wrapRoot = xFlag->desc[i].wrap;
-				sWrap* wrapNext = wrapRoot ? wrapRoot->next : NULL;
-				xFlag->desc[i].wrap = NULL;
-				while (wrapRoot) {
-					free (wrapRoot);
-					wrapRoot = wrapNext;
-					wrapNext = wrapRoot ? wrapRoot->next : NULL;
-				}
-			}
+			destroyWrapList(xFlag->desc[i].wrap);
 		}
 		if (xFlag->desc)
 			free (xFlag->desc);
@@ -298,6 +293,8 @@ void genFlagStats (sFlag* flag)
 /** @brief determine the number of lines used by @a flag
  *  This method checks the flag and its description line(s)
  *  settings against the globally active filters.
+ *  If line wrapping is active, the wrap settings are
+ *  recalculated if neccessary.
  *  If @a flag is NULL, the result will be 0.
  *  @param[in] flag pointer to the flag to check.
  *  @return number of lines needed to display the line *without* possible line wrapping.
@@ -307,9 +304,31 @@ int getFlagHeight (const sFlag* flag)
 	int result = 0;
 
 	if (flag) {
-		for (int i = 0; i < flag->ndesc; ++i)
-			result += isDescLegal(flag, i) ? 1 : 0;
-	}
+		size_t maxLen = wWidth(List) - (minwidth + 8);;
+		for (int i = 0; i < flag->ndesc; ++i) {
+			if (isDescLegal(flag, i)) {
+				if (eWrap_normal == e_wrap)
+					++result;
+				else {
+					/* Check settings. The calculations must not
+					 * be done unless neccessary to not cripple
+					 * performance.
+					 */
+					sDesc* desc = &(flag->desc[i]);
+					if ( !desc->wrap
+					  || (desc->wrapWidth != maxLen)
+					  || (desc->wrapOrder != e_order)
+					  || (desc->wrapStripped != e_desc) ) {
+						desc->wrapWidth    = maxLen;
+						desc->wrapOrder    = e_order;
+						desc->wrapStripped = e_desc;
+						calculateDescWrap(desc);
+					}
+					result += desc->wrapCount;
+				}
+			} // End of having a legal flag
+		} // End of looping descriptions
+	} // End of having a flag
 
 	return result;
 }
@@ -493,4 +512,113 @@ void setKeyDispLen(sKey* keys, size_t dispWidth)
 			row = key->row;
 		} // End of having a key
 	} // End of setting button display lengths
+}
+
+
+/* === Internal functions only used here === */
+
+/// @brief calculate the current wrap chain for description @a desc
+static void calculateDescWrap(sDesc* desc)
+{
+	if (desc) {
+		sWrap* curr  = desc->wrap;
+		sWrap* next  = NULL;
+		char*  pDesc = eDesc_ori == desc->wrapStripped ? desc->desc : desc->desc_alt;
+		char*  pPkg  = desc->pkg;
+		char*  pch   = eOrder_left == desc->wrapOrder ? pPkg : pDesc;
+		size_t start = 0;
+		size_t end   = 0;
+		size_t width = desc->wrapWidth - 2; // Foloow-up lines are indented
+		size_t dLen  = strlen(pDesc);
+		size_t pLen  = strlen(pPkg);
+		size_t left  = dLen + pLen;
+		size_t wLen  = eOrder_left == desc->wrapOrder ? pLen : dLen;
+
+		/* To go by next a valid curr is needed first */
+		if (NULL == curr) {
+			curr = (sWrap*)malloc(sizeof(sWrap));
+			if (curr) {
+				curr->len  = 0;
+				curr->next = NULL;
+				curr->pos  = 0;
+				desc->wrap = curr;
+			} else
+				ERROR_EXIT(-1, "Unable to allocate %lu bytes for sWrap_ struct\n", sizeof(sWrap))
+		}
+
+		/* Now distribute all characters */
+		while (left) {
+
+			// Step 1: Set current wrap part end
+			end = start + width + (curr == desc->wrap ? 2 : 0);
+			if (end >= wLen)
+				end = wLen - 1;
+
+			// Step 2: Find last space character before end+1
+			if (' ' != pch[end]) {
+				size_t newEnd = end;
+				for (; (newEnd > start) && (' ' != pch[newEnd]) ; --newEnd) ;
+				if (newEnd > start)
+					end = newEnd;
+			}
+
+			// Step 3: Note values and increase start
+			curr->pos = start;
+			curr->len = end - start;
+			start += curr->len;
+			left  -= curr->len;
+
+			// Step 4: Switch if the current string is exhausted:
+			if (left && (end == (wLen - 1))) {
+				if (eOrder_left == desc->wrapOrder) {
+					// Switch from pkg to desc
+					pch  = pDesc;
+					wLen = dLen;
+				} else {
+					// Switch from desc to pkg
+					pch  = pPkg;
+					wLen = pLen;
+				}
+				start = 0;
+			} // End of having to swap pkg/desc
+
+			// Step 5: Extend if needed
+			next = curr->next;
+			if (left && !next) {
+				next = (sWrap*)malloc(sizeof(sWrap));
+				if (next) {
+					next->len  = 0;
+					next->next = NULL;
+					next->pos  = 0;
+					curr->next = next;
+				} else
+					ERROR_EXIT(-1, "Unable to allocate %lu bytes for sWrap_ struct\n", sizeof(sWrap))
+			}
+
+			// Step 6: Clean up if done
+			if (!left && next) {
+				curr->next = NULL;
+				destroyWrapList(next);
+				next = NULL;
+			}
+
+			// Step 7: Advance
+			curr = next;
+		} // End of having characters left to distribute
+	} // End of having a not NULL pointer
+}
+
+
+/// @brief destroy one sWrap singly linked list
+static void destroyWrapList(sWrap* wrap)
+{
+	if (wrap) {
+		sWrap* wrapRoot = wrap;
+		sWrap* wrapNext = wrapRoot ? wrapRoot->next : NULL;
+		while (wrapRoot) {
+			free (wrapRoot);
+			wrapRoot = wrapNext;
+			wrapNext = wrapRoot ? wrapRoot->next : NULL;
+		}
+	}
 }
