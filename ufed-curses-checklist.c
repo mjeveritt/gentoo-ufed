@@ -202,12 +202,13 @@ static void free_flags(void)
 
 static int drawflag(sFlag* flag, bool highlight)
 {
-	int    idx     = 0;
-	int    usedY   = 0;
-	int    line    = flag->currline;
+	int    idx       = 0;
+	int    usedY     = 0;
+	int    line      = flag->currline;
 	char   buf[wWidth(List)+1];
 	char   desc[maxDescWidth];
-	sWrap* wrapPart = NULL;
+	sWrap* wrapPart  = NULL;
+	bool   wrapFirst = true; // The first part, pkg or desc
 
 	// Return early if there is nothing to display:
 	if (!isFlagLegal(flag))
@@ -248,6 +249,10 @@ static int drawflag(sFlag* flag, bool highlight)
 								++line;
 								++usedY;
 								wrapPart = wrapPart->next;
+								if (wrapPart && !wrapPart->pos)
+									wrapFirst = false;
+								// Note: The wrap parts are already calculated
+								//       to resemble the current order.
 							}
 						} else {
 							// Situation a) Fast forward
@@ -267,65 +272,80 @@ static int drawflag(sFlag* flag, bool highlight)
 
 	// print descriptions according to filters
 	if(idx < flag->ndesc) {
-		WINDOW* wLst = win(List);
-		int  lHeight = wHeight(List);
-		int  descLen = wWidth(List) - (minwidth + 8);
-		bool hasHead = false;
-		char *p, special;
+		WINDOW* wLst      = win(List);
+		int     lHeight   = wHeight(List);
+		bool    hasHead   = false;
+		size_t  pos       = descriptionleft;
+		size_t  length    = wWidth(List) - (minwidth + 8);
+		bool    newDesc   = true; // Set to false when advanceing wrapped descriptions
+		char *p, special, *leftend;
 
-		for( ; (idx < flag->ndesc) && (line < lHeight); ++idx) {
+		while ( (idx < flag->ndesc) && (line < lHeight) ) {
 			// Continue if any of the filters apply:
-			if (!isDescLegal(flag, idx))
+			if (newDesc && !isDescLegal(flag, idx))
 				continue;
-
-			// Set special character if needed:
-			if (isDescForced(flag, idx))
-				special = 'f';
-			else if (isDescMasked(flag, idx))
-				special = 'm';
-			else
-				special = ' ';
 
 			if (hasHead) {
 				// Add spaces under the flag display
-				for(p = buf; p != buf + minwidth; ++p)
+				leftend = newDesc ? buf + minwidth : buf + minwidth + 8;
+				for(p = buf; p != leftend; ++p)
 					*p = ' ';
-			} else {
-				/* print the selection, name and state of the flag */
-				sprintf(buf, " %c%c%c %s%s%s%-*s ",
-					/* State of selection */
-					flag->stateConf == ' ' ? '(' : '[',
-					' ', // Filled in later
-					flag->stateConf == ' ' ? ')' : ']',
-					/* name */
-					flag->globalForced ? "(" : flag->globalMasked ? "(-" : "",
-					flag->name,
-					(flag->globalForced || flag->globalMasked) ? ")" : "",
-					/* distance */
-					(int)(minwidth
-						- (flag->globalForced ? 3 : flag->globalMasked ? 2 : 5)
-						- strlen(flag->name)), " ");
-					// At this point buf is filled up to minwidth
-			} // End of generating left side mask display
+			}
 
-			/* Display flag state
-			 * The order in which the states are to be displayed is:
-			 * 1. [D]efaults (make.defaults, IUSE, package.mask, package.force)
-			 *    Note: Filled in later
-			 * 2. [P]rofile package.use files
-			 * 3. [C]onfiguration (make.conf, users package.use)
-			 * 4. global/local
-			 * 5. installed/not installed
-			 */
-			sprintf(buf + minwidth, "  %c%c %c%c ",
-				flag->desc[idx].statePackage,
-				' ' == flag->desc[idx].statePkgUse ?
-					flag->stateConf : flag->desc[idx].statePkgUse,
-				flag->desc[idx].isGlobal ? ' ' : 'L',
-				flag->desc[idx].isInstalled ? 'i' : ' ');
+			// Preparations when a new description line is started
+			if (newDesc) {
+				// Set special character if needed:
+				if (isDescForced(flag, idx))
+					special = 'f';
+				else if (isDescMasked(flag, idx))
+					special = 'm';
+				else
+					special = ' ';
 
-			// Assemble description line:
+				// If this is the very first line, the flag data must be written
+				if (!hasHead) {
+					/* print the selection, name and state of the flag */
+					sprintf(buf, " %c%c%c %s%s%s%-*s ",
+						/* State of selection */
+						flag->stateConf == ' ' ? '(' : '[',
+						' ', // Filled in later
+						flag->stateConf == ' ' ? ')' : ']',
+						/* name */
+						flag->globalForced ? "(" : flag->globalMasked ? "(-" : "",
+						flag->name,
+						(flag->globalForced || flag->globalMasked) ? ")" : "",
+						/* distance */
+						(int)(minwidth
+							- (flag->globalForced ? 3 : flag->globalMasked ? 2 : 5)
+							- strlen(flag->name)), " ");
+				} // End of generating left side mask display
+
+				// At this point buf is filled up to minwidth
+
+				/* Display flag state
+				 * The order in which the states are to be displayed is:
+				 * 1. [D]efaults (make.defaults, IUSE, package.mask, package.force)
+				 *    Note: Filled in later
+				 * 2. [P]rofile package.use files
+				 * 3. [C]onfiguration (make.conf, users package.use)
+				 * 4. global/local
+				 * 5. installed/not installed
+				 */
+				sprintf(buf + minwidth, "  %c%c %c%c ",
+					flag->desc[idx].statePackage,
+					' ' == flag->desc[idx].statePkgUse ?
+						flag->stateConf : flag->desc[idx].statePkgUse,
+					flag->desc[idx].isGlobal ? ' ' : 'L',
+					flag->desc[idx].isInstalled ? 'i' : ' ');
+			} // End of preparing a new description line
+
+			// At this point buf is guaranteed to be filled up to minwidth + 8
+
 			memset(desc, 0, maxDescWidth * sizeof(char));
+
+			// Wrapped and not wrapped lines are unified here
+			// to simplify the usage of different ordering and
+			// stripped versus original descriptions
 			if (flag->desc[idx].pkg) {
 				if (e_order == eOrder_left)
 					sprintf(desc, "(%s) %s", flag->desc[idx].pkg, e_desc == eDesc_ori
@@ -336,14 +356,48 @@ static int drawflag(sFlag* flag, bool highlight)
 							? flag->desc[idx].desc
 							: flag->desc[idx].desc_alt,
 							  flag->desc[idx].pkg);
-			}
-			else
+			} else
 				sprintf(desc, "%s", flag->desc[idx].desc);
 
-			// Now display the description line according to its horizontal position
-			sprintf(buf + minwidth + 8, "%-*.*s", descLen, descLen,
-				strlen(desc) > (size_t)descriptionleft
-					? &desc[descriptionleft]
+			/* Now display the description line according to either
+			 * its horizontal position or the wrapPart.
+			 *
+			 * With wrapped lines there are a total of three possible
+			 * situations here.
+			 * a) The line is not wrapped. In this case pos is simply
+			 *    descriptionleft and length is number of characters that
+			 *    can be displayed. (both are already set to this)
+			 * b) A new wrapped description starts. In this case wrapPart
+			 *    must be set, pos and length is taken from there.
+			 * c) A wrapped description is displayed, pos and length are
+			 *    taken from there.
+			 * As a) is already set, only b) and c) must be handled.
+			 */
+			if (eWrap_wrap == e_wrap) {
+				if (NULL == wrapPart) {
+					wrapPart  = flag->desc[idx].wrap;
+					wrapFirst = true;
+				} else if (wrapFirst
+						&& (flag->desc[idx].wrap != wrapPart)
+						&& !wrapPart->pos)
+					wrapFirst = false;
+				pos    = wrapPart->pos;
+				length = wrapPart->len;
+				// If this was switched, add the first length
+				if (!wrapFirst && !pos)
+					pos += eOrder_left == e_order
+							? strlen(flag->desc[idx].pkg)
+							: eDesc_ori == e_desc
+							  ? strlen(flag->desc[idx].desc)
+							  : strlen(flag->desc[idx].desc_alt)
+						 + 1;
+				wrapPart = wrapPart->next;
+			}
+
+			// aaaaand go:
+			sprintf(buf + minwidth + (newDesc ? 8 : 10), "%-*.*s", (int)length, (int)length,
+				strlen(desc) > pos
+					? &desc[pos]
 					: "");
 
 			/* Set correct color set according to highlighting and status*/
@@ -401,7 +455,9 @@ static int drawflag(sFlag* flag, bool highlight)
 
 			++line;
 			++usedY;
-		}
+			if (NULL == wrapPart)
+				++idx;
+		} // End of looping descriptions while there are lines left
 	} else {
 		memset(buf+minwidth, ' ', wWidth(List)-minwidth);
 		buf[wWidth(List)] = '\0';
