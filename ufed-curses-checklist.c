@@ -185,6 +185,7 @@ static void read_flags(void)
 	bottomline = lineNum;
 }
 
+
 static int drawflag(sFlag* flag, bool highlight)
 {
 	// Return early if there is nothing to display:
@@ -236,8 +237,10 @@ static int drawflag(sFlag* flag, bool highlight)
 	while ( (idx < flag->ndesc) && (line < lHeight) ) {
 
 		// Continue if any of the filters apply:
-		if (newDesc && !isDescLegal(flag, idx))
+		if (newDesc && !isDescLegal(flag, idx)) {
+			++idx;
 			continue;
+		}
 
 		// If the flag name and state are drawn, following lines
 		// need to start with spaces
@@ -274,7 +277,7 @@ static int drawflag(sFlag* flag, bool highlight)
 
 		// 1: Print left side info
 		if (!hasHead || newDesc)
-			// Note: If either is false, the buffer is blanked already
+			// Note: If both are false, the buffer is blanked already
 			printFlagInfo(buf, flag, idx, !hasHead, newDesc);
 
 		// At this point buf is guaranteed to be filled up to minwidth + 8
@@ -284,6 +287,8 @@ static int drawflag(sFlag* flag, bool highlight)
 		if (eWrap_wrap == e_wrap) {
 			setFlagWrapDraw(flag, idx, &wrapPart, &pos, &length, &wrapFirst);
 			wrapPart = wrapPart->next;
+			if (newDesc && wrapPart)
+				newDesc = false;
 		}
 
 		// The right side of buf can be added now:
