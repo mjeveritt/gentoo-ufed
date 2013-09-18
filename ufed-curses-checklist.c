@@ -19,6 +19,7 @@ static char*   lineBuf         = NULL;
 static sFlag*  flags           = NULL;
 
 /* internal prototypes */
+static int  findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line, bool* isFirstWrap);
 static void free_flags(void);
 
 
@@ -202,71 +203,26 @@ static void free_flags(void)
 
 static int drawflag(sFlag* flag, bool highlight)
 {
-	int    idx       = 0;
-	int    usedY     = 0;
-	int    line      = flag->currline;
-	char   buf[wWidth(List)+1];
-	char   desc[maxDescWidth];
-	sWrap* wrapPart  = NULL;
-	bool   wrapFirst = true; // The first part, pkg or desc
-
 	// Return early if there is nothing to display:
 	if (!isFlagLegal(flag))
 		return 0;
 
-	/* Determine with which description to start.
-	 * Overly long description lists might not fit on one screen,
-	 * and therefore must be scrolled instead of the flags
-	 * themselves.
-	 * If descriptions are wrapped, any description must be held
-	 * until wrapPart is either NULL, or a part on the screen is
-	 * reached.
-	 */
-	if (line < 0) {
-		if (-line < getFlagHeight(flag)) {
-			while (line < 0) {
-				if (isDescLegal(flag, idx)) {
-					if (eWrap_normal == e_wrap) {
-						++line;
-						++usedY;
-						++idx;
-					} else {
-						/* With wrapped descriptions there are two possible
-						 * situations:
-						 * a) The list of wrapped lines is shorter than the
-						 *    lines to be skipped to get this description on
-						 *    the screen. In this case the full description
-						 *    can be fast forwareded.
-						 * b) The number of lines above the screen is less
-						 *    than the number of wrapped parts. In this case
-						 *    the first on screen part must be found.
-						 */
-						int wrapCount = flag->desc[idx].wrapCount;
-						wrapPart = flag->desc[idx].wrap;
-						if (wrapPart && wrapCount && (-line < wrapCount)) {
-							// Situation b) This description enters screen
-							while (wrapPart && (line < 0)) {
-								++line;
-								++usedY;
-								wrapPart = wrapPart->next;
-								if (wrapPart && !wrapPart->pos)
-									wrapFirst = false;
-								// Note: The wrap parts are already calculated
-								//       to resemble the current order.
-							}
-						} else {
-							// Situation a) Fast forward
-							line += wrapCount;
-							usedY += wrapCount;
-							++idx;
-						}
-					} // End of handling wrapped lines
-				} // End of having a legal flag
-			} // end of moving to line 0
-		} else
-			// Otherwise this item is out of the display area
-			return 0;
-	}
+	// Get the starting description/wrapped line of the flag
+	int    idx       = 0;    // The description index to start with
+	int    line      = flag->currline;
+	int    usedY     = 0;    // Counts how many lines this flag really needs to display
+	sWrap* wrapPart  = NULL; // Wrap part to begin with/draw
+	bool   wrapFirst = true; // The first part, pkg or desc
+
+	if ((line < 0)
+	  && (0 == (usedY = findFlagStart(flag, &idx, &wrapPart, &line, &wrapFirst))) )
+		return 0;
+
+
+	char   buf[wWidth(List)+1];
+	char   desc[maxDescWidth];
+
+
 
 	memset(buf, 0, sizeof(char) * (wWidth(List)+1));
 
@@ -714,6 +670,73 @@ static int callback(sFlag** curr, int key)
 
 	return -1;
 }
+
+/** @brief find the first description/wrapped part drawn on line 0.
+  *
+  * Determine with which description to start.
+  * Overly long description lists might not fit on one screen,
+  * and therefore must be scrolled instead of the flags
+  * themselves.
+  * If descriptions are wrapped, any description must be held
+  * until wrapPart is either NULL, or a part on the screen is
+  * reached.
+**/
+static int findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line, bool* isFirstWrap)
+{
+	int    usedLines  = 0;
+	int    flagHeight = getFlagHeight(flag); // Will recalculate wrap parts if needed
+	sWrap* wrapPart = NULL;
+
+	if ( (*line < 0) && (-(*line) < flagHeight) ){
+
+		while (*line < 0) {
+			if (isDescLegal(flag, *index)) {
+				if (eWrap_normal == e_wrap) {
+					++(*line);
+					++usedLines;
+					++(*index);
+				} else {
+					/* With wrapped descriptions there are two possible
+					 * situations:
+					 * a) The list of wrapped lines is shorter than the
+					 *    lines to be skipped to get this description on
+					 *    the screen. In this case the full description
+					 *    can be fast forwareded.
+					 * b) The number of lines above the screen is less
+					 *    than the number of wrapped parts. In this case
+					 *    the first on screen part must be found.
+					 */
+					int wrapCount = flag->desc[*index].wrapCount;
+					wrapPart      = flag->desc[*index].wrap;
+					*isFirstWrap  = true;
+					if (wrapPart && wrapCount && (-(*line) < wrapCount)) {
+						// Situation b) This description enters screen
+						while (wrapPart && (*line < 0)) {
+							++(*line);
+							++usedLines;
+							wrapPart = wrapPart->next;
+							if (wrapPart && !wrapPart->pos)
+								*isFirstWrap = false;
+							// Note: The wrap parts are already calculated
+							//       to resemble the current order.
+						}
+					} else {
+						// Situation a) Fast forward
+						*line     += wrapCount;
+						usedLines += wrapCount;
+						++(*index);
+					}
+				} // End of handling wrapped lines
+			} // End of having a legal flag
+		} // end of moving to line 0
+
+		// Write back wrapPart:
+		*wrap = wrapPart;
+	}
+
+	return usedLines;
+}
+
 
 int main(void)
 {
