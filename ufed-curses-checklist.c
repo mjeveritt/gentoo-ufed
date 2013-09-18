@@ -21,6 +21,9 @@ static sFlag*  flags           = NULL;
 /* internal prototypes */
 static int  findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line, bool* isFirstWrap);
 static void free_flags(void);
+static char getFlagSpecialChar(sFlag* flag, int index);
+static void printFlagInfo(char* buf, sFlag* flag, int index, bool printFlagName, bool printFlagState);
+static void setFlagWrapDraw(sFlag* flag, int index, sWrap** wrap, size_t* pos, size_t* len, bool* isFirstWrap);
 
 
 /* static functions */
@@ -182,126 +185,74 @@ static void read_flags(void)
 	bottomline = lineNum;
 }
 
-static void free_flags(void)
-{
-	sFlag* flag = flags->prev;
-
-	// Clear all flags
-	while (flags) {
-		if (flag)
-			destroyFlag(&flags, &flag);
-		else
-			destroyFlag(&flags, &flags);
-		flag = flags ? flags->prev ? flags->prev : flags : NULL;
-	}
-
-	// Clear line buffer
-	if (lineBuf)
-		free(lineBuf);
-}
-
-
 static int drawflag(sFlag* flag, bool highlight)
 {
 	// Return early if there is nothing to display:
 	if (!isFlagLegal(flag))
 		return 0;
 
-	// Get the starting description/wrapped line of the flag
+	// Basic values for the flag display
 	int    idx       = 0;    // The description index to start with
 	int    line      = flag->currline;
 	int    usedY     = 0;    // Counts how many lines this flag really needs to display
 	sWrap* wrapPart  = NULL; // Wrap part to begin with/draw
 	bool   wrapFirst = true; // The first part, pkg or desc
 
+	// Get the starting description/wrapped line of the flag
 	if ((line < 0)
 	  && (0 == (usedY = findFlagStart(flag, &idx, &wrapPart, &line, &wrapFirst))) )
 		return 0;
 
+	// Window values (aka shortcuts)
+	WINDOW* wLst    = win(List);
+	int     lHeight = wHeight(List);
+	int     lWidth  = wWidth(List);
 
-	char   buf[wWidth(List)+1];
-	char   desc[maxDescWidth];
+	// Set up needed buffers
+	char   buf[lWidth + 1];       // Buffer for the line to print
+	char   desc[maxDescWidth];    // Buffer to assemble the description accoring to e_order and e_desc
+	char   special;               // force/mask/none character
+	memset(buf,  0, sizeof(char) * (lWidth + 1));
+	memset(desc, 0, sizeof(char) * maxDescWidth);
 
+	// Description and wrapped lines state values
+	bool   hasBlankLeft  = false;                 // Set to true once the left side is blanked
+	bool   hasBlankRight = false;                 // Set to true once the right (state) side is blanked
+	bool   hasHead       = false;                 // Set to true once the left side (flag name and states) are printed
+	size_t length        = lWidth - minwidth - 8; // Characters to print
+	bool   newDesc       = true;                  // Set to fals when wrapped parts advance
+	size_t pos           = descriptionleft;       // position in desc to start printing on
 
-
-	memset(buf, 0, sizeof(char) * (wWidth(List)+1));
+	// Safety check: Put in blank line if idx ended up too large
+	if (idx >= flag->ndesc) {
+		// This can happen when filters reduce the list too much
+		// so blank lines must be displayed
+		memset(buf, ' ', lWidth - 1);
+		buf[lWidth] = '\0';
+		waddstr(wLst, buf);
+	}
 
 	// print descriptions according to filters
-	if(idx < flag->ndesc) {
-		WINDOW* wLst      = win(List);
-		int     lHeight   = wHeight(List);
-		bool    hasHead   = false;
-		size_t  pos       = descriptionleft;
-		size_t  length    = wWidth(List) - (minwidth + 8);
-		bool    newDesc   = true; // Set to false when advanceing wrapped descriptions
-		char *p, special, *leftend;
+	while ( (idx < flag->ndesc) && (line < lHeight) ) {
 
-		while ( (idx < flag->ndesc) && (line < lHeight) ) {
-			// Continue if any of the filters apply:
-			if (newDesc && !isDescLegal(flag, idx))
-				continue;
+		// Continue if any of the filters apply:
+		if (newDesc && !isDescLegal(flag, idx))
+			continue;
 
-			if (hasHead) {
-				// Add spaces under the flag display
-				leftend = newDesc ? buf + minwidth : buf + minwidth + 8;
-				for(p = buf; p != leftend; ++p)
-					*p = ' ';
-			}
+		// If the flag name and state are drawn, following lines
+		// need to start with spaces
+		if (hasHead && !hasBlankLeft) {
+			memset(buf, ' ', minwidth);
+			hasBlankLeft = true;
+		}
 
-			// Preparations when a new description line is started
-			if (newDesc) {
-				// Set special character if needed:
-				if (isDescForced(flag, idx))
-					special = 'f';
-				else if (isDescMasked(flag, idx))
-					special = 'm';
-				else
-					special = ' ';
-
-				// If this is the very first line, the flag data must be written
-				if (!hasHead) {
-					/* print the selection, name and state of the flag */
-					sprintf(buf, " %c%c%c %s%s%s%-*s ",
-						/* State of selection */
-						flag->stateConf == ' ' ? '(' : '[',
-						' ', // Filled in later
-						flag->stateConf == ' ' ? ')' : ']',
-						/* name */
-						flag->globalForced ? "(" : flag->globalMasked ? "(-" : "",
-						flag->name,
-						(flag->globalForced || flag->globalMasked) ? ")" : "",
-						/* distance */
-						(int)(minwidth
-							- (flag->globalForced ? 3 : flag->globalMasked ? 2 : 5)
-							- strlen(flag->name)), " ");
-				} // End of generating left side mask display
-
-				// At this point buf is filled up to minwidth
-
-				/* Display flag state
-				 * The order in which the states are to be displayed is:
-				 * 1. [D]efaults (make.defaults, IUSE, package.mask, package.force)
-				 *    Note: Filled in later
-				 * 2. [P]rofile package.use files
-				 * 3. [C]onfiguration (make.conf, users package.use)
-				 * 4. global/local
-				 * 5. installed/not installed
-				 */
-				sprintf(buf + minwidth, "  %c%c %c%c ",
-					flag->desc[idx].statePackage,
-					' ' == flag->desc[idx].statePkgUse ?
-						flag->stateConf : flag->desc[idx].statePkgUse,
-					flag->desc[idx].isGlobal ? ' ' : 'L',
-					flag->desc[idx].isInstalled ? 'i' : ' ');
-			} // End of preparing a new description line
-
-			// At this point buf is guaranteed to be filled up to minwidth + 8
-
-			memset(desc, 0, maxDescWidth * sizeof(char));
+		// Prepare new description or blank on wrapped parts
+		if (newDesc) {
+			special = getFlagSpecialChar(flag, idx);
 
 			// Wrapped and not wrapped lines are unified here
 			// to simplify the usage of different ordering and
-			// stripped versus original descriptions
+			// stripped descriptions versus original descriptions
 			if (flag->desc[idx].pkg) {
 				if (e_order == eOrder_left)
 					sprintf(desc, "(%s) %s", flag->desc[idx].pkg, e_desc == eDesc_ori
@@ -314,111 +265,92 @@ static int drawflag(sFlag* flag, bool highlight)
 							  flag->desc[idx].pkg);
 			} else
 				sprintf(desc, "%s", flag->desc[idx].desc);
+		} else if (!hasBlankRight) {
+			memset(buf + minwidth, ' ', 10);
+			hasBlankRight = true;
+		}
 
-			/* Now display the description line according to either
-			 * its horizontal position or the wrapPart.
-			 *
-			 * With wrapped lines there are a total of three possible
-			 * situations here.
-			 * a) The line is not wrapped. In this case pos is simply
-			 *    descriptionleft and length is number of characters that
-			 *    can be displayed. (both are already set to this)
-			 * b) A new wrapped description starts. In this case wrapPart
-			 *    must be set, pos and length is taken from there.
-			 * c) A wrapped description is displayed, pos and length are
-			 *    taken from there.
-			 * As a) is already set, only b) and c) must be handled.
-			 */
-			if (eWrap_wrap == e_wrap) {
-				if (NULL == wrapPart) {
-					wrapPart  = flag->desc[idx].wrap;
-					wrapFirst = true;
-				} else if (wrapFirst
-						&& (flag->desc[idx].wrap != wrapPart)
-						&& !wrapPart->pos)
-					wrapFirst = false;
-				pos    = wrapPart->pos;
-				length = wrapPart->len;
-				// If this was switched, add the first length
-				if (!wrapFirst && !pos)
-					pos += eOrder_left == e_order
-							? strlen(flag->desc[idx].pkg)
-							: eDesc_ori == e_desc
-							  ? strlen(flag->desc[idx].desc)
-							  : strlen(flag->desc[idx].desc_alt)
-						 + 1;
-				wrapPart = wrapPart->next;
-			}
+		/* --- Preparations done --- */
 
-			// aaaaand go:
-			sprintf(buf + minwidth + (newDesc ? 8 : 10), "%-*.*s", (int)length, (int)length,
-				strlen(desc) > pos
-					? &desc[pos]
-					: "");
+		// 1: Print left side info
+		if (!hasHead || newDesc)
+			// Note: If either is false, the buffer is blanked already
+			printFlagInfo(buf, flag, idx, !hasHead, newDesc);
 
-			/* Set correct color set according to highlighting and status*/
-			if(highlight)
-				wattrset(wLst, COLOR_PAIR(3) | A_BOLD | A_REVERSE);
-			else
-				wattrset(wLst, COLOR_PAIR(3));
+		// At this point buf is guaranteed to be filled up to minwidth + 8
 
-			// Put the line on the screen
-			mvwaddstr(wLst, line, 0, buf);
-			mvwaddch(wLst, line, minwidth,     ACS_VLINE); // Before state
-			mvwaddch(wLst, line, minwidth + 4, ACS_VLINE); // Between state and scope
-			mvwaddch(wLst, line, minwidth + 7, ACS_VLINE); // After scope
+		// For normal descriptions, pos and length are already set, but
+		// not so for wrapped lines, these must be set for each line:
+		if (eWrap_wrap == e_wrap) {
+			setFlagWrapDraw(flag, idx, &wrapPart, &pos, &length, &wrapFirst);
+			wrapPart = wrapPart->next;
+		}
 
-			// Add (default) selection if this is the header line
-			if (!hasHead) {
-				hasHead = true;
-				if (flag->globalForced) {
-					if(highlight)
-						wattrset(wLst, COLOR_PAIR(5) | A_REVERSE);
-					else
-						wattrset(wLst, COLOR_PAIR(5) | A_BOLD);
-					mvwaddch(wLst, line, 2, '+');
-				} else if (flag->globalMasked) {
-					if(highlight)
-						wattrset(wLst, COLOR_PAIR(4) | A_REVERSE);
-					else
-						wattrset(wLst, COLOR_PAIR(4) | A_BOLD);
-					mvwaddch(wLst, line, 2, '-');
-				} else if (' ' == flag->stateConf)
-					mvwaddch(wLst, line, 2, flag->stateDefault);
-				else
-					mvwaddch(wLst, line, 2, flag->stateConf);
-			}
+		// The right side of buf can be added now:
+		sprintf(buf + minwidth + (newDesc ? 8 : 10), "%-*.*s",
+			(int)length, (int)length,
+			strlen(desc) > pos ? &desc[pos] : "");
+		// Note: Follow up lines of wrapped descriptions are indented by 2
 
-			// Add [D]efault column content
-			if ('f' == special) {
+		/* Set correct color set according to highlighting and status*/
+		if(highlight)
+			wattrset(wLst, COLOR_PAIR(3) | A_BOLD | A_REVERSE);
+		else
+			wattrset(wLst, COLOR_PAIR(3));
+
+		// Put the line on the screen
+		mvwaddstr(wLst, line, 0, buf);
+		mvwaddch(wLst, line, minwidth,     ACS_VLINE); // Before state
+		mvwaddch(wLst, line, minwidth + 4, ACS_VLINE); // Between state and scope
+		mvwaddch(wLst, line, minwidth + 7, ACS_VLINE); // After scope
+
+		// Add (default) selection if this is the header line
+		if (!hasHead) {
+			hasHead = true;
+			if (flag->globalForced) {
 				if(highlight)
 					wattrset(wLst, COLOR_PAIR(5) | A_REVERSE);
 				else
 					wattrset(wLst, COLOR_PAIR(5) | A_BOLD);
-				mvwaddch(wLst, line, minwidth + 1, special);
-			} else if ('m' == special) {
+				mvwaddch(wLst, line, 2, '+');
+			} else if (flag->globalMasked) {
 				if(highlight)
 					wattrset(wLst, COLOR_PAIR(4) | A_REVERSE);
 				else
 					wattrset(wLst, COLOR_PAIR(4) | A_BOLD);
-				mvwaddch(wLst, line, minwidth + 1, special);
-			} else {
-				if (' ' == flag->desc[idx].stateDefault)
-					mvwaddch(wLst, line, minwidth + 1, flag->stateDefault);
-				else
-					mvwaddch(wLst, line, minwidth + 1, flag->desc[idx].stateDefault);
-			}
+				mvwaddch(wLst, line, 2, '-');
+			} else if (' ' == flag->stateConf)
+				mvwaddch(wLst, line, 2, flag->stateDefault);
+			else
+				mvwaddch(wLst, line, 2, flag->stateConf);
+		}
 
-			++line;
-			++usedY;
-			if (NULL == wrapPart)
-				++idx;
-		} // End of looping descriptions while there are lines left
-	} else {
-		memset(buf+minwidth, ' ', wWidth(List)-minwidth);
-		buf[wWidth(List)] = '\0';
-		waddstr(win(List), buf);
-	}
+		// Add [D]efault column content
+		if ('f' == special) {
+			if(highlight)
+				wattrset(wLst, COLOR_PAIR(5) | A_REVERSE);
+			else
+				wattrset(wLst, COLOR_PAIR(5) | A_BOLD);
+			mvwaddch(wLst, line, minwidth + 1, special);
+		} else if ('m' == special) {
+			if(highlight)
+				wattrset(wLst, COLOR_PAIR(4) | A_REVERSE);
+			else
+				wattrset(wLst, COLOR_PAIR(4) | A_BOLD);
+			mvwaddch(wLst, line, minwidth + 1, special);
+		} else {
+			if (' ' == flag->desc[idx].stateDefault)
+				mvwaddch(wLst, line, minwidth + 1, flag->stateDefault);
+			else
+				mvwaddch(wLst, line, minwidth + 1, flag->desc[idx].stateDefault);
+		}
+
+		// Advance counters and possibly description index
+		++line;
+		++usedY;
+		if (NULL == wrapPart)
+			++idx;
+	} // end of looping flag descriptions
 
 	if(highlight)
 		wmove(win(List), max(flag->currline, 0), 2);
@@ -735,6 +667,104 @@ static int findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line, bool*
 	}
 
 	return usedLines;
+}
+
+static void free_flags(void)
+{
+	sFlag* flag = flags->prev;
+
+	// Clear all flags
+	while (flags) {
+		if (flag)
+			destroyFlag(&flags, &flag);
+		else
+			destroyFlag(&flags, &flags);
+		flag = flags ? flags->prev ? flags->prev : flags : NULL;
+	}
+
+	// Clear line buffer
+	if (lineBuf)
+		free(lineBuf);
+}
+
+static char getFlagSpecialChar(sFlag* flag, int index)
+{
+	// Return special character if needed:
+	if (isDescForced(flag, index))
+		return 'f';
+	else if (isDescMasked(flag, index))
+		return 'm';
+	return ' ';
+}
+
+
+static void printFlagInfo(char* buf, sFlag* flag, int index, bool printFlagName, bool printFlagState)
+{
+	if (printFlagName)
+		sprintf(buf, " %c%c%c %s%s%s%-*s ",
+			/* State of selection */
+			flag->stateConf == ' ' ? '(' : '[',
+			' ', // Filled in later
+			flag->stateConf == ' ' ? ')' : ']',
+			/* name */
+			flag->globalForced ? "(" : flag->globalMasked ? "(-" : "",
+			flag->name,
+			(flag->globalForced || flag->globalMasked) ? ")" : "",
+			/* distance */
+			(int)(minwidth
+				- (flag->globalForced ? 3 : flag->globalMasked ? 2 : 5)
+				- strlen(flag->name)), " ");
+
+	if (printFlagState)
+		/* Display flag state
+		 * The order in which the states are to be displayed is:
+		 * 1. [D]efaults (make.defaults, IUSE, package.mask, package.force)
+		 *    Note: Filled in later
+		 * 2. [P]rofile package.use files
+		 * 3. [C]onfiguration (make.conf, users package.use)
+		 * 4. global/local
+		 * 5. installed/not installed
+		 */
+		sprintf(buf + minwidth, "  %c%c %c%c ",
+			flag->desc[index].statePackage,
+			' ' == flag->desc[index].statePkgUse ?
+				flag->stateConf : flag->desc[index].statePkgUse,
+			flag->desc[index].isGlobal ? ' ' : 'L',
+			flag->desc[index].isInstalled ? 'i' : ' ');
+}
+
+static void setFlagWrapDraw(sFlag* flag, int index, sWrap** wrap, size_t* pos, size_t* len, bool* isFirstWrap)
+{
+	sWrap* wrapPart = *wrap;
+
+	if (NULL == wrapPart) {
+		wrapPart     = flag->desc[index].wrap;
+		*isFirstWrap = true;
+	} else if (*isFirstWrap
+			&& (flag->desc[index].wrap != wrapPart)
+			&& !wrapPart->pos)
+		*isFirstWrap = false;
+
+	// Position and length can be written back already
+	*pos = wrapPart->pos;
+	*len = wrapPart->len;
+
+	// If this was switched, add the first length
+	if ((false == *isFirstWrap) && (0 == *pos)) {
+		// Add the length of either the package list or the
+		// description (stripped or normal) or drawFlag will
+		// end up reprinting from the beginning due to the
+		// unified description string.
+		if (eOrder_left == e_order)
+			*pos += sizeof(flag->desc[index].pkg);
+		else
+			*pos += eDesc_ori == e_desc
+				  ? sizeof(flag->desc[index].desc)
+				  : sizeof(flag->desc[index].desc_alt);
+	}
+
+	// Write back wrap part pointer
+	*wrap = wrapPart;
 }
 
 
