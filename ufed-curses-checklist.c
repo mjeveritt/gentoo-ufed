@@ -630,8 +630,8 @@ static int findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line, bool*
 			if (isDescLegal(flag, *index)) {
 				if (eWrap_normal == e_wrap) {
 					++(*line);
-					++usedLines;
 					++(*index);
+					++usedLines;
 				} else {
 					/* With wrapped descriptions there are two possible
 					 * situations:
@@ -665,6 +665,8 @@ static int findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line, bool*
 					}
 				} // End of handling wrapped lines
 			} // End of having a legal flag
+			else
+				++(*index);
 		} // end of moving to line 0
 
 		// Write back wrapPart:
