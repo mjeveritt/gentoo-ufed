@@ -337,7 +337,7 @@ void drawStatus(bool withSep)
 		 * + 2 brackets = 22
 		 * + 4 pipes    = 26
 		*/
-		sprintf(buf, "%*s%-4s|%-4s|%-4s|%-4s|%-4s] ",
+		sprintf(buf, "%*s%-4s|%-4s|%-4s|%-4s|%-4s|%-4s] ",
 			max(2, iWidth - 33 - minwidth), " [",
 			eScope_global         == e_scope ? "glob"
 			: eScope_local        == e_scope ? "loca" : "all",
@@ -346,7 +346,8 @@ void drawStatus(bool withSep)
 			eMask_masked          == e_mask  ? "mask"
 			: eMask_unmasked      == e_mask  ? "norm" : "all",
 			eOrder_left           == e_order ? "left" : "righ",
-			eDesc_ori             == e_desc  ? "orig" : "stri");
+			eDesc_ori             == e_desc  ? "orig" : "stri",
+			eWrap_normal          == e_wrap  ? "long" : "wrap");
 		waddstr(w, buf);
 	}
 
