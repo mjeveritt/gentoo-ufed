@@ -200,8 +200,10 @@ static int drawflag(sFlag* flag, bool highlight)
 	bool   wrapFirst = true; // The first part, pkg or desc
 
 	// Get the starting description/wrapped line of the flag
-	if ((line < 0)
-	  && (0 == (usedY = findFlagStart(flag, &idx, &wrapPart, &line, &wrapFirst))) )
+	usedY = findFlagStart(flag, &idx, &wrapPart, &line, &wrapFirst);
+
+	// findFlagStart returns -1 if the flag is out of the screen
+	if (0 > usedY)
 		return 0;
 
 	// Window values (aka shortcuts)
@@ -448,17 +450,21 @@ static int callback(sFlag** curr, int key)
 				drawFlags();
 			break;
 		case KEY_LEFT:
-			if(descriptionleft > 0)
-				descriptionleft -= min(descriptionleft, (wWidth(List) - minwidth) * 2 / 3);
-			drawflag(*curr, TRUE);
-			wmove(wLst, (*curr)->currline, 2);
-			wrefresh(wLst);
+			if (eWrap_normal == e_wrap) {
+				if(descriptionleft > 0)
+					descriptionleft -= min(descriptionleft, (wWidth(List) - minwidth) * 2 / 3);
+				drawflag(*curr, TRUE);
+				wmove(wLst, (*curr)->currline, 2);
+				wrefresh(wLst);
+			}
 			break;
 		case KEY_RIGHT:
-			descriptionleft += (wWidth(List) - minwidth) * 2 / 3;
-			drawflag(*curr, TRUE);
-			wmove(wLst, (*curr)->currline, 2);
-			wrefresh(wLst);
+			if (eWrap_normal == e_wrap) {
+				descriptionleft += (wWidth(List) - minwidth) * 2 / 3;
+				drawflag(*curr, TRUE);
+				wmove(wLst, (*curr)->currline, 2);
+				wrefresh(wLst);
+			}
 			break;
 
 		case KEY_F(5):
@@ -520,6 +526,15 @@ static int callback(sFlag** curr, int key)
 			else
 				e_desc = eDesc_ori;
 
+			draw(true);
+			break;
+
+		case KEY_F(11):
+			if (eWrap_normal == e_wrap) {
+				e_wrap = eWrap_wrap;
+				descriptionleft = 0;
+			} else
+				e_wrap = eWrap_normal;
 			draw(true);
 			break;
 
@@ -624,8 +639,13 @@ static int findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line, bool*
 	int    flagHeight = getFlagHeight(flag); // Will recalculate wrap parts if needed
 	sWrap* wrapPart = NULL;
 
-	if ( (*line < 0) && (-(*line) < flagHeight) ){
+	if (*line < 0) {
 
+		// Only do anything if the flag can reach the screen:
+		if (-(*line) >= flagHeight)
+			return -1;
+
+		// Now loop until the screen is entered (line == 0)
 		while (*line < 0) {
 			if (isDescLegal(flag, *index)) {
 				if (eWrap_normal == e_wrap) {
