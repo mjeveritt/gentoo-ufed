@@ -286,7 +286,7 @@ static int drawflag(sFlag* flag, bool highlight)
 			setFlagWrapDraw(flag, idx, &wrapPart, &pos, &length);
 
 		// The right side of buf can be added now:
-		leftover = rightwidth - (int)length - (newDesc ? 0 : 2) - 1;
+		leftover = rightwidth - (int)length - (newDesc ? 0 : 2);
 		pBuf     = &buf[minwidth + (newDesc ? 8 : 10)];
 		sprintf(pBuf, "%-*.*s",
 			(int)length, (int)length,
@@ -295,7 +295,7 @@ static int drawflag(sFlag* flag, bool highlight)
 
 		// Leftover characters on the right must be blanked:
 		if (leftover > 0)
-			sprintf(pBuf + length, "%-*sX", leftover, " ");
+			sprintf(pBuf + length, "%-*s", leftover, " ");
 
 		/* Set correct color set according to highlighting and status*/
 		if(highlight)
@@ -353,11 +353,19 @@ static int drawflag(sFlag* flag, bool highlight)
 		// Advance counters and possibly description index
 		++line;
 		++usedY;
-		if (NULL == wrapPart) {
+
+		// When wrapping the wrapPart must be advanced and checked
+		if (eWrap_wrap == e_wrap) {
+			wrapPart = wrapPart ? wrapPart->next : NULL;
+			if (wrapPart)
+				newDesc = false;
+			else
+				newDesc = true;
+		}
+
+		if (newDesc)
 			++idx;
-			newDesc = true;
-		} else
-			newDesc = false;
+
 	} // end of looping flag descriptions
 
 	if(highlight)
@@ -766,8 +774,6 @@ static void setFlagWrapDraw(sFlag* flag, int index, sWrap** wrap, size_t* pos, s
 
 	if (NULL == wrapPart)
 		wrapPart = flag->desc[index].wrap;
-	else
-		wrapPart = wrapPart->next;
 
 	// The length and position can be written back already
 	if (wrapPart) {
