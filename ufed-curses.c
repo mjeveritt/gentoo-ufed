@@ -338,7 +338,7 @@ void drawStatus(bool withSep)
 		 * + 4 pipes    = 26
 		*/
 		sprintf(buf, "%*s%-4s|%-4s|%-4s|%-4s|%-4s|%-4s] ",
-			max(2, iWidth - 33 - minwidth), " [",
+			max(2, iWidth - 38 - minwidth), " [",
 			eScope_global         == e_scope ? "glob"
 			: eScope_local        == e_scope ? "loca" : "all",
 			eState_installed      == e_state ? "inst"
