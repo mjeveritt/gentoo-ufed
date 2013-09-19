@@ -212,9 +212,9 @@ static int drawflag(sFlag* flag, bool highlight)
 	int     lWidth  = wWidth(List);
 
 	// Set up needed buffers
-	char   buf[lWidth + 1];       // Buffer for the line to print
-	char   desc[maxDescWidth];    // Buffer to assemble the description accoring to e_order and e_desc
-	char   special;               // force/mask/none character
+	char   buf[lWidth + 1];    // Buffer for the line to print
+	char   desc[maxDescWidth]; // Buffer to assemble the description accoring to e_order and e_desc
+	char   special, *pBuf;     // force/mask/none character, Helper to fill buf
 	memset(buf,  0, sizeof(char) * (lWidth + 1));
 	memset(desc, 0, sizeof(char) * maxDescWidth);
 
@@ -222,16 +222,17 @@ static int drawflag(sFlag* flag, bool highlight)
 	bool   hasBlankLeft  = false;                 // Set to true once the left side is blanked
 	bool   hasBlankRight = false;                 // Set to true once the right (state) side is blanked
 	bool   hasHead       = false;                 // Set to true once the left side (flag name and states) are printed
-	size_t length        = lWidth - minwidth - 8; // Characters to print
+	int    maxDescWidth  = lWidth - minwidth - 8; // Space on the right to print descriptions
+	size_t length        = maxDescWidth;          // Characters to print when not wrapping
 	bool   newDesc       = true;                  // Set to fals when wrapped parts advance
 	size_t pos           = descriptionleft;       // position in desc to start printing on
+	int    leftover      = 0;                     // When wrapping lines, this is left on the right
 
 	// Safety check: Put in blank line if idx ended up too large
 	if (idx >= flag->ndesc) {
 		// This can happen when filters reduce the list too much
 		// so blank lines must be displayed
 		memset(buf, ' ', lWidth - 1);
-		buf[lWidth] = '\0';
 		waddstr(wLst, buf);
 	}
 
@@ -294,10 +295,16 @@ static int drawflag(sFlag* flag, bool highlight)
 		}
 
 		// The right side of buf can be added now:
-		sprintf(buf + minwidth + (newDesc ? 8 : 10), "%-*.*s",
+		leftover = maxDescWidth - (int)length;
+		pBuf     = buf + minwidth + (newDesc ? 8 : 10);
+		sprintf(pBuf, "%-*.*s",
 			(int)length, (int)length,
 			strlen(desc) > pos ? &desc[pos] : "");
 		// Note: Follow up lines of wrapped descriptions are indented by 2
+
+		// Leftover characters on the right must be blanked:
+		if (leftover > 0)
+			sprintf(pBuf + length, "%-*s", leftover, " ");
 
 		/* Set correct color set according to highlighting and status*/
 		if(highlight)
@@ -355,8 +362,10 @@ static int drawflag(sFlag* flag, bool highlight)
 		// Advance counters and possibly description index
 		++line;
 		++usedY;
-		if (NULL == wrapPart)
+		if (NULL == wrapPart) {
 			++idx;
+			newDesc = true;
+		}
 	} // end of looping flag descriptions
 
 	if(highlight)
