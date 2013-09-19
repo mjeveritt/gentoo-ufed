@@ -570,7 +570,25 @@ static void calculateDescWrap(sDesc* desc)
 		while (left) {
 
 			// Step 1: Set current wrap part end
-			end = start + width + (curr == desc->wrap ? 2 : 0);
+			end = start + width;
+
+			// First line has two more spaces:
+			if (curr == desc->wrap)
+				end += 2;
+
+			// Package lists have one space less in their first line,
+			// because an opening bracket is prefixed by drawflag(),
+			// and two spaces less in their last line, because another
+			// bracked is postfixed and the leading whitespace is
+			// skipped below.
+			if (pch == pPkg) {
+				if (!start || (start == oLen))
+					--end;
+				else if (end >= (wLen - 1))
+					end -= 2;
+			}
+
+			// Don't shoot over the target!
 			if (end >= wLen)
 				end = wLen - 1;
 
@@ -584,7 +602,7 @@ static void calculateDescWrap(sDesc* desc)
 
 			// Step 3: Note values and increase start
 			curr->pos = start + oLen;
-			curr->len = end - start + (' ' == pch[end] ? 0 : 1);
+			curr->len = end - start + (end == (wLen - 1) ? 1 : 0);
 			start += curr->len;
 			left  -= curr->len;
 			++desc->wrapCount;
