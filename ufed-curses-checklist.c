@@ -220,8 +220,6 @@ static int drawflag(sFlag* flag, bool highlight)
 	desc[maxDescWidth] = 0x0;
 
 	// Description and wrapped lines state values
-	bool   hasBlankLeft  = false;                 // Set to true once the left side is blanked
-	bool   hasBlankRight = false;                 // Set to true once the right (state) side is blanked
 	bool   hasHead       = false;                 // Set to true once the left side (flag name and states) are printed
 	int    rightwidth    = lWidth - minwidth - 8; // Space on the right to print descriptions
 	size_t length        = rightwidth;            // Characters to print when not wrapping
@@ -246,16 +244,15 @@ static int drawflag(sFlag* flag, bool highlight)
 			continue;
 		}
 
-		// If the flag name and state are drawn, following lines
-		// need to start with spaces
-		if (hasHead && !hasBlankLeft) {
-			memset(buf, ' ', minwidth);
-			hasBlankLeft = true;
-		}
+		// Always start with a blanked buffer
+		memset(buf,  ' ', sizeof(char) * lWidth);
 
 		// Prepare new description or blank on wrapped parts
 		if (newDesc) {
 			special = getFlagSpecialChar(flag, idx);
+
+			// Always start with a blank description buffer
+			memset(desc, ' ', sizeof(char) * maxDescWidth);
 
 			// Wrapped and not wrapped lines are unified here
 			// to simplify the usage of different ordering and
@@ -272,9 +269,6 @@ static int drawflag(sFlag* flag, bool highlight)
 							  flag->desc[idx].pkg);
 			} else
 				sprintf(desc, "%s", flag->desc[idx].desc);
-		} else if (!hasBlankRight) {
-			memset(buf + minwidth, ' ', 10);
-			hasBlankRight = true;
 		}
 
 		/* --- Preparations done --- */
@@ -293,7 +287,7 @@ static int drawflag(sFlag* flag, bool highlight)
 
 		// The right side of buf can be added now:
 		leftover = rightwidth - (int)length;
-		pBuf     = buf + minwidth + (newDesc ? 8 : 10);
+		pBuf     = &buf[minwidth + (newDesc ? 8 : 10)];
 		sprintf(pBuf, "%-*.*s",
 			(int)length, (int)length,
 			strlen(desc) > pos ? &desc[pos] : " ");
