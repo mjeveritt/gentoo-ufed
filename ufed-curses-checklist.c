@@ -781,16 +781,14 @@ static void setFlagWrapDraw(sFlag* flag, int index, sWrap** wrap, size_t* pos, s
 			&& !wrapPart->pos)
 		*isFirstWrap = false;
 
-	// Position and length can be written back already
+	// The length and position can be written back already
 	*pos = wrapPart->pos;
 	*len = wrapPart->len;
 
-	// If this was switched, add the first length
-	if ((false == *isFirstWrap) && (0 == *pos)) {
-		// Add the length of either the package list or the
-		// description (stripped or normal) or drawFlag will
-		// end up reprinting from the beginning due to the
-		// unified description string.
+	// If this is the second part, the length of the first
+	// must be added to the position, or drawflag() will
+	// start all over again.
+	if (false == *isFirstWrap) {
 		if (eOrder_left == e_order)
 			*pos += sizeof(flag->desc[index].pkg);
 		else
