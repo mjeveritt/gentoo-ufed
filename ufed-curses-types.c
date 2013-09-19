@@ -528,13 +528,13 @@ static void calculateDescWrap(sDesc* desc)
 		char*  pch   = eOrder_left == desc->wrapOrder ? pPkg : pDesc;
 		size_t start = 0;
 		size_t end   = 0;
-		size_t width = desc->wrapWidth - 2; // Foloow-up lines are indented
-		size_t dLen  = strlen(pDesc);
-		size_t pLen  = strlen(pPkg);
+		size_t width = desc->wrapWidth - 2; // Follow-up lines are indented
+		size_t dLen  = pDesc ? strlen(pDesc) : 0;
+		size_t pLen  = pPkg ? strlen(pPkg) : 0;
 		size_t left  = dLen + pLen;
 		size_t wLen  = eOrder_left == desc->wrapOrder ? pLen : dLen;
 
-		/* To go by next a valid curr is needed first */
+		/* A valid curr is needed first */
 		if (NULL == curr) {
 			curr = (sWrap*)malloc(sizeof(sWrap));
 			if (curr) {
@@ -543,10 +543,28 @@ static void calculateDescWrap(sDesc* desc)
 				curr->pos  = 0;
 				desc->wrap = curr;
 			} else
-				ERROR_EXIT(-1, "Unable to allocate %lu bytes for sWrap_ struct\n", sizeof(sWrap))
+				ERROR_EXIT(-1,
+					"Unable to allocate %lu bytes for sWrap_ struct\n",
+					sizeof(sWrap))
 		}
 
-		/* Now distribute all characters */
+		// The description starts without a valid wrap now
+		desc->wrapCount = 0;
+
+		/* When starting there are two possible situations.
+		 * a) A global flag with order left, so desc->pkg and therefore
+		 *    pch also are NULL
+		 * b) any other combination.
+		 * Any other is just fine, but situation a must be caught and handled
+		 * before going any further.
+		 */
+		if (NULL == pch) {
+			pch  = pDesc;
+			wLen = dLen;
+			left = dLen;
+		}
+
+		// Now distribute all characters
 		while (left) {
 
 			// Step 1: Set current wrap part end
@@ -555,7 +573,7 @@ static void calculateDescWrap(sDesc* desc)
 				end = wLen - 1;
 
 			// Step 2: Find last space character before end+1
-			if (' ' != pch[end]) {
+			if ((end > start) && (end < (wLen - 1)) && (' ' != pch[end])) {
 				size_t newEnd = end;
 				for (; (newEnd > start) && (' ' != pch[newEnd]) ; --newEnd) ;
 				if (newEnd > start)
@@ -564,35 +582,49 @@ static void calculateDescWrap(sDesc* desc)
 
 			// Step 3: Note values and increase start
 			curr->pos = start;
-			curr->len = end - start;
+			curr->len = end - start + (' ' == pch[end] ? 0 : 1);
 			start += curr->len;
 			left  -= curr->len;
+			++desc->wrapCount;
+
+			// skip white space
+			while (left && (start < wLen) && (' ' == pch[start])) {
+				++start;
+				--left;
+			}
+
 
 			// Step 4: Switch if the current string is exhausted:
-			if (left && (end == (wLen - 1))) {
+			if (left && (!wLen || (end >= (wLen - 1)) || (start >= wLen) ) ) {
 				if (eOrder_left == desc->wrapOrder) {
 					// Switch from pkg to desc
 					pch  = pDesc;
 					wLen = dLen;
+					left = dLen;
 				} else {
 					// Switch from desc to pkg
 					pch  = pPkg;
 					wLen = pLen;
+					left = pLen;
 				}
 				start = 0;
 			} // End of having to swap pkg/desc
 
 			// Step 5: Extend if needed
-			next = curr->next;
-			if (left && !next) {
-				next = (sWrap*)malloc(sizeof(sWrap));
-				if (next) {
-					next->len  = 0;
-					next->next = NULL;
-					next->pos  = 0;
-					curr->next = next;
-				} else
-					ERROR_EXIT(-1, "Unable to allocate %lu bytes for sWrap_ struct\n", sizeof(sWrap))
+			if (curr->len) {
+				next = curr->next;
+				if (left && !next) {
+					next = (sWrap*)malloc(sizeof(sWrap));
+					if (next) {
+						next->len  = 0;
+						next->next = NULL;
+						next->pos  = 0;
+						curr->next = next;
+					} else
+						ERROR_EXIT(-1,
+							"Unable to allocate %lu bytes for sWrap_ struct\n",
+							sizeof(sWrap))
+				}
 			}
 
 			// Step 6: Clean up if done
@@ -603,7 +635,8 @@ static void calculateDescWrap(sDesc* desc)
 			}
 
 			// Step 7: Advance
-			curr = next;
+			if (curr->len)
+				curr = next;
 		} // End of having characters left to distribute
 	} // End of having a not NULL pointer
 }
