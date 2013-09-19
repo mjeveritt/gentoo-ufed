@@ -595,13 +595,18 @@ static void calculateDescWrap(sDesc* desc)
 				--left;
 			}
 
-			// Correct length if this is the package list
+			// Correct pos and length if this is the package list
 			// Note: in drawflag() the string is pre- and postfixed with '(' / ')'
 			if (pch == pPkg) {
-				if (!curr->pos)
+				// And one to start
+				if (oLen == curr->pos)
 					++curr->len;
+				// Add one to the end
 				if (end >= (wLen - 1))
 					++curr->len;
+				// If this is not the first line, add one to pos:
+				if (curr->pos && (oLen != curr->pos))
+					++curr->pos;
 			}
 
 
