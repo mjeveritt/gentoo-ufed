@@ -286,7 +286,7 @@ static int drawflag(sFlag* flag, bool highlight)
 			setFlagWrapDraw(flag, idx, &wrapPart, &pos, &length);
 
 		// The right side of buf can be added now:
-		leftover = rightwidth - (int)length;
+		leftover = rightwidth - (int)length - (newDesc ? 0 : 2) - 1;
 		pBuf     = &buf[minwidth + (newDesc ? 8 : 10)];
 		sprintf(pBuf, "%-*.*s",
 			(int)length, (int)length,
@@ -295,7 +295,7 @@ static int drawflag(sFlag* flag, bool highlight)
 
 		// Leftover characters on the right must be blanked:
 		if (leftover > 0)
-			sprintf(pBuf + length, "%-*.*s", leftover, leftover, " ");
+			sprintf(pBuf + length, "%-*sX", leftover, " ");
 
 		/* Set correct color set according to highlighting and status*/
 		if(highlight)

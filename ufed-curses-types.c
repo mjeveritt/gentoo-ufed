@@ -304,7 +304,7 @@ int getFlagHeight (const sFlag* flag)
 	int result = 0;
 
 	if (flag) {
-		size_t maxLen = wWidth(List) - (minwidth + 8);;
+		size_t maxLen = wWidth(List) - (minwidth + 8);
 		for (int i = 0; i < flag->ndesc; ++i) {
 			if (isDescLegal(flag, i)) {
 				if (eWrap_normal == e_wrap)
@@ -575,7 +575,7 @@ static void calculateDescWrap(sDesc* desc)
 				end = wLen - 1;
 
 			// Step 2: Find last space character before end+1
-			if ((end > start) && (' ' != pch[end])) {
+			if ((end > start) && (end < (wLen - 1)) && (' ' != pch[end])) {
 				size_t newEnd = end;
 				for (; (newEnd > start) && (' ' != pch[newEnd]) ; --newEnd) ;
 				if (newEnd > start)
@@ -611,12 +611,12 @@ static void calculateDescWrap(sDesc* desc)
 					// Switch from pkg to desc
 					pch  = pDesc;
 					wLen = dLen;
-					oLen = pLen + 2;
+					oLen = pLen + 3; // +2 for the brackets, + 1 for leading space
 				} else {
 					// Switch from desc to pkg
 					pch  = pPkg;
 					wLen = pLen;
-					oLen = dLen + 2;
+					oLen = dLen + 1; // +1 for leading space
 				}
 				start = 0;
 			} // End of having to swap pkg/desc
