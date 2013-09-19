@@ -573,7 +573,7 @@ static void calculateDescWrap(sDesc* desc)
 				end = wLen - 1;
 
 			// Step 2: Find last space character before end+1
-			if ((end > start) && (end < (wLen - 1)) && (' ' != pch[end])) {
+			if ((end > start) && (' ' != pch[end])) {
 				size_t newEnd = end;
 				for (; (newEnd > start) && (' ' != pch[newEnd]) ; --newEnd) ;
 				if (newEnd > start)

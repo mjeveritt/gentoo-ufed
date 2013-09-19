@@ -212,18 +212,20 @@ static int drawflag(sFlag* flag, bool highlight)
 	int     lWidth  = wWidth(List);
 
 	// Set up needed buffers
-	char   buf[lWidth + 1];    // Buffer for the line to print
-	char   desc[maxDescWidth]; // Buffer to assemble the description accoring to e_order and e_desc
-	char   special, *pBuf;     // force/mask/none character, Helper to fill buf
-	memset(buf,  0, sizeof(char) * (lWidth + 1));
-	memset(desc, 0, sizeof(char) * maxDescWidth);
+	char   buf[lWidth + 1];        // Buffer for the line to print
+	char   desc[maxDescWidth + 1]; // Buffer to assemble the description accoring to e_order and e_desc
+	char   special, *pBuf;         // force/mask/none character, Helper to fill buf
+	memset(buf,  ' ', sizeof(char) * lWidth);
+	memset(desc, ' ', sizeof(char) * maxDescWidth);
+	buf[lWidth]        = 0x0;
+	desc[maxDescWidth] = 0x0;
 
 	// Description and wrapped lines state values
 	bool   hasBlankLeft  = false;                 // Set to true once the left side is blanked
 	bool   hasBlankRight = false;                 // Set to true once the right (state) side is blanked
 	bool   hasHead       = false;                 // Set to true once the left side (flag name and states) are printed
-	int    maxDescWidth  = lWidth - minwidth - 8; // Space on the right to print descriptions
-	size_t length        = maxDescWidth;          // Characters to print when not wrapping
+	int    rightwidth    = lWidth - minwidth - 8; // Space on the right to print descriptions
+	size_t length        = rightwidth;            // Characters to print when not wrapping
 	bool   newDesc       = true;                  // Set to fals when wrapped parts advance
 	size_t pos           = descriptionleft;       // position in desc to start printing on
 	int    leftover      = 0;                     // When wrapping lines, this is left on the right
@@ -295,16 +297,16 @@ static int drawflag(sFlag* flag, bool highlight)
 		}
 
 		// The right side of buf can be added now:
-		leftover = maxDescWidth - (int)length;
+		leftover = rightwidth - (int)length;
 		pBuf     = buf + minwidth + (newDesc ? 8 : 10);
 		sprintf(pBuf, "%-*.*s",
 			(int)length, (int)length,
-			strlen(desc) > pos ? &desc[pos] : "");
+			strlen(desc) > pos ? &desc[pos] : " ");
 		// Note: Follow up lines of wrapped descriptions are indented by 2
 
 		// Leftover characters on the right must be blanked:
 		if (leftover > 0)
-			sprintf(pBuf + length, "%-*s", leftover, " ");
+			sprintf(pBuf + length, "%-*.*s", leftover, leftover, " ");
 
 		/* Set correct color set according to highlighting and status*/
 		if(highlight)
@@ -736,7 +738,7 @@ static char getFlagSpecialChar(sFlag* flag, int index)
 
 static void printFlagInfo(char* buf, sFlag* flag, int index, bool printFlagName, bool printFlagState)
 {
-	if (printFlagName)
+	if (printFlagName) {
 		sprintf(buf, " %c%c%c %s%s%s%-*s ",
 			/* State of selection */
 			flag->stateConf == ' ' ? '(' : '[',
@@ -750,8 +752,10 @@ static void printFlagInfo(char* buf, sFlag* flag, int index, bool printFlagName,
 			(int)(minwidth
 				- (flag->globalForced ? 3 : flag->globalMasked ? 2 : 5)
 				- strlen(flag->name)), " ");
+		buf[minwidth] = ' '; // No automatic \0, please!
+	}
 
-	if (printFlagState)
+	if (printFlagState) {
 		/* Display flag state
 		 * The order in which the states are to be displayed is:
 		 * 1. [D]efaults (make.defaults, IUSE, package.mask, package.force)
@@ -767,6 +771,8 @@ static void printFlagInfo(char* buf, sFlag* flag, int index, bool printFlagName,
 				flag->stateConf : flag->desc[index].statePkgUse,
 			flag->desc[index].isGlobal ? ' ' : 'L',
 			flag->desc[index].isInstalled ? 'i' : ' ');
+		buf[minwidth + 8] = ' '; // No automatic \0, please!
+	}
 }
 
 static void setFlagWrapDraw(sFlag* flag, int index, sWrap** wrap, size_t* pos, size_t* len, bool* isFirstWrap)
