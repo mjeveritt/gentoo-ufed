@@ -19,11 +19,11 @@ static char*   lineBuf         = NULL;
 static sFlag*  flags           = NULL;
 
 /* internal prototypes */
-static int  findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line, bool* isFirstWrap);
+static int  findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line);
 static void free_flags(void);
 static char getFlagSpecialChar(sFlag* flag, int index);
 static void printFlagInfo(char* buf, sFlag* flag, int index, bool printFlagName, bool printFlagState);
-static void setFlagWrapDraw(sFlag* flag, int index, sWrap** wrap, size_t* pos, size_t* len, bool* isFirstWrap);
+static void setFlagWrapDraw(sFlag* flag, int index, sWrap** wrap, size_t* pos, size_t* len);
 
 
 /* static functions */
@@ -197,10 +197,9 @@ static int drawflag(sFlag* flag, bool highlight)
 	int    line      = flag->currline;
 	int    usedY     = 0;    // Counts how many lines this flag really needs to display
 	sWrap* wrapPart  = NULL; // Wrap part to begin with/draw
-	bool   wrapFirst = true; // The first part, pkg or desc
 
 	// Get the starting description/wrapped line of the flag
-	usedY = findFlagStart(flag, &idx, &wrapPart, &line, &wrapFirst);
+	usedY = findFlagStart(flag, &idx, &wrapPart, &line);
 
 	// findFlagStart returns -1 if the flag is out of the screen
 	if (0 > usedY)
@@ -289,12 +288,8 @@ static int drawflag(sFlag* flag, bool highlight)
 
 		// For normal descriptions, pos and length are already set, but
 		// not so for wrapped lines, these must be set for each line:
-		if (eWrap_wrap == e_wrap) {
-			setFlagWrapDraw(flag, idx, &wrapPart, &pos, &length, &wrapFirst);
-			wrapPart = wrapPart->next;
-			if (newDesc && wrapPart)
-				newDesc = false;
-		}
+		if (eWrap_wrap == e_wrap)
+			setFlagWrapDraw(flag, idx, &wrapPart, &pos, &length);
 
 		// The right side of buf can be added now:
 		leftover = rightwidth - (int)length;
@@ -367,7 +362,8 @@ static int drawflag(sFlag* flag, bool highlight)
 		if (NULL == wrapPart) {
 			++idx;
 			newDesc = true;
-		}
+		} else
+			newDesc = false;
 	} // end of looping flag descriptions
 
 	if(highlight)
@@ -644,7 +640,7 @@ static int callback(sFlag** curr, int key)
   * until wrapPart is either NULL, or a part on the screen is
   * reached.
 **/
-static int findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line, bool* isFirstWrap)
+static int findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line)
 {
 	int    usedLines  = 0;
 	int    flagHeight = getFlagHeight(flag); // Will recalculate wrap parts if needed
@@ -676,17 +672,12 @@ static int findFlagStart(sFlag* flag, int* index, sWrap** wrap, int* line, bool*
 					 */
 					int wrapCount = flag->desc[*index].wrapCount;
 					wrapPart      = flag->desc[*index].wrap;
-					*isFirstWrap  = true;
 					if (wrapPart && wrapCount && (-(*line) < wrapCount)) {
 						// Situation b) This description enters screen
 						while (wrapPart && (*line < 0)) {
 							++(*line);
 							++usedLines;
 							wrapPart = wrapPart->next;
-							if (wrapPart && !wrapPart->pos)
-								*isFirstWrap = false;
-							// Note: The wrap parts are already calculated
-							//       to resemble the current order.
 						}
 					} else {
 						// Situation a) Fast forward
@@ -775,32 +766,22 @@ static void printFlagInfo(char* buf, sFlag* flag, int index, bool printFlagName,
 	}
 }
 
-static void setFlagWrapDraw(sFlag* flag, int index, sWrap** wrap, size_t* pos, size_t* len, bool* isFirstWrap)
+static void setFlagWrapDraw(sFlag* flag, int index, sWrap** wrap, size_t* pos, size_t* len)
 {
 	sWrap* wrapPart = *wrap;
 
-	if (NULL == wrapPart) {
-		wrapPart     = flag->desc[index].wrap;
-		*isFirstWrap = true;
-	} else if (*isFirstWrap
-			&& (flag->desc[index].wrap != wrapPart)
-			&& !wrapPart->pos)
-		*isFirstWrap = false;
+	if (NULL == wrapPart)
+		wrapPart = flag->desc[index].wrap;
+	else
+		wrapPart = wrapPart->next;
 
 	// The length and position can be written back already
-	*pos = wrapPart->pos;
-	*len = wrapPart->len;
-
-	// If this is the second part, the length of the first
-	// must be added to the position, or drawflag() will
-	// start all over again.
-	if (false == *isFirstWrap) {
-		if (eOrder_left == e_order)
-			*pos += sizeof(flag->desc[index].pkg);
-		else
-			*pos += eDesc_ori == e_desc
-				  ? sizeof(flag->desc[index].desc)
-				  : sizeof(flag->desc[index].desc_alt);
+	if (wrapPart) {
+		*pos = wrapPart->pos;
+		*len = wrapPart->len;
+	} else {
+		*pos = 0;
+		*len = 0;
 	}
 
 	// Write back wrap part pointer

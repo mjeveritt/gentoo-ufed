@@ -533,6 +533,8 @@ static void calculateDescWrap(sDesc* desc)
 		size_t pLen  = pPkg ? strlen(pPkg) : 0;
 		size_t left  = dLen + pLen;
 		size_t wLen  = eOrder_left == desc->wrapOrder ? pLen : dLen;
+		size_t oLen  = 0; // Set to the first part to be added to pos on the second
+		// part, so drawflag knows from where to start taking in the unified desc.
 
 		/* A valid curr is needed first */
 		if (NULL == curr) {
@@ -581,7 +583,7 @@ static void calculateDescWrap(sDesc* desc)
 			}
 
 			// Step 3: Note values and increase start
-			curr->pos = start;
+			curr->pos = start + oLen;
 			curr->len = end - start + (' ' == pch[end] ? 0 : 1);
 			start += curr->len;
 			left  -= curr->len;
@@ -600,12 +602,12 @@ static void calculateDescWrap(sDesc* desc)
 					// Switch from pkg to desc
 					pch  = pDesc;
 					wLen = dLen;
-					left = dLen;
+					oLen = pLen + 2;
 				} else {
 					// Switch from desc to pkg
 					pch  = pPkg;
 					wLen = pLen;
-					left = pLen;
+					oLen = dLen + 2;
 				}
 				start = 0;
 			} // End of having to swap pkg/desc
