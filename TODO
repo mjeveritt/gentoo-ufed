@@ -1,0 +1,48 @@
+Personal todo list:
+===================
+
+New items are added under "TODO", everything that is finished is moved under
+"DONE", with the planned release version in brackets.
+When a feature is officially released (no rc-ebuild!), it is removed.
+
+------------
+--- TODO ---
+------------
+These are planned:
+- Add package filter per command line argument
+- Handle USE_EXPAND and USE_EXPAND_HIDDEN flags
+
+
+------------
+--- DONE ---
+------------
+These have been finished
+- (0.90) Add Filter local/global.
+- (0.90) Add Filter installed/all.
+- (0.90) Add parsing of /etc/make.profile/package.use for command line
+         packages.
+- (0.90) Comment code.
+- (0.90) Add profile /etc/portage/profile as last profile if not there.
+         (User overrides)
+- (0.90) Parse profiles: use.force and package.use.force.
+    These are added as masked but enabled flags.
+    Prefix '-' reverts the masking and the forced enabling
+- (0.90) Parse profiles: use.mask and package.use.mask.
+    These are added as masked but disabled flags.
+    Prefix '-' reverts the masking
+- (0.90) Remove obsolete file references.
+- (0.90) Update documentation.
+- (0.90) Do not break if FEATURES contain invalid values:
+    Couldn't read FEATURES variable contains unknown value(s): inv
+    /var/db/pkg
+    Compilation failed in require at /usr/sbin/ufed line 9.
+    BEGIN failed--compilation aborted at /usr/sbin/ufed line 9.
+- (0.90) Filter masked flags reliably.
+- (0.90) Add an option to re-show masked USE flags, but in parantheses.
+- (0.90) Add toggling package list display.
+- (0.90) Handle setups where /etc/portage/make.conf is a directory.
+- (0.90) Read PORTDIR and PORTDIR_OVERLAY from portageq, too.
+- (0.90) Make searching and cursor placement reliable.
+- (0.91) Add line wrapping.
+- (0.91) Make key help buttons dynamic (text, placement and width).
+- (0.91) Replace status indicator with dynamic status line.
