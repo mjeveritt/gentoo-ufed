@@ -12,6 +12,11 @@ These are planned:
 - Add package filter per command line argument
 - Handle USE_EXPAND and USE_EXPAND_HIDDEN flags
 
+These ideas for the (far far away) future
+- Add an optional sqlite3 backend. This could then be used to have ufed parse
+  the tree (metadata.xml!) and store the findings in a database file. Parsing
+  the tree like that is too much for each startup. Therefore such a db caching
+  would enable ufed to be no longer restricted to the profiles and /var/db/pkg.
 
 ------------
 --- DONE ---
