@@ -532,7 +532,7 @@ static void calculateDescWrap(sDesc* desc)
 		size_t dLen  = pDesc ? strlen(pDesc) : 0;
 		size_t pLen  = pPkg ? strlen(pPkg) : 0;
 		size_t left  = dLen + pLen;
-		size_t wLen  = eOrder_left == desc->wrapOrder ? pLen : dLen;
+		size_t wLen  = (eOrder_left == desc->wrapOrder ? pLen : dLen) - 1;
 		size_t oLen  = 0; // Set to the first part to be added to pos on the second
 		// part, so drawflag knows from where to start taking in the unified desc.
 
@@ -562,7 +562,7 @@ static void calculateDescWrap(sDesc* desc)
 		 */
 		if (NULL == pch) {
 			pch  = pDesc;
-			wLen = dLen;
+			wLen = dLen - 1;
 			left = dLen;
 		}
 
@@ -581,19 +581,28 @@ static void calculateDescWrap(sDesc* desc)
 			// and two spaces less in their last line, because another
 			// bracked is postfixed and the leading whitespace is
 			// skipped below.
+			bool isEnd   = (end >= wLen);
+			bool isStart = (!start || (start == oLen));
 			if (pch == pPkg) {
-				if (!start || (start == oLen))
+				// Add one space for leading bracket on pure starts
+				if (isStart)
 					--end;
-				else if (end >= (wLen - 1))
+
+				// Add two spaces for leading whitespace and closing bracket
+				// on pure end, or both brackets if this is start and end
+				if (isEnd)
 					end -= 2;
 			}
 
 			// Don't shoot over the target!
-			if (end >= wLen)
-				end = wLen - 1;
+			if (end > wLen) {
+				end = wLen;
+				isEnd = true;
+			} else
+				isEnd = (end == wLen);
 
 			// Step 2: Find last space character before end+1
-			if ((end > start) && (end < (wLen - 1)) && (' ' != pch[end])) {
+			if ((end > start) && !isEnd && (' ' != pch[end])) {
 				size_t newEnd = end;
 				for (; (newEnd > start) && (' ' != pch[newEnd]) ; --newEnd) ;
 				if (newEnd > start)
@@ -602,13 +611,13 @@ static void calculateDescWrap(sDesc* desc)
 
 			// Step 3: Note values and increase start
 			curr->pos = start + oLen;
-			curr->len = end - start + (end == (wLen - 1) ? 1 : 0);
+			curr->len = end - start + (isEnd ? 1 : 0);
 			start += curr->len;
 			left  -= curr->len;
 			++desc->wrapCount;
 
 			// skip white space
-			while (left && (start < wLen) && (' ' == pch[start])) {
+			while (left && (start <= wLen) && (' ' == pch[start])) {
 				++start;
 				--left;
 			}
@@ -617,28 +626,25 @@ static void calculateDescWrap(sDesc* desc)
 			// Note: in drawflag() the string is pre- and postfixed with '(' / ')'
 			if (pch == pPkg) {
 				// And one to start
-				if (oLen == curr->pos)
-					++curr->len;
+				if (isStart)	++curr->len;
 				// Add one to the end
-				if (end >= (wLen - 1))
-					++curr->len;
+				if (isEnd)		++curr->len;
 				// If this is not the first line, add one to pos:
-				if (curr->pos && (oLen != curr->pos))
-					++curr->pos;
+				if (!isStart)	++curr->pos;
 			}
 
 
 			// Step 4: Switch if the current string is exhausted:
-			if (left && (!wLen || (end >= (wLen - 1)) || (start >= wLen) ) ) {
+			if (left && (isEnd || (start > wLen) ) ) {
 				if (eOrder_left == desc->wrapOrder) {
 					// Switch from pkg to desc
 					pch  = pDesc;
-					wLen = dLen;
+					wLen = dLen - 1;
 					oLen = pLen + 3; // +2 for the brackets, + 1 for leading space
 				} else {
 					// Switch from desc to pkg
 					pch  = pPkg;
-					wLen = pLen;
+					wLen = pLen - 1;
 					oLen = dLen + 1; // +1 for leading space
 				}
 				start = 0;
