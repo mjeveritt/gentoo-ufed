@@ -213,31 +213,36 @@ sub save_flags {
 				my $line = substr($_, $linestart, pos()-$linestart);
 				$line !~ /[^ \t]/;
 			};
-			/\G$IDENT/gc or die;
+			/\G$IDENT/gc or die "No identifier found to start with.";
 			my $name = $1;
 			/\G$BLANK/gc;
 			if($name ne 'source') {
-			/\G$ASSIG/gc or die;
-			/\G$BLANK/gc;
+				/\G$ASSIG/gc or die "Identifier $name without assignement detected.";
+				/\G$BLANK/gc;
 			} else {
 				$sourcing = 1;
 			}
-			die if pos == length;
+			pos == length and die "Bumped into early EOF.";
 			if($name ne 'USE') {
-				/\G(?:$UQVAL|$SQVAL|$DQVAL)+/gc or die;
+				/\G(?:$UQVAL|$SQVAL|$DQVAL)+/gc or die "Blank assignement for $name detected.";
 			} else {
 				my $start = pos;
-				/\G(?:$BNUQV|$SQVAL|$BNDQV)+/gc or die;
+				m/\G(?:$BNUQV|$SQVAL|$BNDQV)+/gc or die "Empty USE assignement detected.";
 				my $end = pos;
+
 				# save whether user uses backslash-newline
 				my $bsnl = defined $1 || defined $2;
+
 				# start of the line is one past the last newline; also handles first line
 				my $linestart = 1+rindex $_, "\n", $start-1;
+
 				# everything on the current line before the USE flags, plus one for the "
 				my $line = substr($_, $linestart, $start-$linestart).' ';
+
 				# only indent if USE starts a line
 				my $blank = $flagatstartofline ? $line : "";
 				$blank =~ s/[^ \t]/ /g;
+
 				# word wrap
 				if(@flags != 0) {
 					my $length = 0;
@@ -251,10 +256,12 @@ sub save_flags {
 						}
 					}
 					my $blanklength = $blank ne '' ? $length : 0;
+
 					# new line, using backslash-newline if the user did that
 					my $nl = ($bsnl ? " \\\n" : "\n").$blank;
 					my $linelength = $bsnl ? 76 : 78;
 					my $flag = $flags[0];
+
 					if($blanklength != 0 || length $flag <= $linelength) {
 						$flags   = $flag;
 						$length += length $flag;
@@ -272,16 +279,22 @@ sub save_flags {
 						}
 					}
 				}
+
 				# replace the current USE flags with the modified ones
 				substr($_, $start, $end-$start) = "\"$flags\"";
+
 				# and have the next search start after our new flags
 				pos = $start + 2 + length $flags;
+
 				# and end this
 				undef $flags;
 				last;
 			}
 		}
-		if(defined $flags) { # if we didn't replace the flags, tack them after the last #USE= or at the end
+
+		if(defined $flags) {
+
+			# if we didn't replace the flags, tack them after the last #USE= or at the end
 			$flags = '';
 			if(@flags != 0) {
 				$flags = $flags[0];
@@ -297,21 +310,23 @@ sub save_flags {
 				}
 			}
 			substr($_, $ucs, $uce-$ucs) = "\nUSE=\"$flags\"\n";
-		} else { # if we replaced the flags, delete any further overrides
+		} else {
+
+			# if we replaced the flags, delete any further overrides
 			for(;;) {
 				my $start = pos;
 				/\G$BLANK/gc;
 				last if pos == length;
-				/\G$IDENT/gc or die;
+				/\G$IDENT/gc or die "Identifier detection failed.";
 				my $name = $1;
 				/\G$BLANK/gc;
 				if($name ne 'source') {
-				/\G$ASSIG/gc or die;
-				/\G$BLANK/gc;
+					/\G$ASSIG/gc or die "Identifier $name without assignement detected.";
+					/\G$BLANK/gc;
 				} else {
 					$sourcing = 1;
 				}
-				/\G(?:$UQVAL|$SQVAL|$DQVAL)+/gc or die;
+				m/\G(?:$UQVAL|$SQVAL|$DQVAL)+/gc or die "Empty assignement for $name detected.";
 				my $end = pos;
 				if($name eq 'USE') {
 					substr($_, $start, $end-$start) = '';
@@ -320,7 +335,9 @@ sub save_flags {
 			}
 		}
 	};
-	die "Parse error when writing make.conf - did you modify it while ufed was running?\n" if $@;
+	defined($@) and length($@) and die "\nParse error when writing make.conf"
+		. " - did you modify it while ufed was running?\n"
+		. " - Error: \"$@\"\n";
 
 	print STDERR <<EOF if $sourcing;
 Warning: source command found in $makeconf_name. Flags may

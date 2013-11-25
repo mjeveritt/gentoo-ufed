@@ -953,14 +953,14 @@ sub _read_sh {
 			for(;;) {
 				/\G$BLANK/gc;
 				last if ((pos || 0) == (length || 0));
-				/\G$IDENT/gc or die;
+				/\G$IDENT/gc or die "Empty file detected, no identifier found.";
 				my $name = $1;
 				/\G$BLANK/gc;
 				if($name ne 'source') {
-				/\G$ASSIG/gc or die;
+				/\G$ASSIG/gc or die "Bare keyword $name detected.";
 				/\G$BLANK/gc;
 				}
-				die if pos == length;
+				pos == length and die "Bumped into unexpected EOF after $name.";
 				my $value = '';
 				for(;;) {
 					if(/\G$UQVAL/gc || /\G$DQVAL/gc) {
@@ -989,17 +989,18 @@ sub _read_sh {
 					substr($_, pos, 0) = do {
 						local $/;
 						my $text = <$f>;
-						die if not defined $text;
+						defined $text or die "Error parsing $value";
 						$text;
 					};
 					pos = $pos;
-					close $f or die "Unable to open $value\n$!\n";
+					close $f or die "Unable to close $value\n$!\n";
 				} else {
 				$env{$name} = $value;
 				}
 			}
 		};
-		die "Parse error in $fname\n" if $@;
+		defined($@) and length($@) and
+			die "Parse error in $fname\n - Error: \"$@\"\n";
 	}
 	_merge_env(\%env);
 	return %env if wantarray;
