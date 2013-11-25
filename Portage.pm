@@ -999,8 +999,8 @@ sub _read_sh {
 				}
 			}
 		};
-		defined($@) and length($@) and
-			die "Parse error in $fname\n - Error: \"$@\"\n";
+		defined($@) and length($@) and chomp $@
+			and die "Parse error in $fname\n - Error: \"$@\"\n";
 	}
 	_merge_env(\%env);
 	return %env if wantarray;

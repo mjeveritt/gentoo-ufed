@@ -335,7 +335,8 @@ sub save_flags {
 			}
 		}
 	};
-	defined($@) and length($@) and die "\nParse error when writing make.conf"
+	defined($@) and length($@) and chomp $@
+		and die "\nParse error when writing make.conf"
 		. " - did you modify it while ufed was running?\n"
 		. " - Error: \"$@\"\n";
 
