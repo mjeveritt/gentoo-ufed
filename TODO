@@ -8,6 +8,9 @@ When a feature is officially released (no rc-ebuild!), it is removed.
 ------------
 --- TODO ---
 ------------
+These are mandatory for the next release cycle:
+- ufed must not error out when USE in make.conf is exceptionally large. 
+
 These are planned:
 - Add package filter per command line argument
 - Handle USE_EXPAND and USE_EXPAND_HIDDEN flags
