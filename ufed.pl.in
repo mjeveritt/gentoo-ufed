@@ -45,7 +45,7 @@ sub finalise {
 	return @result;
 }
 
-# Launch the curses inteface. Communication is done using
+# Launch the curses interface. Communication is done using
 # pipes. Waiting for pipe read/write to finish is done
 # automatically.
 # No parameters accepted.
