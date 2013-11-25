@@ -941,9 +941,20 @@ sub _read_sh {
 	my $BLANK = qr{(?:[ \n\t]+|#.*)+};         # whitespace and comments
 	my $IDENT = qr{([^ \\\n\t'"{}=#]+)};       # identifiers
 	my $ASSIG = qr{=};                         # assignment operator
-	my $UQVAL = qr{((?:[^ \\\n\t'"#]+|\\.)+)}s;# unquoted value
-	my $SQVAL = qr{'([^']*)'};                 # singlequoted value
-	my $DQVAL = qr{"((?:[^\\"]|\\.)*)"}s;      # doublequoted value
+	my $UQVAL = qr{((?:          # guard to extend the character limit
+		[^ \\\n\t'"#]{1,32766} | # max 32766 of regular characters or
+		\\.                      # one escaped character
+		){1,32766}               # extend by 32766 sub matches
+	)}sx;                                      # unquoted value
+	my $SQVAL = qr{'((?:         # guard to extend the character limit
+		[^']{0,32766}            # 0 to 32766 characters ...
+		){0,32766}               # ... up to 32766 times
+	)'}x;                                      # singlequoted value
+	my $DQVAL = qr{"((?:         # guard to extend the character limit
+		[^\\"]{0,32766}        | # max 32766 non-escaped characters or
+		\\.                      # one escaped character
+		){0,32766}               # extend by up to 32766 sub matches
+	)"}sx;                                     # doublequoted value
 
 	my %env;
 	if(open my $file, '<', $fname) {
@@ -957,7 +968,7 @@ sub _read_sh {
 				my $name = $1;
 				/\G$BLANK/gc;
 				if($name ne 'source') {
-				/\G$ASSIG/gc or die "Bare keyword $name detected.";
+				/\G$ASSIG/gc or die "Bare keyword $name (pos " . pos . ") detected.";
 				/\G$BLANK/gc;
 				}
 				pos == length and die "Bumped into unexpected EOF after $name.";
