@@ -17,4 +17,6 @@ ufed
 ufed-curses
 testflags.txt
 ufed.8
-0.90_get_portdir_from_portageq.patch.gz
+patches/
+*.tar.bz2
+ufed-?.*/
