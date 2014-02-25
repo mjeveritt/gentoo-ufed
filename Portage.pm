@@ -224,7 +224,7 @@ sub _add_flag
 			my $POST   = "(?:in|for|the|on|with|a|to)?";
 			$descr_alt =~ s/^$VERB\s*$BIND\s*$WHAT\s*$POST\s*$POST\s+//mig;
 			
-			debugMsg("   \"$descr\"\n-> \"$descr_alt\"");
+			debugMsg("$flag : [$pkg]\n   \"$descr\"\n-> \"$descr_alt\"");
 		}
 
 		$data{descr}     = $descr;
