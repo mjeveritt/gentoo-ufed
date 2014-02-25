@@ -386,22 +386,28 @@ sub _determine_make_conf
 }
 
 
-# read /etc/make.profile and /etc/portage/make.profile and
-# analyze the complete profile tree using the found parent
-# files. Add all found paths to @profiles.
+# read /etc/make.profile and /etc/portage/make.profile and analyze the complete
+# profile tree using the found parent files. Add all found paths to @profiles.
+
 # No parameters accepted.
 sub _determine_profiles
 {
-	my $mp = readlink "${_EPREFIX}/etc/portage/make.profile";
-	defined($mp)
-		or $mp = readlink "${_EPREFIX}/etc/make.profile";
+	my $mp_path = "${_EPREFIX}/etc/portage/make.profile";
+	-e $mp_path or $mp_path = "${_EPREFIX}/etc/make.profile";
+	
+	-e $mp_path
+		or die("make.profile can not be found");
 
-	# make.profile is mandatory and must be a link
+	my $mp = undef;
+	   (-l $mp_path and $mp = readlink $mp_path)
+	or (-d $mp_path and $mp = $mp_path);
+	
+	# make.profile is mandatory and must be a link or directory
 	defined($mp)
-		or die "${_EPREFIX}/etc\{,/portage\}/make.profile is not a symlink\n";
+		or die "$mp_path is neither symlink nor directory\n";
 
-	# Start with the linked path, it is the deepest profile child.
-	@_profiles = _norm_path('/etc', $mp);
+	# Start with the found path, it is the deepest profile child.
+	@_profiles = -l $mp_path ? _norm_path('/etc', $mp) : $mp;
 	for (my $i = -1; $i >= -@_profiles; $i--) {
 		for(_noncomments("${_profiles[$i]}/parent")) {
 			splice(@_profiles, $i, 0, _norm_path(${_profiles[$i]}, $_));
