@@ -1,6 +1,6 @@
 package Portage;
 
-# Copyright 1999-2013 Gentoo Foundation
+# Copyright 1999-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
@@ -20,13 +20,20 @@ BEGIN {
 
 # Set this to 1 to get debugging output
 use constant { DEBUG => 0 };
+## Note: Although use constant is deprecated as of page 55 of PBP
+# [ValuesAndExpressions::ProhibitConstantPragma] and should be replaced by
+# ReadOnly, I do not see any gain in adding a dependency to dev-perl/Readonly
+# just for one value that is used when debugging only. - sed
+
 
 # $use_flags - hashref that represents the combined and
 # consolidated data about all valid use flags
 # Layout of $use_flags->{flag_name}:
 # {count}  = number of different description lines
-#  Note: +1 for the list of affected packages, and +1 for each descriptionless package with settings differing from global.
-# {global} = hashref for the global paramters if the flag has a description in use.desc, otherwise undefined
+#  Note: +1 for the list of affected packages, and +1 for each descriptionless
+#        package with settings differing from global.
+# {global} = hashref for the global paramters if the flag has a description in
+#            use.desc, otherwise undefined
 #   ->{conf}      = The flag is disabled (-1), enabled (1) or not set (0) in make.conf
 #   ->{default}   = The flag is disabled (-1), enabled (1) or not set (0) by default
 #   ->{descr}     = Global description
@@ -34,16 +41,24 @@ use constant { DEBUG => 0 };
 #   ->{forced}    = The flag is globally force enabled (and masked) (0,1)
 #   ->{installed} = At least one affected package is installed (0,1)
 #   ->{masked}    = The flag is globally masked (0,1)
-#     Note: When a flag is forced, {masked} is set to one, but can be reset to 0 by any later use.mask file.
+#     Note: When a flag is forced, {masked} is set to one, but can be reset to
+#           0 by any later use.mask file.
 # {"local"}->{package} = hashref for per package settings
-#   ->{descr}     = Description from use.local.desc or empty if there is no individual description
-#     Note: Packages without description are only listed here if their settings differ from the global
-#   ->{forced}    = The flag is explicitly unforced (-1), default (0) or explicitly force enabled (1) for this package
+#   ->{descr}     = Description from use.local.desc or empty if there is no
+#                   individual description.
+#     Note: Packages without description are only listed here if their settings
+#           differ from the global.
+#   ->{forced}    = The flag is explicitly unforced (-1), default (0) or
+#                   explicitly force enabled (1) for this package
 #   ->{installed} = This package is installed
-#   ->{masked}    = The flag is explicitly unmasked (-1), default (0) or masked (1) for this package
-#   ->{package}   = The flag is explicitly disabled (-1), default (0) or enabled (1) for this package by (profiles)/package.use
-#   ->{pkguse}    = The flag is explicitly disabled (-1), default (0) or enabled(1) for this package by /etc/portage/package.use
-#     Note: This is a combination of the ebuilds IUSE and the installation PKGUSE and only set for installed packages.
+#   ->{masked}    = The flag is explicitly unmasked (-1), default (0) or
+#                   masked (1) for this package
+#   ->{package}   = The flag is explicitly disabled (-1), default (0) or
+#                   enabled (1) for this package by (profiles)/package.use
+#   ->{pkguse}    = The flag is explicitly disabled (-1), default (0) or
+#                   enabled(1) for this package by /etc/portage/package.use
+#     Note: This is a combination of the ebuilds IUSE and the installation
+#           PKGUSE and only set for installed packages.
 our $use_flags;
 
 # $used_make_conf - path of the used make.conf
@@ -64,23 +79,28 @@ my @_profiles        = ();
 my %_use_eh_safe     = (); ## USE_EXPAND_HIDDEN safe hash. See _read_make_defaults()
 my %_use_order       = ();
 
-# $_use_temp - hashref that represents the current state of
-# all known flags. This is for data gathering, the public
-# $use_flags is generated out of this by _gen_use_flags()
+# $_use_temp - hashref that represents the current state of all known flags.
+# This is for data gathering, the public $use_flags is generated out of this
+# by _gen_use_flags().
 # Layout of $_use_temp->{flag_name}:
 # {global}  = conf hash for global settings
 # {"local"}-> {package} = conf hash for per package settings
 # global and per package settings:
 # ->{conf}      Is either disabled, left alone or enabled by make.conf (-1, 0, 1)
-# ->{default}   Is either disabled, left alone or enabled by make.defaults (-1, 0, 1) (global) or installed packages IUSE (local)
-# ->{descr}     Description from use.desc ({global}) or use.local.desc {cat/pkg} (string)
+# ->{default}   Is either disabled, left alone or enabled by make.defaults
+#               (-1, 0, 1) (global) or installed packages IUSE (local)
+# ->{descr}     Description from use.desc ({global}) or use.local.desc {cat/pkg}
 # ->{forced}    Is force enabled (implies {masked}=1) in any *use.force
-#               For packages this is only set to -1 (explicitly unforced) or +1 (explicitly forced). 0 means "left alone".
-# ->{installed} Has one installed package ({global}) or is installed {cat/pkg} (0,1)
+#               For packages this is only set to -1 (explicitly unforced) or
+#               +1 (explicitly forced). 0 means "left alone".
+# ->{installed} Has one installed package ({global}) or is installed {cat/pkg}
 # ->{masked}    Is masked by any *use.mask (0,1)
-#               For packages this is only set to -1 (explicitly unmasked) or +1 (explicitly masked). 0 means "left alone".
-# ->{package}   Is either disabled, left alone or enabled by the profiles package.use files
-# ->{pkguse}    Is either disabled, left alone or enabled by the users package.use file
+#               For packages this is only set to -1 (explicitly unmasked) or +1
+#               (explicitly masked). 0 means "left alone".
+# ->{package}   Is either disabled, left alone or enabled by the profiles
+#               package.use files
+# ->{pkguse}    Is either disabled, left alone or enabled by the users
+#               package.use file
 
 my $_use_temp = undef;
 my $_use_template = {
@@ -391,9 +411,8 @@ sub _determine_profiles
 }
 
 
-# This method does a final cleanup of $_use_temp
-# Everything that is to be done _after_ all
-# configs are parsed goes in here.
+# This method does a final cleanup of $_use_temp.
+# Everything that is to be done _after_ all configs are parsed goes in here.
 # No parameters accepted
 sub _final_cleaning
 {
@@ -423,14 +442,13 @@ sub _final_cleaning
 
 
 # This function fixes two aspects of the temporary flag hash:
-# A) The {"default"} flag settings of packages might have to be
-#    overridden by the {"global"} ones.
+# A) The {"default"} flag settings of packages might have to be overridden by
+#    the {"global"} ones.
 #    (see USE_ORDER in man make.conf)
-# B) All flags that are specific to explicit versioning have no
-#    descriptions yet. This must be enriched from the versionless
-#    package setting.
-# C) Further flags that have no proper description get the
-#    string "(Unknown)" as a description
+# B) All flags that are specific to explicit versioning have no descriptions
+#    yet. This must be enriched from the versionless package setting.
+# C) Further flags that have no proper description get the string "(Unknown)"
+#    as a description
 sub _fix_flags
 {
 	for my $flag (keys %{$_use_temp}) {
@@ -448,7 +466,7 @@ sub _fix_flags
 				$gDefault = $globRef->{"default"};
 			} elsif ( $globRef->{conf}
 				   || $globRef->{"default"}
-				   || $globRef->{forcded}
+				   || $globRef->{forced}
 				   || $globRef->{masked} ) {
 			    ## The flag is definitely set somewhere
 			    $globRef->{descr} = $gDesc;
@@ -486,9 +504,8 @@ sub _fix_flags
 			}
 		} ## End of looping packages
 
-		# Finally remove the global description if it is
-		# (Unknown) with at least one local representation
-		# present.
+		# Finally remove the global description if it is (Unknown) with at
+		# least one local representation present.
 		if ($hasLocal && ("(Unknown)" eq $gDesc)) {
 			$globRef->{descr} = "";
 		}
@@ -498,8 +515,7 @@ sub _fix_flags
 }
 
 
-# Once $_use_temp  is ready, this method builds
-# the final $use_flags hashref.
+# Once $_use_temp  is ready, this method builds the final $use_flags hashref.
 # No parameters accepted
 sub _gen_use_flags
 {
@@ -721,8 +737,8 @@ sub _norm_path {
 }
 
 
-# reads all found arch.list and erase all found archs
-# from $_use_temp. Archs are not setable.
+# reads all found arch.list and erase all found archs from $_use_temp. Archs
+# are not setable.
 # No parameters accepted
 sub _read_archs {
 	for my $dir(@_profiles) {
@@ -736,8 +752,7 @@ sub _read_archs {
 }
 
 
-# reads all use.desc and use.local.desc and updates
-# $_use_temp accordingly.
+# reads all use.desc and use.local.desc and updates $_use_temp accordingly.
 # No parameters accepted
 sub _read_descriptions
 {
@@ -768,17 +783,13 @@ sub _read_descriptions
 }
 
 
-# read make.conf and record the state of all set use
-# flags.
-# Additionally add all set portage directories (plus
-# overlays) to @_profiles.
-# The last added profile directory, if it exists, is
-# /etc/portage/profile to allow recognition of user
-# overrides.
-# If either of the make.conf paths is a directory, all
-# files are read in alphanumerical order. The file
-# changes are written to will be the last file that
-# contains a USE assignement.
+# read make.conf and record the state of all set use flags.
+# Additionally add all set portage directories (plus overlays) to @_profiles.
+# The last added profile directory, if it exists, is /etc/portage/profile to
+# allow recognition of user overrides.
+# If either of the make.conf paths is a directory, all files are read in
+# alphanumerical order. The file changes are written to will be the last file
+# that contains a USE assignement.
 # No parameters accepted.
 sub _read_make_conf {
 	my ($stOldPath, $stNewPath) = (	"${_EPREFIX}/etc/make.conf",
@@ -876,9 +887,8 @@ sub _read_make_defaults {
 }
 
 
-# read all found make.globals and merge their
-# settings into %environment. This is done to
-# get the final "PORTDIR" and "USE_ORDER"
+# read all found make.globals and merge their settings into %environment. This
+# is done to get the final "PORTDIR" and "USE_ORDER"
 # No parameters accepted
 sub _read_make_globals {
 	for my $dir(@_profiles, "${_EPREFIX}/usr/share/portage/config") {
@@ -888,8 +898,8 @@ sub _read_make_globals {
 }
 
 
-# read all found package.use files and merge their values into
-# env, adding flag parameters to $_use_tmp.
+# read all found package.use files and merge their values into env, adding flag
+# parameters to $_use_tmp.
 # No parameters accepted.
 sub _read_package_use
 {
@@ -917,10 +927,9 @@ sub _read_package_use
 }
 
 
-# Analyze EPREFIX/var/db/pkg and analyze all installed
-# packages. The contents of the file IUSE are used to
-# enrich the information of the {default} part and to
-# determine which packages are installed.
+# Analyze EPREFIX/var/db/pkg and analyze all installed packages. The contents
+# of the file IUSE are used to enrich the information of the {default} part and
+# to determine which packages are installed.
 sub _read_packages {
 	my $pkgdir = undef;
 	opendir($pkgdir, "${_EPREFIX}/var/db/pkg")
@@ -972,9 +981,8 @@ sub _read_packages {
 
 
 # reads the given file and parses it for key=value pairs.
-# "source" entries are added to the file and parsed as
-# well. The results of the parsing are merged into
-# %environment.
+# "source" entries are added to the file and parsed as well. The results of the
+# parsing are merged into %environment.
 # Parameter 1: The path of the file to parse.
 # In a non-scalar context the function returns the found values.
 sub _read_sh {
@@ -1060,9 +1068,8 @@ sub _read_sh {
 }
 
 
-# read all enforced flags from all found use.force
-# and package.use.force files. Save the found
-# masks in %use_flags.
+# read all enforced flags from all found use.force and package.use.force files.
+# Save the found masks in %use_flags.
 # No parameters accepted.
 sub _read_use_force {
 	for my $dir(@_profiles) {
@@ -1103,9 +1110,8 @@ sub _read_use_force {
 }
 
 
-# read all masked flags from all found use.mask
-# and package.use.mask files. Save the found
-# masks in %use_flags.
+# read all masked flags from all found use.mask and package.use.mask files.
+# Save the found masks in %use_flags.
 # No parameters accepted.
 sub _read_use_mask {
 	for my $dir(@_profiles) {
