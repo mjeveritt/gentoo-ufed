@@ -93,6 +93,8 @@ my $_use_template = {
 	"package" => 0,
 	pkguse    => 0
 };
+my $_has_eix = 0; # Set to 1 by INIT if eix can be found.
+my $_eix_cmd = "";
 
 # --- public methods ---
 sub debugMsg;
@@ -126,6 +128,15 @@ sub _remove_expands;
 # --- Package initialization ---
 INIT {
 	$_environment{$_} = {} for qw{USE USE_EXPAND USE_EXPAND_HIDDEN};
+	
+	# See if eix is available
+	$_eix_cmd = qx{which eix 2>/dev/null};
+	defined($_eix_cmd)
+        and chomp $_eix_cmd
+        and -x $_eix_cmd
+        and $_has_eix = 1;
+	
+	# Initialize basics
 	_determine_eprefix_portdir;
 	_determine_make_conf;
 	_determine_profiles;
@@ -264,34 +275,57 @@ sub _add_temp
 }
 
 
-# Determine the values for EPREFIX, PORTDIR
-# and PORTDIR_OVERLAY. These are saved in
-# $_EPREFIX, $_PORTDIR and $_PORTDIR_OVERLAY.
-# This is done using 'portageq'.
-# Other output from portageq is printed on
-# STDERR.
+# Determine the values for EPREFIX, PORTDIR and PORTDIR_OVERLAY. These are
+# saved in $_EPREFIX, $_PORTDIR and $_PORTDIR_OVERLAY.
+# This is done using 'eix' with 'portageq' as a fallback.
+# Other output from portageq is printed on STDERR.
 # No parameters accepted.
 sub _determine_eprefix_portdir {
 	my $tmp = "/tmp/ufed_$$.tmp";
-	my @res = map {
-		my $x = $_;
-		chomp $x;
-		$x =~ s/'//g;
-		$x
-	} qx{portageq envvar -v EPREFIX PORTDIR PORTDIR_OVERLAY 2>$tmp};
-	
-	while (my $res = shift @res) {
-		if ($res =~ /^(.*)=(.*)$/) {
-			"EPREFIX"         eq $1 and $_EPREFIX         = $2;
-			"PORTDIR"         eq $1 and $_PORTDIR         = $2;
-			"PORTDIR_OVERLAY" eq $1 and $_PORTDIR_OVERLAY = $2;
-		}
-		debugMsg("EPREFIX='${_EPREFIX}'");
-		debugMsg("PORTDIR='${_PORTDIR}'");
-		debugMsg("PORTDIR_OVERLAY='${_PORTDIR_OVERLAY}'");
-	}
-	die "Couldn't determine EPREFIX and PORTDIR from Portage" if $? != 0;
 
+	$_EPREFIX = qx{portageq envvar EPREFIX 2>$tmp};
+	defined($_EPREFIX) and chomp $_EPREFIX or $_EPREFIX="";
+	
+	# Prefer eix over portageq if it is available
+	if ($_has_eix) {
+		debugMsg("Using eix...");
+		
+		local $ENV{PRINT_APPEND}='';
+		$_PORTDIR         = qx{$_eix_cmd --print PORTDIR 2>>$tmp};
+		$_PORTDIR_OVERLAY = qx{$_eix_cmd --print PORTDIR_OVERLAY 2>>$tmp};
+		
+		# eix ends PORTDIR with a slash that must be removed
+		$_PORTDIR =~ s,/+$,,;
+	} else {
+		debugMsg("Using portageq fallback...");
+
+		my $eroot = qx{portageq envvar EROOT 2>>$tmp};
+		defined($eroot) and chomp $eroot or $eroot="/";
+		
+		# Remove 'gentoo', this is PORTDIR, the others are PORTDIR_OVERLAY.
+		my $repos = join(' ', map {
+			my $x = $_;
+			$x =~ s/^gentoo$//;
+			$x
+		} split(' ', qx{portageq get_repos $eroot 2>>$tmp}) );
+		chomp $repos;
+		
+		# Now the paths can be determined:
+		$_PORTDIR         = qx{portageq get_repo_path $eroot gentoo 2>>$tmp};
+		$_PORTDIR_OVERLAY = join(' ', map {
+			my $x = $_;
+			$x =~ s/^\s*(\S+)\s*$/$1/mg;
+			$x
+		} split('\n', qx{portageq get_repo_path $eroot $repos 2>>$tmp} ));
+		defined($_PORTDIR) and chomp $_PORTDIR;
+		defined($_PORTDIR_OVERLAY) and chomp $_PORTDIR_OVERLAY;
+	}
+	
+	debugMsg("EPREFIX='${_EPREFIX}'");
+	debugMsg("PORTDIR='${_PORTDIR}'");
+	debugMsg("PORTDIR_OVERLAY='${_PORTDIR_OVERLAY}'");
+
+	# Print error messages if any:
 	if ( -s $tmp ) {
 		if (open (my $fTmp, "<", $tmp)) {
 			print STDERR "$_" while (<$fTmp>);
@@ -299,6 +333,13 @@ sub _determine_eprefix_portdir {
 		}
 	}
 	-e $tmp and unlink $tmp;
+
+	# Die unless this is sane
+	defined($_EPREFIX)
+		and defined($_PORTDIR)
+		and length($_PORTDIR)
+		and defined($_PORTDIR_OVERLAY)
+		 or die "\nCouldn't determine EPREFIX and PORTDIR from Portage\n";
 
 	return;
 }
