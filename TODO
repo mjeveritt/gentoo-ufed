@@ -9,7 +9,6 @@ When a feature is officially released (no rc-ebuild!), it is removed.
 --- TODO ---
 ------------
 These are mandatory for the next release cycle:
-- ufed must not error out when USE in make.conf is exceptionally large. 
 
 These are planned:
 - Add package filter per command line argument
@@ -24,7 +23,8 @@ These ideas for the (far far away) future
 ------------
 --- DONE ---
 ------------
-These have been finished
+These have been finished :
+
 - (0.90) Add Filter local/global.
 - (0.90) Add Filter installed/all.
 - (0.90) Add parsing of /etc/make.profile/package.use for command line
@@ -51,6 +51,11 @@ These have been finished
 - (0.90) Handle setups where /etc/portage/make.conf is a directory.
 - (0.90) Read PORTDIR and PORTDIR_OVERLAY from portageq, too.
 - (0.90) Make searching and cursor placement reliable.
+
 - (0.91) Add line wrapping.
 - (0.91) Make key help buttons dynamic (text, placement and width).
 - (0.91) Replace status indicator with dynamic status line.
+- (0.91) ufed does not error out when USE in make.conf is exceptionally large.
+- (0.91) The deprecated 'portageq envvar' is no longer used for to determine
+         PORTDIR and PORTDIR_OVERLAY, eix is used if available and portageq
+         with the get_repo(s|_path) command as a fallback.
