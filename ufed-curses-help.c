@@ -120,7 +120,9 @@ static void init_lines(void)
 "",
 "ufed will present you with a list of descriptions for each USE flag. If a "
 "description is too long to fit on your screen, you can use the Left and Right "
-"arrow keys to scroll the descriptions.",
+"arrow keys to scroll the descriptions. Alternatively you can change the "
+"description to show a reduced variant using the F10 key, or change the "
+"display to wrap long lines into multiple lines using the F11 key.",
 "",
 "Use the Up and Down arrow keys, the Page Up and Page Down keys, the Home and "
 "End keys, or start typing the name of a flag to select it.",
@@ -147,6 +149,8 @@ static void init_lines(void)
 "",
 " F10: Toggle whether to display the full description or a stripped version.",
 "",
+" F11: Enable / disable wrapping of long lines.",
+"",
 "The stripped version has various wordings like \"Enables support for\" or "
 "\"Build and install the\" at the beginning of the description removed.",
 "Although somewhat crippled, the descriptions key information then needs "
@@ -154,13 +158,13 @@ static void init_lines(void)
 "description, to determine a flags meaning without scrolling the text in most "
 "cases; even on low resolution displays.",
 "",
-"The default is to display the full description preceeded by the list of "
+"The default is to display the full description preceded by the list of "
 "affected packages.",
 "",
 "Below the list of descriptions an indicator line is displayed that shows the "
 "current setting of all filters and settings.",
 "The order and layout is:",
-"[Scope|State|Mask|Order|Description] with",
+"[Scope|State|Mask|Order|Description|Wrapping] with",
 "Scope:",
 "  glob : Global USE flags are shown.",
 "  loca : Local USE flags are shown.",
@@ -179,6 +183,9 @@ static void init_lines(void)
 "Description:",
 "  orig : The original full description is shown.",
 "  stri : The stripped version of the description is shown.",
+"Wrapping:",
+"  long : The original one-line layout with horizontal scrolling.",
+"  wrap : Wrapped lines that do not need horizontal scrolling.",
 "",
 "If ncurses is installed with the \"gpm\" use flag enabled, you can use your "
 "mouse to navigate and to toggle the settings, too.",
@@ -246,7 +253,7 @@ static void init_lines(void)
 "file(s) and if it is a - then that flag was unset in that file(s).",
 "",
 "Flags marked as [+] or [-] will be saved in your make.conf when you leave "
-"the program with an Enter.",
+"the program by hitting the 'Enter' key",
 "",
 "You can change the order of the (packages) and the description with the F9 "
 "key.",
