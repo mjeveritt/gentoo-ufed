@@ -400,11 +400,16 @@ sub _determine_profiles
 
 	my $mp = undef;
 	   (-l $mp_path and $mp = readlink $mp_path)
-	or (-d $mp_path and $mp = $mp_path);
+	or (-d $mp_path and $mp = $mp_path)
+		# Be sure it is not a file either:
+	or (-f $mp_path and die(
+		  "\n$mp_path is a file.\n"
+		. " This is an odd setup.\n"
+		. " Please report this incident!\n"));
 	
 	# make.profile is mandatory and must be a link or directory
 	defined($mp)
-		or die "$mp_path is neither symlink nor directory\n";
+		or die("\n$mp_path is neither symlink nor directory\n");
 
 	# Start with the found path, it is the deepest profile child.
 	@_profiles = -l $mp_path ? _norm_path('/etc', $mp) : $mp;
