@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-# Copyright 1999-2013 Gentoo Foundation
+# Copyright 1999-2014 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 # $
 
@@ -11,6 +11,9 @@ use Portage;
 
 # 0 = normal, 1 = gdb, 2 = valgrind
 use constant { EXEC => 0 };
+# Note on PBP: Like Portage.pm one single value for debugging purposes is not
+#              enough to justify an additional dependency, so this stays being
+#              a (discouraged) constant.
 
 my $version = 'XX_PACKAGE_VERSION@';
 
@@ -30,8 +33,8 @@ flags_dialog;
 
 
 # Take a list and return it ordered the following way:
-# Put "-*" first, followed by enabling flags and put
-# disabling flags to the end.
+# Put "-*" first, followed by enabling flags and put disabling flags to the
+# end.
 # Parameters: list of flags
 sub finalise {
 	my @arg = @_;
@@ -45,9 +48,8 @@ sub finalise {
 	return @result;
 }
 
-# Launch the curses interface. Communication is done using
-# pipes. Waiting for pipe read/write to finish is done
-# automatically.
+# Launch the curses interface. Communication is done using pipes. Waiting for
+# pipe read/write to finish is done automatically.
 # No parameters accepted.
 sub flags_dialog {
 	use POSIX ();
@@ -165,8 +167,8 @@ sub flags_dialog {
 }
 
 
-# Write given list of flags back to make.conf if
-# the file has not been changed since reading it.
+# Write given list of flags back to make.conf if the file has not been changed
+# since reading it.
 # Parameters: list of flags
 sub save_flags {
 	my (@flags) = @_;
