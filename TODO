@@ -19,6 +19,8 @@ These ideas for the (far far away) future
   the tree (metadata.xml!) and store the findings in a database file. Parsing
   the tree like that is too much for each startup. Therefore such a db caching
   would enable ufed to be no longer restricted to the profiles and /var/db/pkg.
+- Once the sqlite support is added, supporting the editing of
+  /etc/portage/package.use can be added as well. I bet many would like that.
 
 ------------
 --- DONE ---
