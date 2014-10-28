@@ -705,19 +705,27 @@ sub _merge_env {
 }
 
 
-# returns a list of all lines of a given file
+# returns a list of all lines of a given file/dir
 # that are no pure comments
-# Parameter 1: filename
+# Parameter 1: filename/dirname
 sub _noncomments {
 	my ($fname) = @_;
-	my @result;
-	local $/;
-	if(open my $file, '<', $fname) {
-		binmode( $file, ":encoding(UTF-8)" );
-		@result = split /(?:[^\S\n]*(?:#.*)?\n)+/, <$file>."\n";
-		shift @result if @result>0 && $result[0] eq '';
-		close $file;
+	my @result  = ();
+
+	if(-d $fname) {
+		for my $i (_get_files_from_dir($fname)) {
+			(-f $i) && push @result, _noncomments($i);
+		}
+	} else {
+		local $/;
+		if(open my $file, '<', $fname) {
+			binmode( $file, ":encoding(UTF-8)" );
+			@result = split /(?:[^\S\n]*(?:#.*)?\n)+/, <$file>."\n";
+			shift @result if @result>0 && $result[0] eq '';
+			close $file;
+		}
 	}
+
 	return @result;
 }
 
