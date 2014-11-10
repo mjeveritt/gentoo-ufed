@@ -153,8 +153,11 @@ INIT {
 	$_eix_cmd = qx{which eix 2>/dev/null};
 	defined($_eix_cmd)
         and chomp $_eix_cmd
+        and length($_eix_cmd)
         and -x $_eix_cmd
-        and $_has_eix = 1;
+        and $_has_eix = 1
+        and debugMsg("Found eix in \"$_eix_cmd\"")
+         or $_has_eix = 0;
 	
 	# Initialize basics
 	_determine_eprefix_portdir;
@@ -211,9 +214,9 @@ INIT {
 sub debugMsg
 {
 	my ($msg) = @_;
-	DEBUG or return;
+	DEBUG or return 1;
 	print STDERR "$msg\n";
-	return;
+	return 1;
 }
 
 # --- private methods implementations ---
