@@ -418,7 +418,8 @@ sub _determine_profiles
 	@_profiles = -l $mp_path ? _norm_path('/etc', $mp) : $mp;
 	for (my $i = -1; $i >= -@_profiles; $i--) {
 		for(_noncomments("${_profiles[$i]}/parent")) {
-			splice(@_profiles, $i, 0, _norm_path(${_profiles[$i]}, $_));
+			length($_)
+				and splice(@_profiles, $i, 0, _norm_path(${_profiles[$i]}, $_));
 		}
 	}
 	return;
@@ -723,9 +724,10 @@ sub _noncomments {
 		local $/;
 		if(open my $file, '<', $fname) {
 			binmode( $file, ":encoding(UTF-8)" );
-			@result = split /(?:[^\S\n]*(?:#.*)?\n)+/, <$file>."\n";
-			shift @result if @result>0 && $result[0] eq '';
+			my $content = <$file> || "";
 			close $file;
+			@result = split /(?:[^\S\n]*(?:#.*)?\n)+/, "$content\n";
+			shift @result while ( (@result > 0) && !length($result[0]) );
 		}
 	}
 
@@ -766,7 +768,8 @@ sub _read_archs {
 	for my $dir(@_profiles) {
 		next unless (-r "$dir/arch.list");
 		for my $arch (_noncomments("$dir/arch.list")) {
-			defined($_use_temp->{$arch})
+			length($arch)
+				and defined($_use_temp->{$arch})
 				and delete($_use_temp->{$arch});
 		}
 	}
