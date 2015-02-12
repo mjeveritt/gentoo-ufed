@@ -431,19 +431,19 @@ sub _determine_profiles
 # No parameters accepted
 sub _final_cleaning
 {
-	# The "disable all" flag is truncated to '*' by the parsing, but it
-	# has to read '-*'.
+	# The "disable all" flag is truncated to '*' by the parsing, but
+	# it has to read '-*'.
 	_add_temp("-*", "global");
 
 	$_use_temp->{'-*'}{global}{descr} = "{Never enable any flags other than those specified in make.conf}";
 	$_use_temp->{'-*'}{global}{conf} = 0; ## Can never be -1
-	
+
 	# Set it from the truncated config:
 	if (defined($_use_temp->{'*'}{global})) {
-		$_use_temp->{'*'}{global}{conf} > 0
+		$_use_temp->{'*'}{global}{conf} > -1
 			and $_use_temp->{'-*'}{global}{conf} = 1;
 	}
-	
+
 	# The following use flags are dangerous or internal only
 	# and must no be available using ufed:
 	defined($_use_temp->{"*"})         and delete($_use_temp->{"*"});
@@ -863,7 +863,9 @@ sub _read_make_conf {
 
 		$oldEnv{USE}{$flag}
 			and $_use_temp->{$flag}{global}{conf} = 1
-			or  $_use_temp->{$flag}{global}{conf} = -1;
+			 or $flag eq '*'
+			and $_use_temp->{$flag}{global}{conf} = 1
+			 or $_use_temp->{$flag}{global}{conf} = -1;
 	}
 	
 	# Add PORTDIR and overlays to @_profiles
