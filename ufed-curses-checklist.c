@@ -27,7 +27,7 @@ static void setFlagWrapDraw(sFlag* flag, int index, sWrap** wrap, size_t* pos, s
 
 
 /* static functions */
-static char *getline(FILE *fp)
+static char *get_line(FILE *fp)
 {
 	static size_t size = LINE_MAX;
 
@@ -101,7 +101,7 @@ static void read_flags(void)
 		ERROR_EXIT(-1, "fdopen failed with error %d\n", errno);
 	atexit(&free_flags);
 
-	for(line = getline(input); line ; line = getline(input)) {
+	for(line = get_line(input); line ; line = get_line(input)) {
 		name.start  = name.end  = -1;
 		state.start = state.end = -1;
 
@@ -135,7 +135,7 @@ static void read_flags(void)
 			pkg.start      = pkg.end      = -1;
 			state.start    = state.end    = -1;
 
-			line = getline(input);
+			line = get_line(input);
 			if (!line) break;
 
 			if ( (sscanf(line, "\t%n%*[^\t]%n\t%n%*[^\t]%n\t (%n%*[^)]%n) [%n%*[ +-]%n%c",
