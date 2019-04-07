@@ -1,6 +1,6 @@
 AC_PREREQ([2.69])
 AC_INIT([ufed],[git],[https://bugs.gentoo.org/])
-AM_INIT_AUTOMAKE([foreign subdir-objects])
+AM_INIT_AUTOMAKE([1.14 -Wall foreign dist-bzip2 no-dist-gzip subdir-objects])
 AC_CONFIG_SRCDIR([ufed-curses.c])
 AC_CONFIG_HEADERS([config.h])
 
