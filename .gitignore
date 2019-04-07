@@ -20,3 +20,8 @@ ufed.8
 patches/
 *.tar.bz2
 ufed-?.*/
+config.h.in
+depcomp
+install-sh
+missing
+compile
