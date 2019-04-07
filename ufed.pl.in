@@ -22,7 +22,7 @@ my $gdb       = "gdb -ex run ufed-curses";
 my $memcheck  = "/usr/bin/valgrind -v --trace-children=yes --tool=memcheck"
               . " --track-origins=yes --leak-check=full --show-reachable=no"
               . " --read-var-info=yes"
-              . " XX_libexecdir@/ufed-curses 2>/tmp/ufed_memcheck.log";
+              . " XX_pkglibexecdir@/ufed-curses 2>/tmp/ufed_memcheck.log";
 
 sub finalise;
 sub flags_dialog;
@@ -67,7 +67,7 @@ sub flags_dialog {
 		POSIX::dup2 $owrite, 4;
 		POSIX::close $owrite;
 		if (0 == EXEC) {
-			exec { "XX_libexecdir@/$interface" } $interface or
+			exec { "XX_pkglibexecdir@/$interface" } $interface or
 			do { print STDERR "Couldn't launch $interface\n"; exit 3 }
 		} elsif (1 == EXEC) {
 			exec $gdb or

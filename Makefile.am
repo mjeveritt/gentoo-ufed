@@ -1,11 +1,10 @@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PERL = @PERL@
-libexecdir = @libdir@/@PACKAGE@
 perldir = @datadir@/@PACKAGE@
 E_PREFIX := $(shell portageq envvar EPREFIX 2>/dev/null)
 
 sbin_SCRIPTS = ufed
-libexec_PROGRAMS = ufed-curses
+pkglibexec_PROGRAMS = ufed-curses
 dist_perl_DATA = Portage.pm
 
 ufed_curses_SOURCES = \
@@ -32,7 +31,7 @@ ufed: ufed.pl.in
 	sed \
 		-e 's|XX_PACKAGE_VERSION[@]|$(PACKAGE_VERSION)|g' \
 		-e 's|XX_PERL[@]|$(PERL)|g' \
-		-e 's|XX_libexecdir[@]|$(libexecdir)|g' \
+		-e 's|XX_pkglibexecdir[@]|$(pkglibexecdir)|g' \
 		-e 's|XX_perldir[@]|$(perldir)|g' \
 		$< >$@.tmp
 	chmod +x $@.tmp
