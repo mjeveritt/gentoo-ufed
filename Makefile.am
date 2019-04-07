@@ -1,6 +1,4 @@
-PACKAGE_VERSION = @PACKAGE_VERSION@
-PERL = @PERL@
-perldir = @datadir@/@PACKAGE@
+perldir = $(pkgdatadir)
 E_PREFIX := $(shell portageq envvar EPREFIX 2>/dev/null)
 
 sbin_SCRIPTS = ufed
@@ -26,21 +24,23 @@ noinst_HEADERS = \
 dist_man_MANS = ufed.8
 EXTRA_DIST = ufed.pl.in ufed.8.in
 
-ufed: ufed.pl.in
-	rm -f $@.tmp
-	sed \
+ufed: $(top_srcdir)/ufed.pl.in
+	cd $(top_srcdir) && \
+	rm -f ufed.tmp && \
+	$(SED) \
 		-e 's|XX_PACKAGE_VERSION[@]|$(PACKAGE_VERSION)|g' \
 		-e 's|XX_PERL[@]|$(PERL)|g' \
 		-e 's|XX_pkglibexecdir[@]|$(pkglibexecdir)|g' \
 		-e 's|XX_perldir[@]|$(perldir)|g' \
-		$< >$@.tmp
-	chmod +x $@.tmp
-	mv $@.tmp $@
+		ufed.pl.in >ufed.tmp && \
+	chmod +x ufed.tmp && \
+	mv ufed.tmp ufed
 
-ufed.8: ufed.8.in
-	rm -f $@.tmp
-	sed \
+ufed.8: $(top_srcdir)/ufed.8.in
+	cd $(top_srcdir) && \
+	rm -f ufed.8.tmp && \
+	$(SED) \
 		-e 's|@GENTOO_PORTAGE_EPREFIX@|$(E_PREFIX)|g' \
-		$< >$@.tmp
-	chmod +x $@.tmp
-	mv $@.tmp $@
+		ufed.8.in >ufed.8.tmp && \
+	chmod +x ufed.8.tmp && \
+	mv ufed.8.tmp ufed.8

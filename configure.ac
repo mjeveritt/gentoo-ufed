@@ -1,23 +1,19 @@
-AC_PREREQ(2.68)
+AC_PREREQ([2.69])
 AC_INIT([ufed],[git],[https://bugs.gentoo.org/])
-AM_INIT_AUTOMAKE([foreign])
+AM_INIT_AUTOMAKE([foreign subdir-objects])
 AC_CONFIG_SRCDIR([ufed-curses.c])
 AC_CONFIG_HEADERS([config.h])
 
 AC_PROG_CC
 AC_PROG_CC_C99
-if test "$ac_cv_prog_cc_c99" != no
-then
-	CFLAGS="$CFLAGS -Wall -Wextra -pedantic"
-	CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600"
-else
-	AC_PROG_CC_C89
-	AC_C_INLINE
-	CFLAGS="$CFLAGS -Wall -W"
-	CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=500"
-fi
-CFLAGS="${CFLAGS} -Wmissing-prototypes -Wstrict-prototypes"
+AS_IF([test "x$ac_cv_prog_cc_c99" = "xno"], [
+	AC_MSG_ERROR([ufed requires a C99 capable compiler!])
+])
 
+CPPFLAGS="${CPPFLAGS} -D_XOPEN_SOURCE=600"
+CFLAGS="${CFLAGS} -Wall -Wextra -Wmissing-prototypes -Wstrict-prototypes -pedantic"
+
+AC_PROG_SED
 PKG_PROG_PKG_CONFIG
 
 AC_TYPE_SIZE_T
