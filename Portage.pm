@@ -1055,7 +1055,7 @@ sub _read_sh {
 						$addvalue =~ s[
 							\\\n       | # backslash-newline
 							\\(.)      | # other escaped characters
-							\$({)?       # $
+							\$(\{)?      # $
 							$IDENT       # followed by an identifier
 							(?(2)})      # optionally enclosed in braces
 						][
