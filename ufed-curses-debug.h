@@ -19,7 +19,7 @@
 #  define ERROR_EXIT(code, fmt, ...) { \
 	cursesdone(); \
 	fprintf(stderr, "\nERROR in %s:%d (%s): \n -> ", \
-		__FILE__, __LINE__, __FUNCTION__); \
+		__FILE__, __LINE__, __func__); \
 	fprintf(stderr, fmt, __VA_ARGS__); \
 	exit(code); \
 }
@@ -30,7 +30,7 @@
 // DEBUG_TRACE -> TRACE macro
 #if defined(DEBUG_TRACE)
 # define TRACE { \
-	fprintf(stderr, "(TRACE) %s:%d - %s\n", __FILE__, __LINE__, __FUNCTION__); \
+	fprintf(stderr, "(TRACE) %s:%d - %s\n", __FILE__, __LINE__, __func__); \
 }
 #else
 # define TRACE
