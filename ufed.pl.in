@@ -109,9 +109,18 @@ sub flags_dialog {
 
 		# Finally print the local description lines
 		for my $pkg (sort keys %{$conf->{"local"}}) {
+			# ufed handles up to 2048 bytes long lines, but local descriptions can be as long
+			# as maintainers choose, so we have to do a bit more work here.
+			my $extra_len = length($pkg) + 18; # +One for the NULL-Byte
+			my $full_desc = $conf->{"local"}{$pkg}{descr};
+			my $alt_desc  = $conf->{"local"}{$pkg}{descr_alt};
+			my $full_max  = (2048 - $extra_len) / 3 * 2 - 19; # 19 is the length of the metadata hint
+			my $alt_max   = (2048 - $extra_len) / 3 - 1;
 			$outTxt .= sprintf("\t%s\t%s\t (%s) [ %s%s%s%s%s%s]\n",
-						$conf->{"local"}{$pkg}{descr},
-						$conf->{"local"}{$pkg}{descr_alt},
+						( length($full_desc) > $full_max
+						  ?  substr($full_desc, 0, $full_max) . " (See metadata.xml)"
+						  :         $full_desc ),
+						substr($alt_desc, 0, $alt_max),
 						$pkg,
 						$conf->{"local"}{$pkg}{installed} > 0 ? '+' :
 						$conf->{"local"}{$pkg}{installed} < 0 ? '-' : ' ',

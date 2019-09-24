@@ -25,3 +25,5 @@ depcomp
 install-sh
 missing
 compile
+ufed.workspace*
+cb/*
