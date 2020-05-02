@@ -938,7 +938,7 @@ sub _read_package_use
 			for my $flag (@flags) {
 				my $state = $flag =~ s/^-// || 0;
 
-				_add_temp($flag, "global");
+				_add_temp($flag, "local");
 				_add_temp($flag, $pkg);
 
 				if ($state) {
